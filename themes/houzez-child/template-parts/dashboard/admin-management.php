@@ -669,94 +669,96 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                 <?php elseif ( 'packages' === $current_section ) : ?>
                     <style>
                         .ipc-plan-form .ipc-field label{font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px}
-                        .ipc-plan-form .ipc-field input[type=text],.ipc-plan-form .ipc-field input[type=number],.ipc-plan-form .ipc-field select{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;font-size:14px;transition:border-color .15s,box-shadow .15s}
+                        .ipc-plan-form .ipc-field input[type=text],.ipc-plan-form .ipc-field input[type=number],.ipc-plan-form .ipc-field select{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;font-size:16px;transition:border-color .15s,box-shadow .15s}
                         .ipc-plan-form .ipc-field input:focus,.ipc-plan-form .ipc-field select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+                        .ipc-plan-form .ipc-field input:disabled{opacity:.5;background:#f1f5f9}
                         .ipc-plan-form .ipc-hint{color:#64748b;font-size:12px;margin:6px 0 0;line-height:1.4}
-                        .ipc-plan-form .ipc-card{border:1px solid #eef2f7;border-radius:16px;background:#fff;padding:18px}
-                        .ipc-plan-form .ipc-card-title{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px;display:flex;align-items:center;gap:8px}
-                        .ipc-plan-form .ipc-switch{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;cursor:pointer;transition:border-color .15s}
+                        .ipc-plan-form .ipc-card{border:1px solid #eef2f7;border-radius:16px;background:#fff;padding:14px}
+                        .ipc-plan-form .ipc-card-title{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+                        .ipc-plan-form .ipc-switch{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;cursor:pointer;transition:border-color .15s;font-size:13px;font-weight:600;color:#334155;flex-wrap:wrap}
                         .ipc-plan-form .ipc-switch:has(input:checked){border-color:#6366f1;background:#eef2ff}
-                        .ipc-plan-form .ipc-switch input{accent-color:#6366f1}
+                        .ipc-plan-form .ipc-switch input{accent-color:#6366f1;width:16px;height:16px;flex-shrink:0}
+                        .ipc-plan-form .ipc-switch small{font-weight:400;color:#64748b;font-size:12px}
+                        @media(min-width:768px){.ipc-plan-form .ipc-card{padding:18px}.ipc-plan-form .ipc-field input[type=text],.ipc-plan-form .ipc-field input[type=number],.ipc-plan-form .ipc-field select{font-size:14px}}
                     </style>
-                    <div class="ipc-plan-form space-y-5">
+                    <div class="ipc-plan-form space-y-4 md:space-y-5">
                         <!-- Grupo: Valores -->
                         <div class="ipc-card">
                             <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm">R$</span> <?php esc_html_e( 'Valores e limites', 'imovel-parceiro-core' ); ?></p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div class="ipc-field">
                                     <label for="imovel_admin_price"><?php esc_html_e( 'Preço', 'imovel-parceiro-core' ); ?></label>
                                     <input type="text" id="imovel_admin_price" name="imovel_admin_price" value="<?php echo esc_attr( $edit_meta['price'] ); ?>" placeholder="Ex.: 99.90" inputmode="decimal" />
-                                    <p class="ipc-hint"><?php esc_html_e( 'Use ponto como separador decimal. Deixe vazio para plano gratuito com preço zero.', 'imovel-parceiro-core' ); ?></p>
                                 </div>
                                 <div class="ipc-field">
-                                    <label for="imovel_admin_featured_listings"><?php esc_html_e( 'Anúncios destaque', 'imovel-parceiro-core' ); ?></label>
+                                    <label for="imovel_admin_featured_listings"><?php esc_html_e( 'Destaques', 'imovel-parceiro-core' ); ?></label>
                                     <input type="text" id="imovel_admin_featured_listings" name="imovel_admin_featured_listings" value="<?php echo esc_attr( $edit_meta['featured_listings'] ); ?>" placeholder="Ex.: 5" inputmode="numeric" />
-                                    <p class="ipc-hint"><?php esc_html_e( 'Quantidade de imóveis em destaque inclusa.', 'imovel-parceiro-core' ); ?></p>
                                 </div>
+                            </div>
+                            <p class="ipc-hint" style="margin-bottom:12px"><?php esc_html_e( 'Use ponto como separador decimal. Destaques = imóveis em destaque inclusos.', 'imovel-parceiro-core' ); ?></p>
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div class="ipc-field">
                                     <label for="imovel_admin_listings"><?php esc_html_e( 'Imóveis', 'imovel-parceiro-core' ); ?></label>
                                     <input type="text" id="imovel_admin_listings" name="imovel_admin_listings" value="<?php echo esc_attr( $edit_meta['listings'] ); ?>" placeholder="Ex.: 20" inputmode="numeric" <?php echo ! empty( $edit_meta['unlimited_listings'] ) && '1' === (string) $edit_meta['unlimited_listings'] ? 'disabled' : ''; ?> />
-                                    <label class="ipc-switch mt-2" style="padding:8px 12px">
-                                        <input type="checkbox" name="imovel_admin_unlimited_listings" value="1" <?php checked( $edit_meta['unlimited_listings'], '1' ); ?> onchange="this.closest('.ipc-field').querySelector('#imovel_admin_listings').disabled=this.checked" />
-                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Imóveis ilimitados', 'imovel-parceiro-core' ); ?></span>
-                                        <span style="font-size:12px;color:#64748b;margin-left:auto"><?php esc_html_e( 'nativo Houzez: fave_unlimited_listings', 'imovel-parceiro-core' ); ?></span>
-                                    </label>
                                 </div>
                                 <div class="ipc-field">
-                                    <label for="imovel_admin_images"><?php esc_html_e( 'Imagens por imóvel', 'imovel-parceiro-core' ); ?></label>
+                                    <label for="imovel_admin_images"><?php esc_html_e( 'Imagens / imóvel', 'imovel-parceiro-core' ); ?></label>
                                     <input type="text" id="imovel_admin_images" name="imovel_admin_images" value="<?php echo esc_attr( $edit_meta['images'] ); ?>" placeholder="Ex.: 15" inputmode="numeric" <?php echo ! empty( $edit_meta['unlimited_images'] ) && '1' === (string) $edit_meta['unlimited_images'] ? 'disabled' : ''; ?> />
-                                    <label class="ipc-switch mt-2" style="padding:8px 12px">
-                                        <input type="checkbox" name="imovel_admin_unlimited_images" value="1" <?php checked( $edit_meta['unlimited_images'], '1' ); ?> onchange="this.closest('.ipc-field').querySelector('#imovel_admin_images').disabled=this.checked" />
-                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Imagens ilimitadas', 'imovel-parceiro-core' ); ?></span>
-                                        <span style="font-size:12px;color:#64748b;margin-left:auto"><?php esc_html_e( 'nativo Houzez: fave_unlimited_images', 'imovel-parceiro-core' ); ?></span>
-                                    </label>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4 mt-3">
+                                <label class="ipc-switch">
+                                    <input type="checkbox" name="imovel_admin_unlimited_listings" value="1" <?php checked( $edit_meta['unlimited_listings'], '1' ); ?> onchange="this.closest('.ipc-card').querySelector('#imovel_admin_listings').disabled=this.checked" />
+                                    <?php esc_html_e( 'Imóveis ilimitados', 'imovel-parceiro-core' ); ?>
+                                </label>
+                                <label class="ipc-switch">
+                                    <input type="checkbox" name="imovel_admin_unlimited_images" value="1" <?php checked( $edit_meta['unlimited_images'], '1' ); ?> onchange="this.closest('.ipc-card').querySelector('#imovel_admin_images').disabled=this.checked" />
+                                    <?php esc_html_e( 'Imagens ilimitadas', 'imovel-parceiro-core' ); ?>
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4 mt-3">
                                 <div class="ipc-field">
                                     <label for="imovel_admin_package_popular"><?php esc_html_e( 'É popular / destaque?', 'imovel-parceiro-core' ); ?></label>
                                     <select id="imovel_admin_package_popular" name="imovel_admin_package_popular">
                                         <option value="no" <?php selected( $edit_meta['popular'], 'no' ); ?>><?php esc_html_e( 'Não', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="yes" <?php selected( $edit_meta['popular'], 'yes' ); ?>><?php esc_html_e( 'Sim — destacar na listagem', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="yes" <?php selected( $edit_meta['popular'], 'yes' ); ?>><?php esc_html_e( 'Sim', 'imovel-parceiro-core' ); ?></option>
                                     </select>
-                                    <p class="ipc-hint"><?php esc_html_e( 'Exibe selo de destaque no card do plano.', 'imovel-parceiro-core' ); ?></p>
                                 </div>
                                 <div class="ipc-field">
                                     <label for="imovel_admin_package_visible"><?php esc_html_e( 'É visível?', 'imovel-parceiro-core' ); ?></label>
                                     <select id="imovel_admin_package_visible" name="imovel_admin_package_visible">
-                                        <option value="yes" <?php selected( $edit_meta['visible'], 'yes' ); ?>><?php esc_html_e( 'Sim — visível para contratação', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="no" <?php selected( $edit_meta['visible'], 'no' ); ?>><?php esc_html_e( 'Não — oculto', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="yes" <?php selected( $edit_meta['visible'], 'yes' ); ?>><?php esc_html_e( 'Sim', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="no" <?php selected( $edit_meta['visible'], 'no' ); ?>><?php esc_html_e( 'Não', 'imovel-parceiro-core' ); ?></option>
                                     </select>
-                                    <p class="ipc-hint"><?php esc_html_e( 'Controla fave_package_visible. Planos ocultos não aparecem no checkout.', 'imovel-parceiro-core' ); ?></p>
                                 </div>
                             </div>
+                            <p class="ipc-hint" style="margin-top:8px"><?php esc_html_e( 'Popular exibe selo de destaque. Oculto não aparece para contratação.', 'imovel-parceiro-core' ); ?></p>
                         </div>
 
                         <!-- Grupo: Cobrança e gratuidade -->
                         <div class="ipc-card" style="background:linear-gradient(180deg,#fff 0%,#f8fafc 100%)">
                             <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">◷</span> <?php esc_html_e( 'Cobrança e gratuidade', 'imovel-parceiro-core' ); ?></p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div class="ipc-field">
-                                    <label for="imovel_admin_billing_cycle"><?php esc_html_e( 'Frequência de cobrança', 'imovel-parceiro-core' ); ?></label>
+                                    <label for="imovel_admin_billing_cycle"><?php esc_html_e( 'Cobrança', 'imovel-parceiro-core' ); ?></label>
                                     <select id="imovel_admin_billing_cycle" name="imovel_admin_billing_cycle">
                                         <?php foreach ( Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::billing_cycles() as $cycle_key => $cycle ) : ?>
                                             <option value="<?php echo esc_attr( $cycle_key ); ?>" <?php selected( $edit_meta['billing_cycle'], $cycle_key ); ?>><?php echo esc_html( $cycle['label'] ); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <p class="ipc-hint"><?php esc_html_e( 'Ciclo usado no WooCommerce Subscriptions (sincroniza fave_billing_*).', 'imovel-parceiro-core' ); ?></p>
                                 </div>
                                 <div class="ipc-field">
-                                    <label for="imovel_admin_baseerp_id"><?php esc_html_e( 'ID do produto (BaseERP)', 'imovel-parceiro-core' ); ?></label>
-                                    <input type="number" min="0" id="imovel_admin_baseerp_id" name="imovel_admin_baseerp_id" value="<?php echo esc_attr( $edit_meta['baseerp_id'] ); ?>" placeholder="Ex.: 123" />
+                                    <label for="imovel_admin_baseerp_id"><?php esc_html_e( 'Código BaseERP', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="number" min="0" id="imovel_admin_baseerp_id" name="imovel_admin_baseerp_id" value="<?php echo esc_attr( $edit_meta['baseerp_id'] ); ?>" placeholder="<?php esc_attr_e( 'Digite o codigo do plano e atualize no baseERP', 'imovel-parceiro-core' ); ?>" />
                                 </div>
                             </div>
-                            <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                            <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:p-4">
                                 <label class="ipc-switch" style="background:#fff;border-color:#f59e0b">
                                     <input type="checkbox" name="imovel_admin_free_plan" value="1" <?php checked( $edit_meta['free_plan'] ); ?> onchange="document.getElementById('ipc-free-validity-row').style.display=this.checked?'grid':'none'" />
-                                    <span style="font-size:13px;font-weight:700;color:#92400e"><?php esc_html_e( 'Plano gratuito', 'imovel-parceiro-core' ); ?></span>
-                                    <span style="font-size:12px;color:#a16207;margin-left:auto"><?php esc_html_e( 'Quando ativo, preço vira R$ 0 e cria assinatura sem renovação.', 'imovel-parceiro-core' ); ?></span>
+                                    <span style="font-weight:700;color:#92400e"><?php esc_html_e( 'Plano gratuito', 'imovel-parceiro-core' ); ?></span>
                                 </label>
-                                <div id="ipc-free-validity-row" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" style="display:<?php echo ! empty( $edit_meta['free_plan'] ) ? 'grid' : 'none'; ?>">
+                                <p class="ipc-hint" style="margin:8px 0 0"><?php esc_html_e( 'Quando ativo, o preço vira R$ 0 e a assinatura é criada sem renovação.', 'imovel-parceiro-core' ); ?></p>
+                                <div id="ipc-free-validity-row" class="grid grid-cols-2 gap-3 sm:gap-4 mt-3" style="display:<?php echo ! empty( $edit_meta['free_plan'] ) ? 'grid' : 'none'; ?>">
                                     <div class="ipc-field">
                                         <label for="imovel_admin_free_validity_unit"><?php esc_html_e( 'Período do plano', 'imovel-parceiro-core' ); ?></label>
                                         <select id="imovel_admin_free_validity_unit" name="imovel_admin_free_validity_unit">
@@ -765,12 +767,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                             <option value="month" <?php selected( $edit_meta['free_validity_unit'], 'month' ); ?>><?php esc_html_e( 'Meses', 'imovel-parceiro-core' ); ?></option>
                                             <option value="year" <?php selected( $edit_meta['free_validity_unit'], 'year' ); ?>><?php esc_html_e( 'Anos', 'imovel-parceiro-core' ); ?></option>
                                         </select>
-                                        <p class="ipc-hint"><?php esc_html_e( 'Unidade da validade (nativo: _imovel_parceiro_free_validity_unit).', 'imovel-parceiro-core' ); ?></p>
                                     </div>
                                     <div class="ipc-field">
-                                        <label for="imovel_admin_free_validity"><?php esc_html_e( 'Validade do plano gratuito', 'imovel-parceiro-core' ); ?></label>
+                                        <label for="imovel_admin_free_validity"><?php esc_html_e( 'Validade', 'imovel-parceiro-core' ); ?></label>
                                         <input type="number" min="1" id="imovel_admin_free_validity" name="imovel_admin_free_validity" value="<?php echo esc_attr( $edit_meta['free_validity'] ); ?>" placeholder="Ex.: 30" />
-                                        <p class="ipc-hint"><?php esc_html_e( 'Número de períodos que o plano gratuito permanece ativo.', 'imovel-parceiro-core' ); ?></p>
                                     </div>
                                 </div>
                             </div>
@@ -780,11 +780,11 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : $ipc_allowed_roles = (array) $edit_meta['allowed_roles']; ?>
                         <div class="ipc-card">
                             <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center text-sm">◐</span> <?php esc_html_e( 'Visibilidade por tipo de conta', 'imovel-parceiro-core' ); ?></p>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="grid grid-cols-2 gap-2 sm:gap-3">
                                 <?php foreach ( Imovel_Parceiro_Package_Access::selectable_roles() as $ipc_role_key => $ipc_role_label ) : ?>
-                                    <label class="ipc-switch" style="padding:10px 12px">
+                                    <label class="ipc-switch">
                                         <input type="checkbox" name="imovel_admin_allowed_roles[]" value="<?php echo esc_attr( $ipc_role_key ); ?>" <?php checked( in_array( $ipc_role_key, $ipc_allowed_roles, true ) ); ?> />
-                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php echo esc_html( $ipc_role_label ); ?></span>
+                                        <?php echo esc_html( $ipc_role_label ); ?>
                                     </label>
                                 <?php endforeach; ?>
                             </div>
@@ -794,20 +794,20 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         <?php if ( class_exists( 'Imovel_Parceiro_Package_Extras' ) ) : ?>
                         <div class="ipc-card">
                             <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm">⚙</span> <?php esc_html_e( 'Extras', 'imovel-parceiro-core' ); ?></p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div class="ipc-field">
-                                    <label for="imovel_admin_max_agents"><?php esc_html_e( 'Corretores permitidos', 'imovel-parceiro-core' ); ?></label>
-                                    <input type="number" min="0" id="imovel_admin_max_agents" name="imovel_admin_max_agents" value="<?php echo esc_attr( $edit_meta['max_agents'] ); ?>" placeholder="0 = ilimitado" />
-                                    <p class="ipc-hint"><?php esc_html_e( 'Aplica-se a planos de imobiliária. Deixe 0 para ilimitado.', 'imovel-parceiro-core' ); ?></p>
+                                    <label for="imovel_admin_max_agents"><?php esc_html_e( 'Corretores', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="number" min="0" id="imovel_admin_max_agents" name="imovel_admin_max_agents" value="<?php echo esc_attr( $edit_meta['max_agents'] ); ?>" placeholder="0 = ∞" />
                                 </div>
-                                <div class="ipc-field flex items-end">
+                                <div class="ipc-field">
+                                    <label style="visibility:hidden" class="hidden sm:block">&nbsp;</label>
                                     <label class="ipc-switch" style="width:100%">
                                         <input type="checkbox" name="imovel_admin_price_on_request" value="1" <?php checked( $edit_meta['price_on_request'] ); ?> />
-                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Preço sob consulta', 'imovel-parceiro-core' ); ?></span>
+                                        <?php esc_html_e( 'Sob consulta', 'imovel-parceiro-core' ); ?>
                                     </label>
                                 </div>
                             </div>
-                            <p class="ipc-hint"><?php esc_html_e( 'Oculta o preço e exibe um botão de contato para personalização.', 'imovel-parceiro-core' ); ?></p>
+                            <p class="ipc-hint" style="margin-top:8px"><?php esc_html_e( 'Corretores: 0 = ilimitado (imobiliárias). Sob consulta oculta o preço.', 'imovel-parceiro-core' ); ?></p>
                         </div>
                         <?php endif; ?>
                         <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : ?>
