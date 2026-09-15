@@ -1,0 +1,495 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Keeps Houzez packages and their persistent WooCommerce subscription products aligned.
+ */
+class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
+    const PACKAGE_PRODUCT_META = '_imovel_parceiro_subscription_product_id';
+    const PACKAGE_BASEERP_META = '_imovel_parceiro_baseerp_id';
+    const PACKAGE_CYCLE_META = '_imovel_parceiro_asaas_billing_cycle';
+    const PRODUCT_PACKAGE_META = '_imovel_parceiro_houzez_package_id';
+    const FREE_PLAN_META = '_imovel_parceiro_free_plan';
+    const FREE_VALIDITY_META = '_imovel_parceiro_free_validity';
+    const FREE_VALIDITY_UNIT_META = '_imovel_parceiro_free_validity_unit';
+
+    public function __construct() {
+        add_action( 'save_post_houzez_packages', array( $this, 'sync_package' ), 100, 3 );
+        add_action( 'updated_post_meta', array( $this, 'sync_after_package_meta_change' ), 20, 4 );
+        add_action( 'added_post_meta', array( $this, 'sync_after_package_meta_change' ), 20, 4 );
+        add_action( 'before_delete_post', array( $this, 'delete_linked_product' ) );
+        add_action( 'add_meta_boxes_houzez_packages', array( $this, 'add_package_metabox' ) );
+        add_action( 'save_post_houzez_packages', array( $this, 'save_package_metabox' ), 20, 3 );
+        add_filter( 'rwmb_meta_boxes', array( $this, 'replace_package_frequency_fields' ), 100 );
+        add_action( 'rwmb_after_save_post', array( $this, 'save_package_billing_cycle' ), 5 );
+
+        // This replaces Houzez Woo Addon's temporary product creation for package purchases.
+        add_action( 'wp_ajax_houzez_woo_pay_package', array( $this, 'add_package_to_cart' ), 0 );
+        add_action( 'wp_ajax_nopriv_houzez_woo_pay_package', array( $this, 'add_package_to_cart' ), 0 );
+        add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'allow_one_managed_package_per_order' ), 20, 3 );
+
+        // Free plans (and every other plan) must be acquired through WooCommerce.
+        // Block Houzez's native "free membership package" endpoint.
+        add_action( 'wp_ajax_houzez_free_membership_package', array( $this, 'block_native_free_package' ), 1 );
+        add_action( 'wp_ajax_nopriv_houzez_free_membership_package', array( $this, 'block_native_free_package' ), 1 );
+
+        add_action( 'woocommerce_subscription_status_active', array( $this, 'activate_houzez_membership' ) );
+        add_action( 'woocommerce_subscription_status_changed', array( $this, 'sync_membership_after_status_change' ), 20, 4 );
+    }
+
+    public static function instance() {
+        static $instance = null;
+        if ( null === $instance ) {
+            $instance = new self();
+        }
+        return $instance;
+    }
+
+    public static function billing_cycles() {
+        return array(
+            'monthly' => array( 'label' => __( 'Mensal', 'imovel-parceiro-core' ), 'interval' => 1, 'period' => 'Month' ),
+            'biweekly' => array( 'label' => __( 'Quinzenal', 'imovel-parceiro-core' ), 'interval' => 2, 'period' => 'Week' ),
+            'bimonthly' => array( 'label' => __( 'Bimestral', 'imovel-parceiro-core' ), 'interval' => 2, 'period' => 'Month' ),
+            'quarterly' => array( 'label' => __( 'Trimestral', 'imovel-parceiro-core' ), 'interval' => 3, 'period' => 'Month' ),
+            'semiannually' => array( 'label' => __( 'Semestral', 'imovel-parceiro-core' ), 'interval' => 6, 'period' => 'Month' ),
+            'yearly' => array( 'label' => __( 'Anual', 'imovel-parceiro-core' ), 'interval' => 1, 'period' => 'Year' ),
+        );
+    }
+
+    public static function billing_cycle_for_package( $package_id ) {
+        $cycle = get_post_meta( $package_id, self::PACKAGE_CYCLE_META, true );
+        $cycles = self::billing_cycles();
+        if ( isset( $cycles[ $cycle ] ) ) {
+            return $cycle;
+        }
+        $interval = absint( get_post_meta( $package_id, 'fave_billing_unit', true ) );
+        $period = strtolower( (string) get_post_meta( $package_id, 'fave_billing_time_unit', true ) );
+        foreach ( $cycles as $key => $settings ) {
+            if ( $interval === $settings['interval'] && strtolower( $settings['period'] ) === $period ) {
+                return $key;
+            }
+        }
+        return 'monthly';
+    }
+
+    public function replace_package_frequency_fields( $meta_boxes ) {
+        foreach ( $meta_boxes as &$meta_box ) {
+            if ( empty( $meta_box['post_types'] ) || ! in_array( 'houzez_packages', (array) $meta_box['post_types'], true ) || empty( $meta_box['fields'] ) ) {
+                continue;
+            }
+            foreach ( $meta_box['fields'] as $index => $field ) {
+                if ( isset( $field['id'] ) && 'fave_billing_time_unit' === $field['id'] ) {
+                    $meta_box['fields'][ $index ] = array(
+                        'id' => self::PACKAGE_CYCLE_META,
+                        'name' => __( 'Frequencia de cobranca', 'imovel-parceiro-core' ),
+                        'type' => 'select',
+                        'options' => wp_list_pluck( self::billing_cycles(), 'label' ),
+                        'std' => 'monthly',
+                        'columns' => 6,
+                        'desc' => __( 'Ciclos aceitos pelo gateway Asaas.', 'imovel-parceiro-core' ),
+                    );
+                } elseif ( isset( $field['id'] ) && 'fave_billing_unit' === $field['id'] ) {
+                    unset( $meta_box['fields'][ $index ] );
+                }
+            }
+
+            $existing_ids = wp_list_pluck( $meta_box['fields'], 'id' );
+            if ( ! in_array( self::FREE_PLAN_META, $existing_ids, true ) ) {
+                $meta_box['fields'][] = array(
+                    'id' => self::FREE_PLAN_META,
+                    'name' => __( 'Plano gratuito', 'imovel-parceiro-core' ),
+                    'type' => 'checkbox',
+                    'std' => 0,
+                    'columns' => 6,
+                    'desc' => __( 'Marque para oferecer este plano gratuitamente, com validade definida e sem renovacao automatica.', 'imovel-parceiro-core' ),
+                );
+                $meta_box['fields'][] = array(
+                    'id' => self::FREE_VALIDITY_META,
+                    'name' => __( 'Validade do plano gratuito', 'imovel-parceiro-core' ),
+                    'type' => 'number',
+                    'min' => 1,
+                    'std' => 1,
+                    'columns' => 6,
+                    'desc' => __( 'Quanto tempo o plano gratuito fica valido apos a contratacao.', 'imovel-parceiro-core' ),
+                );
+                $meta_box['fields'][] = array(
+                    'id' => self::FREE_VALIDITY_UNIT_META,
+                    'name' => __( 'Unidade da validade', 'imovel-parceiro-core' ),
+                    'type' => 'select',
+                    'options' => array(
+                        'day' => __( 'Dias', 'imovel-parceiro-core' ),
+                        'week' => __( 'Semanas', 'imovel-parceiro-core' ),
+                        'month' => __( 'Meses', 'imovel-parceiro-core' ),
+                        'year' => __( 'Anos', 'imovel-parceiro-core' ),
+                    ),
+                    'std' => 'day',
+                    'columns' => 6,
+                    'desc' => __( 'Unidade usada pela validade do plano gratuito.', 'imovel-parceiro-core' ),
+                );
+            }
+
+            $meta_box['fields'] = array_values( $meta_box['fields'] );
+        }
+        unset( $meta_box );
+        return $meta_boxes;
+    }
+
+    public function save_package_billing_cycle( $package_id ) {
+        if ( 'houzez_packages' !== get_post_type( $package_id ) ) {
+            return;
+        }
+        $cycles = self::billing_cycles();
+        $cycle = get_post_meta( $package_id, self::PACKAGE_CYCLE_META, true );
+        if ( ! isset( $cycles[ $cycle ] ) ) {
+            return;
+        }
+        update_post_meta( $package_id, 'fave_billing_unit', $cycles[ $cycle ]['interval'] );
+        update_post_meta( $package_id, 'fave_billing_time_unit', $cycles[ $cycle ]['period'] );
+    }
+
+    public function add_package_metabox() {
+        add_meta_box( 'imovel-parceiro-package-subscription', __( 'Assinatura WooCommerce', 'imovel-parceiro-core' ), array( $this, 'render_package_metabox' ), 'houzez_packages', 'side', 'default' );
+    }
+
+    public function render_package_metabox( $post ) {
+        wp_nonce_field( 'imovel_parceiro_package_subscription', 'imovel_parceiro_package_subscription_nonce' );
+        $baseerp_id = get_post_meta( $post->ID, self::PACKAGE_BASEERP_META, true );
+        $product_id = absint( get_post_meta( $post->ID, self::PACKAGE_PRODUCT_META, true ) );
+        ?>
+        <p>
+            <label for="imovel_parceiro_baseerp_id"><strong><?php esc_html_e( 'ID do produto (BaseERP)', 'imovel-parceiro-core' ); ?></strong></label>
+            <input class="widefat" id="imovel_parceiro_baseerp_id" name="imovel_parceiro_baseerp_id" type="number" min="0" value="<?php echo esc_attr( $baseerp_id ); ?>" />
+        </p>
+        <p><?php esc_html_e( 'Este valor sera gravado no campo BaseERP do produto de assinatura.', 'imovel-parceiro-core' ); ?></p>
+        <?php if ( $product_id ) : ?>
+            <p><a href="<?php echo esc_url( get_edit_post_link( $product_id ) ); ?>"><?php printf( esc_html__( 'Produto vinculado: #%d', 'imovel-parceiro-core' ), $product_id ); ?></a></p>
+        <?php endif; ?>
+        <?php
+    }
+
+    public function save_package_metabox( $post_id, $post, $update ) {
+        if ( ! isset( $_POST['imovel_parceiro_package_subscription_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['imovel_parceiro_package_subscription_nonce'] ) ), 'imovel_parceiro_package_subscription' ) || ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+        $baseerp_id = isset( $_POST['imovel_parceiro_baseerp_id'] ) ? absint( $_POST['imovel_parceiro_baseerp_id'] ) : '';
+        update_post_meta( $post_id, self::PACKAGE_BASEERP_META, $baseerp_id );
+    }
+
+    public function sync_after_package_meta_change( $meta_id, $post_id, $meta_key, $meta_value ) {
+        if ( 'houzez_packages' !== get_post_type( $post_id ) || in_array( $meta_key, array( self::PACKAGE_PRODUCT_META, self::PRODUCT_PACKAGE_META ), true ) ) {
+            return;
+        }
+        $this->sync_package( $post_id, get_post( $post_id ), true );
+    }
+
+    /**
+     * Whether the package was explicitly flagged as a free plan by the admin.
+     */
+    public static function is_free_package( $package_id ) {
+        $value = get_post_meta( absint( $package_id ), self::FREE_PLAN_META, true );
+
+        return in_array( (string) $value, array( '1', 'yes', 'on', 'true' ), true );
+    }
+
+    /**
+     * Validity configured for a free plan as array( value, unit ).
+     */
+    public static function free_plan_validity( $package_id ) {
+        $package_id = absint( $package_id );
+
+        $value = absint( get_post_meta( $package_id, self::FREE_VALIDITY_META, true ) );
+        if ( $value < 1 ) {
+            $value = 1;
+        }
+
+        $unit = strtolower( (string) get_post_meta( $package_id, self::FREE_VALIDITY_UNIT_META, true ) );
+        if ( ! in_array( $unit, array( 'day', 'week', 'month', 'year' ), true ) ) {
+            $unit = 'day';
+        }
+
+        return array( 'value' => $value, 'unit' => $unit );
+    }
+
+    /**
+     * Stop automatic renewal on the active subscriptions of a free plan, so the
+     * plan ends after its validity and the user is left without a plan.
+     */
+    private function disable_renewal_for_free_package( $package_id ) {
+        static $done = array();
+
+        $package_id = absint( $package_id );
+        if ( isset( $done[ $package_id ] ) || ! function_exists( 'wcs_get_subscriptions' ) ) {
+            return;
+        }
+        $done[ $package_id ] = true;
+
+        $product_id = absint( get_post_meta( $package_id, self::PACKAGE_PRODUCT_META, true ) );
+        if ( ! $product_id ) {
+            return;
+        }
+
+        $subscriptions = wcs_get_subscriptions(
+            array(
+                'product_id' => $product_id,
+                'subscription_status' => array( 'active' ),
+                'subscriptions_per_page' => 200,
+            )
+        );
+
+        foreach ( $subscriptions as $subscription ) {
+            if ( $subscription && $subscription->can_be_updated_to( 'pending-cancel' ) ) {
+                $subscription->update_status( 'pending-cancel', __( 'Plano gratuito com validade definida: a renovacao automatica foi desativada.', 'imovel-parceiro-core' ) );
+            }
+        }
+    }
+
+    public function sync_package( $package_id, $post = null, $update = false ) {
+        if ( wp_is_post_revision( $package_id ) || wp_is_post_autosave( $package_id ) || ! function_exists( 'wc_get_product' ) || ! class_exists( 'WC_Product_Subscription' ) ) {
+            return;
+        }
+        $post = $post ? $post : get_post( $package_id );
+        if ( ! $post || 'auto-draft' === $post->post_status ) {
+            return;
+        }
+
+        $product_id = absint( get_post_meta( $package_id, self::PACKAGE_PRODUCT_META, true ) );
+        $product = $product_id ? wc_get_product( $product_id ) : false;
+        if ( ! $product || ! $product->is_type( 'subscription' ) ) {
+            $product = new WC_Product_Subscription();
+        }
+
+        $is_free = self::is_free_package( $package_id );
+
+        if ( $is_free ) {
+            // Free plan: priced at zero, valid for the configured period only,
+            // with no automatic renewal.
+            $validity = self::free_plan_validity( $package_id );
+            $period = $this->subscription_period( $validity['unit'] );
+            $interval = max( 1, absint( $validity['value'] ) );
+            $length = 1;
+            $price = '0';
+        } else {
+            $period = $this->subscription_period( get_post_meta( $package_id, 'fave_billing_time_unit', true ) );
+            $interval = max( 1, absint( get_post_meta( $package_id, 'fave_billing_unit', true ) ) );
+            $length = 0;
+            $price = wc_format_decimal( str_replace( ',', '.', (string) get_post_meta( $package_id, 'fave_package_price', true ) ) );
+        }
+
+        $product->set_name( $post->post_title );
+        $product->set_status( 'publish' === $post->post_status ? 'publish' : 'draft' );
+        $product->set_virtual( true );
+        $product->set_sold_individually( true );
+        $product->set_catalog_visibility( 'hidden' );
+        $product->set_regular_price( $price );
+        $product->set_price( $price );
+        $product->update_meta_data( '_subscription_price', $price );
+        $product->update_meta_data( '_subscription_period', $period );
+        $product->update_meta_data( '_subscription_period_interval', $interval );
+        $product->update_meta_data( '_subscription_length', $length );
+        $product->update_meta_data( '_subscription_limit', 'active' );
+        $product->update_meta_data( '_subscription_one_time_shipping', 'no' );
+        $product->update_meta_data( '_wc_min_qty_product', 1 );
+        $product->update_meta_data( '_wc_max_qty_product', 1 );
+        $product->update_meta_data( self::PRODUCT_PACKAGE_META, $package_id );
+        $product->update_meta_data( '_houzez_package_id', $package_id );
+        $product->update_meta_data( 'baseerp_id', get_post_meta( $package_id, self::PACKAGE_BASEERP_META, true ) );
+        $product_id = $product->save();
+        wp_set_object_terms( $product_id, array( $this->subscription_category_id() ), 'product_cat', false );
+        update_post_meta( $package_id, self::PACKAGE_PRODUCT_META, $product_id );
+
+        if ( $is_free ) {
+            $this->disable_renewal_for_free_package( $package_id );
+        }
+    }
+
+    private function subscription_period( $houzez_period ) {
+        $periods = array( 'day' => 'day', 'week' => 'week', 'month' => 'month', 'year' => 'year' );
+        $key = strtolower( trim( (string) $houzez_period ) );
+        return isset( $periods[ $key ] ) ? $periods[ $key ] : 'month';
+    }
+
+    private function subscription_category_id() {
+        $term = get_term_by( 'name', 'Assinaturas', 'product_cat' );
+        if ( ! $term ) {
+            $term = wp_insert_term( 'Assinaturas', 'product_cat' );
+            return is_wp_error( $term ) ? 0 : (int) $term['term_id'];
+        }
+        return (int) $term->term_id;
+    }
+
+    public function delete_linked_product( $post_id ) {
+        if ( 'houzez_packages' !== get_post_type( $post_id ) ) {
+            return;
+        }
+        $product_id = absint( get_post_meta( $post_id, self::PACKAGE_PRODUCT_META, true ) );
+        if ( $product_id && get_post_meta( $product_id, self::PRODUCT_PACKAGE_META, true ) == $post_id ) {
+            if ( function_exists( 'wcs_get_subscriptions_for_product' ) && wcs_get_subscriptions_for_product( $product_id, 'ids', array( 'limit' => 1 ) ) ) {
+                wp_update_post( array( 'ID' => $product_id, 'post_status' => 'draft' ) );
+                return;
+            }
+            wp_delete_post( $product_id, true );
+        }
+    }
+
+    public function add_package_to_cart() {
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => __( 'Faca login para contratar uma assinatura.', 'imovel-parceiro-core' ) ), 401 );
+        }
+        $package_id = isset( $_POST['package_id'] ) ? absint( $_POST['package_id'] ) : 0;
+        if ( $package_id && class_exists( 'Imovel_Parceiro_Package_Access' ) && ! Imovel_Parceiro_Package_Access::user_can_access( $package_id ) ) {
+            wp_send_json_error( array( 'message' => __( 'Este plano nao esta disponivel para o seu tipo de conta.', 'imovel-parceiro-core' ) ), 403 );
+        }
+        if ( class_exists( 'Imovel_Parceiro_Profile_Guard' ) ) {
+            $ipc_missing = Imovel_Parceiro_Profile_Guard::missing_fields();
+            if ( ! empty( $ipc_missing ) ) {
+                wp_send_json_error( array( 'message' => Imovel_Parceiro_Profile_Guard::incomplete_message( $ipc_missing ) ), 403 );
+            }
+        }
+        $product_id = $package_id ? absint( get_post_meta( $package_id, self::PACKAGE_PRODUCT_META, true ) ) : 0;
+        $product = $product_id && function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : false;
+        if ( ! $package_id || 'houzez_packages' !== get_post_type( $package_id ) || 'publish' !== get_post_status( $package_id ) || 'yes' !== get_post_meta( $package_id, 'fave_package_visible', true ) || ! $product || ! $product->is_type( 'subscription' ) || 'publish' !== $product->get_status() || (int) get_post_meta( $product_id, self::PRODUCT_PACKAGE_META, true ) !== $package_id || ! function_exists( 'WC' ) || ! WC()->cart ) {
+            wp_send_json_error( array( 'message' => __( 'Assinatura indisponivel.', 'imovel-parceiro-core' ) ), 400 );
+        }
+        foreach ( WC()->cart->get_cart() as $key => $item ) {
+            if ( get_post_meta( $item['product_id'], self::PRODUCT_PACKAGE_META, true ) ) {
+                WC()->cart->remove_cart_item( $key );
+            }
+        }
+        $cart_key = WC()->cart->add_to_cart( $product_id, 1 );
+        $cart_key ? wp_send_json_success( array( 'cart_key' => $cart_key, 'checkout_url' => wc_get_checkout_url() ) ) : wp_send_json_error( array( 'message' => __( 'Nao foi possivel adicionar a assinatura ao carrinho.', 'imovel-parceiro-core' ) ), 400 );
+    }
+
+    /**
+     * Block Houzez's native free-package acquisition. Free plans are real
+     * WooCommerce subscription products here, so the purchase must happen in
+     * WooCommerce like any other plan. Sends the user back to the plans page.
+     */
+    public function block_native_free_package() {
+        $plans_url = class_exists( 'Imovel_Parceiro_Subscriptions' ) ? Imovel_Parceiro_Subscriptions::plans_url() : home_url( '/' );
+        echo esc_url_raw( $plans_url );
+        wp_die();
+    }
+
+    public function allow_one_managed_package_per_order( $valid, $product_id, $quantity ) {
+        if ( ! $valid || ! get_post_meta( $product_id, self::PRODUCT_PACKAGE_META, true ) || ! function_exists( 'WC' ) || ! WC()->cart ) {
+            return $valid;
+        }
+        foreach ( WC()->cart->get_cart() as $item ) {
+            if ( get_post_meta( $item['product_id'], self::PRODUCT_PACKAGE_META, true ) && (int) $item['product_id'] !== (int) $product_id ) {
+                wc_add_notice( __( 'Apenas uma assinatura pode ser comprada por pedido.', 'imovel-parceiro-core' ), 'error' );
+                return false;
+            }
+        }
+        return $valid;
+    }
+
+    public static function active_package_for_user( $user_id ) {
+        if ( ! function_exists( 'wcs_get_users_subscriptions' ) ) {
+            return 0;
+        }
+        foreach ( wcs_get_users_subscriptions( absint( $user_id ) ) as $subscription ) {
+            if ( ! $subscription->has_status( array( 'active', 'pending-cancel' ) ) ) {
+                continue;
+            }
+            foreach ( $subscription->get_items() as $item ) {
+                $package_id = absint( get_post_meta( $item->get_product_id(), self::PRODUCT_PACKAGE_META, true ) );
+                if ( $package_id ) {
+                    return $package_id;
+                }
+            }
+        }
+        return 0;
+    }
+
+    public function activate_houzez_membership( $subscription ) {
+        $user_id = absint( $subscription->get_user_id() );
+        $package_id = self::active_package_for_user( $user_id );
+        if ( $user_id && $package_id && function_exists( 'houzez_update_membership_package' ) ) {
+            // Houzez subtracts posted listings from this value. Normalize legacy
+            // packages with an empty limit before delegating to its API.
+            if ( '' === get_post_meta( $package_id, 'fave_package_listings', true ) ) {
+                update_post_meta( $package_id, 'fave_package_listings', 0 );
+            }
+            if ( '' === get_post_meta( $package_id, 'fave_package_featured_listings', true ) ) {
+                update_post_meta( $package_id, 'fave_package_featured_listings', 0 );
+            }
+            houzez_update_membership_package( $user_id, $package_id );
+            update_user_meta( $user_id, 'houzez_subscription_detail_status', 'active' );
+            $this->sync_subscription_invoice( $subscription, $package_id );
+        }
+    }
+
+    private function sync_subscription_invoice( $subscription, $package_id ) {
+        $subscription_id = absint( $subscription->get_id() );
+        if ( ! $subscription_id ) {
+            return;
+        }
+        $invoices = get_posts(
+            array(
+                'post_type' => 'houzez_invoice',
+                'post_status' => 'any',
+                'posts_per_page' => 1,
+                'meta_key' => '_imovel_parceiro_subscription_id',
+                'meta_value' => $subscription_id,
+                'fields' => 'ids',
+            )
+        );
+        $invoice_id = ! empty( $invoices ) ? absint( $invoices[0] ) : wp_insert_post(
+            array(
+                'post_type' => 'houzez_invoice',
+                'post_status' => 'publish',
+                'post_title' => sprintf( 'Subscription invoice %d', $subscription_id ),
+                'post_author' => $subscription->get_user_id(),
+            )
+        );
+        if ( ! $invoice_id || is_wp_error( $invoice_id ) ) {
+            return;
+        }
+
+        $total = wc_format_decimal( $subscription->get_total() );
+        $tax = wc_format_decimal( $subscription->get_total_tax() );
+        $date = $subscription->get_date( 'start', 'site' );
+        if ( $date ) {
+            wp_update_post( array( 'ID' => $invoice_id, 'post_date' => $date, 'post_date_gmt' => get_gmt_from_date( $date ) ) );
+        }
+        $invoice_meta = array(
+            'invoice_billion_for' => get_the_title( $package_id ),
+            'invoice_billing_type' => 'Recurring',
+            'invoice_item_id' => $package_id,
+            'invoice_item_price' => $total,
+            'invoice_tax' => $tax,
+            'invoice_purchase_date' => $date,
+            'invoice_buyer_id' => $subscription->get_user_id(),
+            'invoice_payment_method' => $subscription->get_payment_method_title(),
+        );
+        update_post_meta( $invoice_id, '_houzez_invoice_meta', $invoice_meta );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_buyer', $subscription->get_user_id() );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_type', 'Recurring' );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_for', get_the_title( $package_id ) );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_item_id', $package_id );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_price', $total );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_tax', $tax );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_date', $date );
+        update_post_meta( $invoice_id, 'HOUZEZ_invoice_payment_method', $subscription->get_payment_method_title() );
+        update_post_meta( $invoice_id, 'invoice_payment_status', 1 );
+        update_post_meta( $invoice_id, '_imovel_parceiro_subscription_id', $subscription_id );
+    }
+
+    public function sync_membership_after_status_change( $subscription_id, $old_status, $new_status, $subscription ) {
+        $user_id = absint( $subscription->get_user_id() );
+        if ( ! $user_id || 'active' === $new_status ) {
+            return;
+        }
+        $package_id = absint( get_user_meta( $user_id, 'package_id', true ) );
+        $product_id = $package_id ? absint( get_post_meta( $package_id, self::PACKAGE_PRODUCT_META, true ) ) : 0;
+        if ( $product_id && ! self::active_package_for_user( $user_id ) ) {
+            update_user_meta( $user_id, 'houzez_subscription_detail_status', 'expired' );
+            delete_user_meta( $user_id, 'package_id' );
+            delete_user_meta( $user_id, 'houzez_membership_id' );
+        }
+    }
+}
+
+Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::instance();

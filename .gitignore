@@ -11,16 +11,15 @@
 # ...e o arquivo de deploy do cPanel (fica na raiz do repositório)
 !/.cpanel.yml
 
-# Recursivamente ignore o conteúdo de plugins e temas
+# Recursivamente ignore o conteúdo de plugins e temas de terceiros,
+# mas rastreie integralmente o nosso plugin e o nosso child theme.
 /plugins/*
 !/plugins/imovel-parceiro-core
-/plugins/imovel-parceiro-core/**
-!/plugins/imovel-parceiro-core
+!/plugins/imovel-parceiro-core/**
 
 /themes/*
 !/themes/houzez-child
-/themes/houzez-child/**
-!/themes/houzez-child
+!/themes/houzez-child/**
 
 # Motivos para não versionar (fora do escopo):
 #  - wp-content/plugins/houzez-*, etc. (funcionalidade do tema)

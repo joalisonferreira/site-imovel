@@ -1,0 +1,12 @@
+{
+  "name": "houzez-child-dashboard",
+  "private": true,
+  "description": "Dashboard UI (Tailwind CSS) for the Houzez child theme",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i ./assets/src/dashboard.css -o ./assets/css/dashboard.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i ./assets/src/dashboard.css -o ./assets/css/dashboard.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
