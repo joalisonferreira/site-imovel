@@ -204,7 +204,6 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
             update_post_meta( $post_id, 'fave_package_price', isset( $_POST['imovel_admin_price'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_price'] ) ) : '' );
             update_post_meta( $post_id, 'fave_package_listings', isset( $_POST['imovel_admin_listings'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_listings'] ) ) : '' );
             update_post_meta( $post_id, 'fave_package_featured_listings', isset( $_POST['imovel_admin_featured_listings'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_featured_listings'] ) ) : '' );
-            // Campos nativos Houzez + extensão free plan
             $ipc_popular = isset( $_POST['imovel_admin_package_popular'] ) ? sanitize_key( wp_unslash( $_POST['imovel_admin_package_popular'] ) ) : 'no';
             if ( ! in_array( $ipc_popular, array( 'yes', 'no' ), true ) ) { $ipc_popular = 'no'; }
             update_post_meta( $post_id, 'fave_package_popular', $ipc_popular );
@@ -214,7 +213,6 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
             update_post_meta( $post_id, 'fave_unlimited_listings', ! empty( $_POST['imovel_admin_unlimited_listings'] ) ? '1' : '0' );
             update_post_meta( $post_id, 'fave_package_images', isset( $_POST['imovel_admin_images'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_images'] ) ) : '' );
             update_post_meta( $post_id, 'fave_unlimited_images', ! empty( $_POST['imovel_admin_unlimited_images'] ) ? '1' : '0' );
-            // Plano gratuito (core)
             $is_free = ! empty( $_POST['imovel_admin_free_plan'] ) ? '1' : '0';
             update_post_meta( $post_id, '_imovel_parceiro_free_plan', $is_free );
             $free_validity = isset( $_POST['imovel_admin_free_validity'] ) ? absint( wp_unslash( $_POST['imovel_admin_free_validity'] ) ) : 1;
