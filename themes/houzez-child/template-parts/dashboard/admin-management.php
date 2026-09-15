@@ -308,6 +308,11 @@ if ( 'delete' === $current_action && $current_id && in_array( $current_section, 
 
     if ( 'agents' === $current_section ) {
         if ( current_user_can( 'delete_users' ) && ! user_can( $current_id, 'manage_options' ) && wp_verify_nonce( $nonce, 'imovel_admin_delete_user_' . $current_id ) ) {
+            // wp_delete_user() lives in wp-admin/includes/user.php, which is
+            // not loaded on the front end. Load it on demand to avoid a fatal.
+            if ( ! function_exists( 'wp_delete_user' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/user.php';
+            }
             wp_delete_user( $current_id );
         }
     } else {
@@ -1415,7 +1420,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     <form method="get" style="margin-bottom:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                         <input type="hidden" name="imovel_admin_section" value="agents" />
                         <input type="hidden" name="imovel_admin_action" value="list" />
-                        <input type="text" name="imovel_user_search" value="<?php echo esc_attr( $user_search ); ?>" placeholder="<?php esc_attr_e( 'Buscar por nome, login ou e-mail', 'imovel-parceiro-core' ); ?>" style="padding:8px; border:1px solid #d9d9d9; border-radius:6px; min-width:220px;" />
+                        <input type="text" name="imovel_user_search" value="<?php echo esc_attr( $user_search ); ?>" placeholder="<?php esc_attr_e( 'Buscar por nome, login ou e-mail', 'imovel-parceiro-core' ); ?>" style="padding:8px; border:1px solid #d9d9d9; border-radius:6px; flex:1 1 200px; min-width:0;" />
                         <button type="submit" class="btn btn-primary"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></button>
                         <label for="imovel_user_per_page" style="font-weight:600; margin:0 0 0 8px;"><?php esc_html_e( 'Itens por página', 'imovel-parceiro-core' ); ?></label>
                         <select id="imovel_user_per_page" name="imovel_admin_per_page" style="padding:8px;">
