@@ -1784,7 +1784,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     </form>
 
                     <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse;">
+                        <table class="ipc-table" style="width:100%; border-collapse:collapse;">
                             <thead>
                                 <tr>
                                     <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php echo esc_html( 'coupons' === $current_section ? __( 'Código', 'imovel-parceiro-core' ) : __( 'Título', 'imovel-parceiro-core' ) ); ?></th>

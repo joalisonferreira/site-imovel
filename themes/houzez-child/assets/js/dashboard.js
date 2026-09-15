@@ -63,7 +63,41 @@
     initNotificationPush();
     initNotificationDeletes();
     initAuditDelete();
+    initResponsiveTables(document);
+
+    document.addEventListener('shown.bs.modal', function (event) {
+      initResponsiveTables(event.target);
+    });
   });
+
+  function initResponsiveTables(scope) {
+    var root = scope || document;
+    var tables = root.querySelectorAll('table.ipc-table');
+
+    Array.prototype.forEach.call(tables, function (table) {
+      var headers = table.querySelectorAll('thead th');
+      if (!headers.length) {
+        return;
+      }
+
+      var labels = [];
+      Array.prototype.forEach.call(headers, function (th) {
+        labels.push((th.textContent || '').trim());
+      });
+
+      Array.prototype.forEach.call(table.querySelectorAll('tbody tr'), function (row) {
+        Array.prototype.forEach.call(row.children, function (cell) {
+          if (cell.tagName !== 'TD' || cell.hasAttribute('colspan')) {
+            return;
+          }
+          var label = labels[cell.cellIndex];
+          if (label) {
+            cell.setAttribute('data-label', label);
+          }
+        });
+      });
+    });
+  }
 
   function initAuditDelete() {
     document.querySelectorAll('.ipc-audit-delete').forEach(function (btn) {

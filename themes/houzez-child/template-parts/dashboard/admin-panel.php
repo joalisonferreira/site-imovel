@@ -835,7 +835,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                             <p class="mb-0 text-muted"><?php esc_html_e( 'Nenhum documento encontrado para os filtros informados.', 'imovel-parceiro-core' ); ?></p>
                         <?php else : ?>
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
+                            <table class="ipc-table table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th><?php esc_html_e( 'Proprietário', 'imovel-parceiro-core' ); ?></th>
@@ -933,7 +933,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                         <p class="mb-0 text-muted"><?php esc_html_e( 'Nenhuma solicitação de troca registrada ainda.', 'imovel-parceiro-core' ); ?></p>
                     <?php else : ?>
                         <div class="table-responsive">
-                            <table class="table dashboard-table table-lined responsive-table">
+                            <table class="ipc-table table dashboard-table table-lined responsive-table">
                                 <thead>
                                     <tr>
                                         <th><?php esc_html_e( 'Imóvel', 'imovel-parceiro-core' ); ?></th>
@@ -1173,7 +1173,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             <?php endif; ?>
 
             <div class="overflow-x-auto rounded-xl border border-slate-100">
-                <table class="w-full min-w-[880px] border-collapse text-sm">
+                <table class="ipc-table w-full min-w-[880px] border-collapse text-sm">
                     <thead>
                         <tr class="border-b border-slate-100 bg-slate-50/70 text-left">
                             <th class="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-slate-400"><?php esc_html_e( 'Data', 'imovel-parceiro-core' ); ?></th>
