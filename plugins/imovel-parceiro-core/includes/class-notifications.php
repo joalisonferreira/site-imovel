@@ -518,10 +518,24 @@ class IPC_Notifications {
         $type = isset( $args['type'] ) ? sanitize_key( $args['type'] ) : 'message';
         $property_id = $this->request_property_id( $_POST );
         $title = ! empty( $args['title'] ) ? wp_strip_all_tags( $args['title'] ) : __( 'Nova mensagem recebida', 'imovel-parceiro-core' );
-        $message = ! empty( $args['message'] ) ? wp_strip_all_tags( $args['message'] ) : '';
+        $message = ! empty( $args['message'] ) ? $args['message'] : '';
         if ( '' === $message ) {
             $message = __( 'Você recebeu uma nova mensagem pelo site.', 'imovel-parceiro-core' );
         }
+
+        // Substitui placeholders do template de email antes de salvar a notificação.
+        $replacements = array(
+            '%user_login_register'  => $user->user_login,
+            '%user_pass_register'   => '',
+            '%user_email_register'  => $user->user_email,
+            '%user_phone_register'  => isset( $args['user_phone_register'] ) ? $args['user_phone_register'] : '',
+            '%website_url'          => get_option( 'siteurl' ),
+            '%website_name'         => get_option( 'blogname' ),
+            '%user_email'           => $user->user_email,
+            '%username'             => $user->user_login,
+        );
+        $title   = str_replace( array_keys( $replacements ), array_values( $replacements ), $title );
+        $message = str_replace( array_keys( $replacements ), array_values( $replacements ), $message );
 
         self::send(
             array(
