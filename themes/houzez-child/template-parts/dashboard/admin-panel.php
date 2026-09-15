@@ -1122,13 +1122,13 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 </a>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-5">
+            <div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-5">
                 <?php foreach ( $summary_cards as $card_index => $card ) : ?>
                     <?php
                     $ipc_summary_icons = array( 'timer', 'circle-check', 'triangle-alert', 'shield-check' );
                     $ipc_summary_icon = isset( $ipc_summary_icons[ $card_index ] ) ? $ipc_summary_icons[ $card_index ] : 'sparkles';
                     ?>
-                    <div class="ipc-fade-up rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+                    <div class="ipc-stat-card ipc-fade-up rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
                         <div class="flex h-11 w-11 items-center justify-center rounded-xl" style="background:<?php echo esc_attr( $card['background'] ); ?>; color:<?php echo esc_attr( $card['color'] ); ?>;">
                             <?php echo houzez_dash_icon( $ipc_summary_icon, 'h-5 w-5' ); ?>
                         </div>

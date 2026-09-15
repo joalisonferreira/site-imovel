@@ -931,7 +931,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Verification Table -->
-                            <table class="table table-hover align-middle mb-0">
+                            <table class="ipc-table table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
@@ -1427,7 +1427,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     </form>
 
                     <div style="overflow-x:auto;">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="ipc-table table table-hover align-middle mb-0">
                             <thead>
                                 <tr>
                                     <th><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>

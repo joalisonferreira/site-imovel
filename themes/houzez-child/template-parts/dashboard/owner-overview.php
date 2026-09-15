@@ -28,8 +28,8 @@ $first_name = trim( explode( ' ', (string) $current_user->display_name )[0] );
     </a>
 </div>
 
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    <a href="<?php echo esc_url( $dashboard_properties ); ?>" class="ipc-fade-up group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
+<div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <a href="<?php echo esc_url( $dashboard_properties ); ?>" class="ipc-fade-up ipc-stat-card group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
         <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <?php echo houzez_dash_icon( 'building-2', 'h-5 w-5' ); ?>
         </div>
@@ -37,7 +37,7 @@ $first_name = trim( explode( ' ', (string) $current_user->display_name )[0] );
         <p class="mt-1 text-sm font-medium text-slate-500"><?php esc_html_e( 'Meus imóveis', 'imovel-parceiro-core' ); ?></p>
     </a>
 
-    <a href="<?php echo esc_url( $dashboard_docs ); ?>" class="ipc-fade-up-delay-1 group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
+    <a href="<?php echo esc_url( $dashboard_docs ); ?>" class="ipc-fade-up-delay-1 ipc-stat-card group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
         <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
             <?php echo houzez_dash_icon( 'triangle-alert', 'h-5 w-5' ); ?>
         </div>
@@ -45,7 +45,7 @@ $first_name = trim( explode( ' ', (string) $current_user->display_name )[0] );
         <p class="mt-1 text-sm font-medium text-slate-500"><?php esc_html_e( 'Documentação pendente', 'imovel-parceiro-core' ); ?></p>
     </a>
 
-    <a href="<?php echo esc_url( $dashboard_docs ); ?>" class="ipc-fade-up-delay-2 group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
+    <a href="<?php echo esc_url( $dashboard_docs ); ?>" class="ipc-fade-up-delay-2 ipc-stat-card group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
         <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
             <?php echo houzez_dash_icon( 'list-todo', 'h-5 w-5' ); ?>
         </div>
@@ -53,7 +53,7 @@ $first_name = trim( explode( ' ', (string) $current_user->display_name )[0] );
         <p class="mt-1 text-sm font-medium text-slate-500"><?php esc_html_e( 'Em análise', 'imovel-parceiro-core' ); ?></p>
     </a>
 
-    <a href="<?php echo esc_url( $dashboard_properties ); ?>" class="ipc-fade-up-delay-3 group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
+    <a href="<?php echo esc_url( $dashboard_properties ); ?>" class="ipc-fade-up-delay-3 ipc-stat-card group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
         <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
             <?php echo houzez_dash_icon( 'circle-check', 'h-5 w-5' ); ?>
         </div>

@@ -67,6 +67,56 @@ foreach ( $partnerships as $p ) {
 $requester_col = $wf ? $wf::requester_col() : 'requester_id';
 $owner_col = $wf ? $wf::owner_col() : 'owner_id';
 
+// Latest visit/proposal event per partnership (feeds the clickable funnel cards).
+$funnel_data = array();
+if ( $table_exists && $wf && ! empty( $partnerships ) ) {
+    $events_table = $wf::events_table();
+    $pids = array_values( array_unique( array_filter( array_map( 'absint', wp_list_pluck( $partnerships, 'id' ) ) ) ) );
+    if ( $pids ) {
+        $in   = implode( ',', $pids );
+        $rows = $wpdb->get_results(
+            "SELECT e.* FROM {$events_table} e
+             INNER JOIN (
+                SELECT partnership_id, kind, MAX(id) AS max_id
+                FROM {$events_table}
+                WHERE kind IN ('visit','proposal') AND partnership_id IN ({$in})
+                GROUP BY partnership_id, kind
+             ) latest ON latest.max_id = e.id"
+        );
+        foreach ( (array) $rows as $ev ) {
+            $pid   = (int) $ev->partnership_id;
+            $meta  = maybe_unserialize( $ev->meta );
+            $meta  = is_array( $meta ) ? $meta : array();
+            $actor = $ev->actor_user_id ? get_userdata( $ev->actor_user_id ) : false;
+            if ( ! isset( $funnel_data[ $pid ] ) ) {
+                $funnel_data[ $pid ] = array();
+            }
+            $funnel_data[ $pid ][ $ev->kind ] = array(
+                'title'   => $ev->title,
+                'note'    => $ev->note,
+                'created' => mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ev->created_at ),
+                'actor'   => $actor ? ( $actor->display_name ? $actor->display_name : $actor->user_login ) : '',
+                'meta'    => $meta,
+            );
+        }
+    }
+}
+
+// Payload consumed by the kanban detail modal.
+$funnel_json = array();
+foreach ( $partnerships as $p ) {
+    $pid = (int) $p->id;
+    if ( empty( $funnel_data[ $pid ] ) ) {
+        continue;
+    }
+    $title = get_the_title( $p->property_id );
+    $funnel_json[ $pid ] = array(
+        'property_title' => $title ? $title : sprintf( __( 'Imóvel #%d', 'imovel-parceiro-core' ), (int) $p->property_id ),
+        'visit'          => isset( $funnel_data[ $pid ]['visit'] ) ? $funnel_data[ $pid ]['visit'] : null,
+        'proposal'       => isset( $funnel_data[ $pid ]['proposal'] ) ? $funnel_data[ $pid ]['proposal'] : null,
+    );
+}
+
 $user_name = function ( $uid ) {
     $uid = absint( $uid );
     $u = $uid ? get_userdata( $uid ) : false;
@@ -89,6 +139,20 @@ $now = current_time( 'timestamp' );
     .ipc-admin-chip--danger { background:#fee2e2; color:#b91c1c; }
     .ipc-admin-chip--warn { background:#fef3c7; color:#92400e; }
     .ipc-admin-chip--ok { background:#dcfce7; color:#166534; }
+    .ipc-admin-chip--info { background:#eef2ff; color:#4338ca; }
+    .ipc-admin-chip--info svg { width:12px; height:12px; }
+    .ipc-admin-card__actions { display:flex; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap; }
+    .ipc-funnel-view { display:inline-flex; align-items:center; gap:5px; border:0; border-radius:9px; background:#eef2ff; color:#4338ca; padding:5px 10px; font-size:11.5px; font-weight:700; cursor:pointer; transition:background-color .15s ease; }
+    .ipc-funnel-view svg { width:14px; height:14px; }
+    .ipc-funnel-view:hover { background:#e0e7ff; }
+    .ipc-kd-section + .ipc-kd-section { margin-top:20px; padding-top:18px; border-top:1px solid #f1f5f9; }
+    .ipc-kd-section h6 { margin:0 0 8px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#64748b; }
+    .ipc-kd-dl { margin:0; }
+    .ipc-kd-dl > div { display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+    .ipc-kd-dl > div:last-child { border-bottom:0; }
+    .ipc-kd-dl dt { font-size:12.5px; font-weight:600; color:#64748b; }
+    .ipc-kd-dl dd { margin:0; font-size:13px; font-weight:600; color:#0f172a; text-align:right; }
+    .ipc-kd-empty { margin:0; font-size:13px; color:#94a3b8; }
 </style>
 
 <div class="imovel-parceiro-admin-section rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
@@ -192,6 +256,10 @@ $now = current_time( 'timestamp' );
                             <p class="ipc-admin-card__meta">
                                 <?php echo esc_html( $user_name( $requester_id ) ); ?> → <?php echo esc_html( $user_name( $owner_id ) ); ?>
                             </p>
+                            <?php
+                            $fv = isset( $funnel_data[ $pid ]['visit'] ) ? $funnel_data[ $pid ]['visit'] : null;
+                            $fp = isset( $funnel_data[ $pid ]['proposal'] ) ? $funnel_data[ $pid ]['proposal'] : null;
+                            ?>
                             <div class="flex flex-wrap items-center gap-1.5">
                                 <span class="ipc-admin-chip <?php echo $sla_late ? 'ipc-admin-chip--danger' : 'ipc-admin-chip--ok'; ?>">
                                     <?php echo $sla_late ? esc_html__( 'SLA vencido', 'imovel-parceiro-core' ) : esc_html__( 'Em dia', 'imovel-parceiro-core' ); ?>
@@ -199,8 +267,19 @@ $now = current_time( 'timestamp' );
                                 <?php if ( $suspended ) : ?>
                                     <span class="ipc-admin-chip ipc-admin-chip--warn"><?php esc_html_e( 'Contato suspenso', 'imovel-parceiro-core' ); ?></span>
                                 <?php endif; ?>
+                                <?php if ( $fv ) : ?>
+                                    <span class="ipc-admin-chip ipc-admin-chip--info"><?php echo houzez_dash_icon( 'calendar-days', 'h-3 w-3' ); ?><?php esc_html_e( 'Visita', 'imovel-parceiro-core' ); ?></span>
+                                <?php endif; ?>
+                                <?php if ( $fp ) : ?>
+                                    <span class="ipc-admin-chip ipc-admin-chip--info"><?php echo houzez_dash_icon( 'file-text', 'h-3 w-3' ); ?><?php esc_html_e( 'Proposta', 'imovel-parceiro-core' ); ?></span>
+                                <?php endif; ?>
                             </div>
-                            <a class="mt-2 inline-flex text-xs font-bold text-indigo-600 hover:text-indigo-500" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'Abrir parceria', 'imovel-parceiro-core' ); ?></a>
+                            <div class="ipc-admin-card__actions">
+                                <?php if ( $fv || $fp ) : ?>
+                                    <button type="button" class="ipc-funnel-view" data-ipc-pid="<?php echo esc_attr( $pid ); ?>"><?php echo houzez_dash_icon( 'search', 'h-3.5 w-3.5' ); ?><?php esc_html_e( 'Ver dados', 'imovel-parceiro-core' ); ?></button>
+                                <?php endif; ?>
+                                <a class="inline-flex text-xs font-bold text-indigo-600 hover:text-indigo-500" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'Abrir parceria', 'imovel-parceiro-core' ); ?></a>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -211,7 +290,7 @@ $now = current_time( 'timestamp' );
     <!-- Acordos -->
     <h6 class="m-0 mb-3 mt-6 text-sm font-extrabold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Acordos registrados (entre corretores)', 'imovel-parceiro-core' ); ?></h6>
     <div class="overflow-x-auto rounded-xl border border-slate-100">
-        <table class="w-full min-w-[720px] border-collapse text-sm">
+        <table class="ipc-table w-full min-w-[720px] border-collapse text-sm">
             <thead>
                 <tr class="border-b border-slate-100 bg-slate-50/70 text-left">
                     <th class="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-slate-400"><?php esc_html_e( 'Imóvel', 'imovel-parceiro-core' ); ?></th>
@@ -248,3 +327,114 @@ $now = current_time( 'timestamp' );
         </table>
     </div>
 </div>
+
+<!-- Funnel detail modal (visit / proposal) -->
+<div class="modal fade" id="ipc-kanban-detail-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ipc-kanban-detail-title"><?php esc_html_e( 'Dados da visita e proposta', 'imovel-parceiro-core' ); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php esc_attr_e( 'Fechar', 'imovel-parceiro-core' ); ?>"></button>
+            </div>
+            <div class="modal-body" id="ipc-kanban-detail-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Fechar', 'imovel-parceiro-core' ); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="ipc-kanban-detail-data"><?php echo wp_json_encode( (object) $funnel_json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); ?></script>
+
+<script>
+(function () {
+    'use strict';
+
+    var dataEl = document.getElementById('ipc-kanban-detail-data');
+    var data = {};
+    try { data = JSON.parse(dataEl ? dataEl.textContent : '{}'); } catch (e) { data = {}; }
+
+    var LABELS = {
+        client_name: '<?php echo esc_js( __( 'Cliente', 'imovel-parceiro-core' ) ); ?>',
+        client_doc: '<?php echo esc_js( __( 'CPF/CNPJ', 'imovel-parceiro-core' ) ); ?>',
+        client_phone: '<?php echo esc_js( __( 'Telefone', 'imovel-parceiro-core' ) ); ?>',
+        property_title: '<?php echo esc_js( __( 'Imóvel', 'imovel-parceiro-core' ) ); ?>',
+        property_address: '<?php echo esc_js( __( 'Endereço', 'imovel-parceiro-core' ) ); ?>',
+        broker_name: '<?php echo esc_js( __( 'Corretor', 'imovel-parceiro-core' ) ); ?>',
+        broker_creci: '<?php echo esc_js( __( 'CRECI', 'imovel-parceiro-core' ) ); ?>',
+        broker_company: '<?php echo esc_js( __( 'Imobiliária', 'imovel-parceiro-core' ) ); ?>',
+        visit_date: '<?php echo esc_js( __( 'Data da visita', 'imovel-parceiro-core' ) ); ?>',
+        visit_time: '<?php echo esc_js( __( 'Horário', 'imovel-parceiro-core' ) ); ?>',
+        participants: '<?php echo esc_js( __( 'Participantes', 'imovel-parceiro-core' ) ); ?>',
+        result: '<?php echo esc_js( __( 'Resultado', 'imovel-parceiro-core' ) ); ?>',
+        amount: '<?php echo esc_js( __( 'Valor da proposta', 'imovel-parceiro-core' ) ); ?>',
+        proposal_date: '<?php echo esc_js( __( 'Data da proposta', 'imovel-parceiro-core' ) ); ?>',
+        conditions: '<?php echo esc_js( __( 'Condições', 'imovel-parceiro-core' ) ); ?>',
+        notes: '<?php echo esc_js( __( 'Observações', 'imovel-parceiro-core' ) ); ?>'
+    };
+
+    var RESULTS = {
+        interessado: '<?php echo esc_js( __( 'Interessado', 'imovel-parceiro-core' ) ); ?>',
+        muito_interessado: '<?php echo esc_js( __( 'Muito interessado', 'imovel-parceiro-core' ) ); ?>',
+        sem_interesse: '<?php echo esc_js( __( 'Sem interesse', 'imovel-parceiro-core' ) ); ?>',
+        avaliar: '<?php echo esc_js( __( 'A avaliar', 'imovel-parceiro-core' ) ); ?>',
+        nova_visita: '<?php echo esc_js( __( 'Nova visita agendada', 'imovel-parceiro-core' ) ); ?>'
+    };
+
+    var META_ORDER = ['client_name', 'client_doc', 'client_phone', 'property_title', 'property_address', 'broker_name', 'broker_creci', 'broker_company', 'visit_date', 'visit_time', 'participants', 'result', 'amount', 'proposal_date', 'conditions', 'notes'];
+
+    function esc(v) {
+        var d = document.createElement('div');
+        d.textContent = (v === null || v === undefined) ? '' : String(v);
+        return d.innerHTML;
+    }
+
+    function buildSection(title, entry) {
+        var html = '<div class="ipc-kd-section"><h6>' + esc(title) + '</h6>';
+        var rows = [];
+
+        if (entry) {
+            if (entry.created) { rows.push(['<?php echo esc_js( __( 'Data/hora do registro', 'imovel-parceiro-core' ) ); ?>', entry.created]); }
+            if (entry.actor) { rows.push(['<?php echo esc_js( __( 'Registrado por', 'imovel-parceiro-core' ) ); ?>', entry.actor]); }
+            var meta = entry.meta || {};
+            META_ORDER.forEach(function (k) {
+                var val = meta[k];
+                if (val === null || val === undefined || String(val).trim() === '') { return; }
+                if (k === 'result' && RESULTS[val]) { val = RESULTS[val]; }
+                rows.push([LABELS[k], val]);
+            });
+        }
+
+        if (!rows.length) {
+            return html + '<p class="ipc-kd-empty"><?php echo esc_js( __( 'Nenhum registro.', 'imovel-parceiro-core' ) ); ?></p></div>';
+        }
+
+        html += '<dl class="ipc-kd-dl">';
+        rows.forEach(function (pair) {
+            html += '<div><dt>' + esc(pair[0]) + '</dt><dd>' + esc(pair[1]) + '</dd></div>';
+        });
+        return html + '</dl></div>';
+    }
+
+    document.addEventListener('click', function (event) {
+        var btn = event.target && event.target.closest ? event.target.closest('.ipc-funnel-view') : null;
+        if (!btn) { return; }
+        event.preventDefault();
+
+        var item = data[btn.getAttribute('data-ipc-pid')];
+        if (!item) { return; }
+
+        var modalEl = document.getElementById('ipc-kanban-detail-modal');
+        if (!modalEl) { return; }
+
+        document.getElementById('ipc-kanban-detail-title').textContent = item.property_title || '<?php echo esc_js( __( 'Dados da visita e proposta', 'imovel-parceiro-core' ) ); ?>';
+        document.getElementById('ipc-kanban-detail-body').innerHTML =
+            buildSection('<?php echo esc_js( __( 'Visita', 'imovel-parceiro-core' ) ); ?>', item.visit) +
+            buildSection('<?php echo esc_js( __( 'Proposta', 'imovel-parceiro-core' ) ); ?>', item.proposal);
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    });
+})();
+</script>

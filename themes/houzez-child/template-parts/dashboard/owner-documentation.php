@@ -26,7 +26,7 @@ $property_ids = Imovel_Parceiro_Owner_Workflow::get_owner_property_ids( $current
             <p class="text-muted mb-0"><?php esc_html_e( 'Nenhum imóvel encontrado.', 'imovel-parceiro-core' ); ?></p>
         <?php else : ?>
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="ipc-table table table-hover align-middle mb-0">
                     <thead>
                         <tr>
                             <th><?php esc_html_e( 'Imóvel', 'imovel-parceiro-core' ); ?></th>

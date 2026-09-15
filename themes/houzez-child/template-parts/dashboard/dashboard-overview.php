@@ -74,19 +74,19 @@ $delta_pill = function ( $current, $previous ) use ( $delta ) {
     $delta_value = $delta( $current, $previous );
 
     if ( null === $delta_value ) {
-        return '<span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">' . houzez_dash_icon( 'minus', 'h-3 w-3' ) . ' Sem variação</span>';
+        return '<span class="ipc-delta-pill inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">' . houzez_dash_icon( 'minus', 'h-3 w-3' ) . ' Sem variação</span>';
     }
 
     if ( $delta_value >= 0 ) {
         return sprintf(
-            '<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">%s ▲ +%s%%</span>',
+            '<span class="ipc-delta-pill inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">%s ▲ +%s%%</span>',
             houzez_dash_icon( 'trending-up', 'h-3 w-3' ),
             esc_html( number_format_i18n( abs( $delta_value ), 0 ) )
         );
     }
 
     return sprintf(
-        '<span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-500">%s ▼ %s%%</span>',
+        '<span class="ipc-delta-pill inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-500">%s ▼ %s%%</span>',
         houzez_dash_icon( 'trending-down', 'h-3 w-3' ),
         esc_html( number_format_i18n( abs( $delta_value ), 0 ) )
     );
@@ -196,10 +196,10 @@ $ipc_dashboard_crm   = houzez_get_template_link_2( 'template/user_dashboard_crm.
     </div>
 </div>
 
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+<div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <?php foreach ( $ipc_cards as $ipc_card ) : ?>
         <?php if ( isset( $ipc_card['show'] ) && ! $ipc_card['show'] ) { continue; } ?>
-        <a href="<?php echo esc_url( $ipc_card['href'] ); ?>" class="<?php echo esc_attr( $ipc_card['delay'] ); ?> group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
+        <a href="<?php echo esc_url( $ipc_card['href'] ); ?>" class="<?php echo esc_attr( $ipc_card['delay'] ); ?> ipc-stat-card group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60">
             <div class="flex items-start justify-between gap-3">
                 <div class="flex h-11 w-11 items-center justify-center rounded-xl <?php echo esc_attr( $ipc_card['icon_bg'] ); ?>">
                     <?php echo houzez_dash_icon( $ipc_card['icon'], 'h-5 w-5' ); ?>
