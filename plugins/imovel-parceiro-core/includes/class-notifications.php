@@ -524,18 +524,37 @@ class IPC_Notifications {
         }
 
         // Substitui placeholders do template de email antes de salvar a notificação.
+        // Tokens fixos do cadastro/login (com % duplico para bater o formato do template).
         $replacements = array(
-            '%user_login_register'  => $user->user_login,
-            '%user_pass_register'   => '',
-            '%user_email_register'  => $user->user_email,
-            '%user_phone_register'  => isset( $args['user_phone_register'] ) ? $args['user_phone_register'] : '',
-            '%website_url'          => get_option( 'siteurl' ),
-            '%website_name'         => get_option( 'blogname' ),
-            '%user_email'           => $user->user_email,
-            '%username'             => $user->user_login,
+            '%user_login_register%'  => $user->user_login,
+            '%user_pass_register%'   => '',
+            '%user_email_register%'  => $user->user_email,
+            '%user_phone_register%'  => isset( $args['user_phone_register'] ) ? $args['user_phone_register'] : '',
+            '%website_url%'          => get_option( 'siteurl' ),
+            '%website_name%'         => get_option( 'blogname' ),
+            '%user_email%'           => $user->user_email,
+            '%username%'             => $user->user_login,
         );
         $title   = str_replace( array_keys( $replacements ), array_values( $replacements ), $title );
         $message = str_replace( array_keys( $replacements ), array_values( $replacements ), $message );
+
+        // Substitui tokens genéricos vindos do Houzez (%key% → valor do $args).
+        // Complementa os tokens fixos acima para qualquer campo extra passado pelo tema.
+        if ( ! empty( $args ) && is_array( $args ) ) {
+            $skip        = array( 'to', 'type', 'title', 'message' );
+            $token_keys   = array();
+            $token_values = array();
+            foreach ( $args as $key => $val ) {
+                if ( is_scalar( $val ) && '' !== $val && ! in_array( $key, $skip, true ) ) {
+                    $token_keys[]   = '%' . $key . '%';
+                    $token_values[] = (string) $val;
+                }
+            }
+            if ( ! empty( $token_keys ) ) {
+                $title   = str_replace( $token_keys, $token_values, $title );
+                $message = str_replace( $token_keys, $token_values, $message );
+            }
+        }
 
         self::send(
             array(
