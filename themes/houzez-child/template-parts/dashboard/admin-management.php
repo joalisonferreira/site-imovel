@@ -204,7 +204,25 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
             update_post_meta( $post_id, 'fave_package_price', isset( $_POST['imovel_admin_price'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_price'] ) ) : '' );
             update_post_meta( $post_id, 'fave_package_listings', isset( $_POST['imovel_admin_listings'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_listings'] ) ) : '' );
             update_post_meta( $post_id, 'fave_package_featured_listings', isset( $_POST['imovel_admin_featured_listings'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_featured_listings'] ) ) : '' );
-            update_post_meta( $post_id, 'fave_package_visible', ( 'publish' === $post_status ) ? 'yes' : 'no' );
+            // Campos nativos Houzez + extensão free plan
+            $ipc_popular = isset( $_POST['imovel_admin_package_popular'] ) ? sanitize_key( wp_unslash( $_POST['imovel_admin_package_popular'] ) ) : 'no';
+            if ( ! in_array( $ipc_popular, array( 'yes', 'no' ), true ) ) { $ipc_popular = 'no'; }
+            update_post_meta( $post_id, 'fave_package_popular', $ipc_popular );
+            $ipc_visible = isset( $_POST['imovel_admin_package_visible'] ) ? sanitize_key( wp_unslash( $_POST['imovel_admin_package_visible'] ) ) : ( 'publish' === $post_status ? 'yes' : 'no' );
+            if ( ! in_array( $ipc_visible, array( 'yes', 'no' ), true ) ) { $ipc_visible = 'yes'; }
+            update_post_meta( $post_id, 'fave_package_visible', $ipc_visible );
+            update_post_meta( $post_id, 'fave_unlimited_listings', ! empty( $_POST['imovel_admin_unlimited_listings'] ) ? '1' : '0' );
+            update_post_meta( $post_id, 'fave_package_images', isset( $_POST['imovel_admin_images'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_images'] ) ) : '' );
+            update_post_meta( $post_id, 'fave_unlimited_images', ! empty( $_POST['imovel_admin_unlimited_images'] ) ? '1' : '0' );
+            // Plano gratuito (core)
+            $is_free = ! empty( $_POST['imovel_admin_free_plan'] ) ? '1' : '0';
+            update_post_meta( $post_id, '_imovel_parceiro_free_plan', $is_free );
+            $free_validity = isset( $_POST['imovel_admin_free_validity'] ) ? absint( wp_unslash( $_POST['imovel_admin_free_validity'] ) ) : 1;
+            if ( $free_validity < 1 ) { $free_validity = 1; }
+            update_post_meta( $post_id, '_imovel_parceiro_free_validity', $free_validity );
+            $free_unit = isset( $_POST['imovel_admin_free_validity_unit'] ) ? sanitize_key( wp_unslash( $_POST['imovel_admin_free_validity_unit'] ) ) : 'day';
+            if ( ! in_array( $free_unit, array( 'day', 'week', 'month', 'year' ), true ) ) { $free_unit = 'day'; }
+            update_post_meta( $post_id, '_imovel_parceiro_free_validity_unit', $free_unit );
             update_post_meta( $post_id, '_imovel_parceiro_asaas_billing_cycle', $billing_cycle );
             update_post_meta( $post_id, 'fave_billing_unit', $billing_cycles[ $billing_cycle ]['interval'] );
             update_post_meta( $post_id, 'fave_billing_time_unit', $billing_cycles[ $billing_cycle ]['period'] );
@@ -558,7 +576,18 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         'custom_users' => class_exists( 'Imovel_Parceiro_Package_Access' ) ? implode( ', ', Imovel_Parceiro_Package_Access::custom_user_ids( $edit_post->ID ) ) : '',
                         'tax' => get_post_meta( $edit_post->ID, 'fave_package_tax', true ),
                         'images' => get_post_meta( $edit_post->ID, 'fave_package_images', true ),
+                        'popular' => get_post_meta( $edit_post->ID, 'fave_package_popular', true ),
+                        'visible' => get_post_meta( $edit_post->ID, 'fave_package_visible', true ),
+                        'unlimited_listings' => get_post_meta( $edit_post->ID, 'fave_unlimited_listings', true ),
+                        'unlimited_images' => get_post_meta( $edit_post->ID, 'fave_unlimited_images', true ),
+                        'free_plan' => class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ? ( '1' === (string) get_post_meta( $edit_post->ID, '_imovel_parceiro_free_plan', true ) || Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::is_free_package( $edit_post->ID ) ) : false,
+                        'free_validity' => get_post_meta( $edit_post->ID, '_imovel_parceiro_free_validity', true ),
+                        'free_validity_unit' => get_post_meta( $edit_post->ID, '_imovel_parceiro_free_validity_unit', true ),
                     );
+                    if ( '' === $edit_meta['visible'] ) { $edit_meta['visible'] = 'publish' === $edit_post->post_status ? 'yes' : 'no'; }
+                    if ( '' === $edit_meta['popular'] ) { $edit_meta['popular'] = 'no'; }
+                    if ( '' === $edit_meta['free_validity'] ) { $edit_meta['free_validity'] = '1'; }
+                    if ( '' === $edit_meta['free_validity_unit'] ) { $edit_meta['free_validity_unit'] = 'day'; }
                 } elseif ( 'reviews' === $current_section ) {
                     $edit_meta = array(
                         'stars' => get_post_meta( $edit_post->ID, 'review_stars', true ),
@@ -638,67 +667,165 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         <textarea id="imovel_admin_description" name="imovel_admin_description" rows="6" style="width:100%; padding:8px;"><?php echo esc_textarea( $edit_meta['description'] ); ?></textarea>
                     </div>
                 <?php elseif ( 'packages' === $current_section ) : ?>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_price" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Preço', 'imovel-parceiro-core' ); ?></label>
-                        <input type="text" id="imovel_admin_price" name="imovel_admin_price" value="<?php echo esc_attr( $edit_meta['price'] ); ?>" style="width:100%; padding:8px;" />
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_listings" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Anúncios', 'imovel-parceiro-core' ); ?></label>
-                        <input type="text" id="imovel_admin_listings" name="imovel_admin_listings" value="<?php echo esc_attr( $edit_meta['listings'] ); ?>" style="width:100%; padding:8px;" />
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_featured_listings" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Anúncios Destaque', 'imovel-parceiro-core' ); ?></label>
-                        <input type="text" id="imovel_admin_featured_listings" name="imovel_admin_featured_listings" value="<?php echo esc_attr( $edit_meta['featured_listings'] ); ?>" style="width:100%; padding:8px;" />
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_billing_cycle" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Frequência de cobrança', 'imovel-parceiro-core' ); ?></label>
-                        <select id="imovel_admin_billing_cycle" name="imovel_admin_billing_cycle" style="width:100%; padding:8px;">
-                            <?php foreach ( Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::billing_cycles() as $cycle_key => $cycle ) : ?>
-                                <option value="<?php echo esc_attr( $cycle_key ); ?>" <?php selected( $edit_meta['billing_cycle'], $cycle_key ); ?>><?php echo esc_html( $cycle['label'] ); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_baseerp_id" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'ID do produto (BaseERP)', 'imovel-parceiro-core' ); ?></label>
-                        <input type="number" min="0" id="imovel_admin_baseerp_id" name="imovel_admin_baseerp_id" value="<?php echo esc_attr( $edit_meta['baseerp_id'] ); ?>" style="width:100%; padding:8px;" />
-                    </div>
-                    <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : $ipc_allowed_roles = (array) $edit_meta['allowed_roles']; ?>
-                    <div style="margin-bottom:12px;">
-                        <label style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Tipo de conta', 'imovel-parceiro-core' ); ?></label>
-                        <?php foreach ( Imovel_Parceiro_Package_Access::selectable_roles() as $ipc_role_key => $ipc_role_label ) : ?>
-                            <label style="display:block; margin-bottom:4px;">
-                                <input type="checkbox" name="imovel_admin_allowed_roles[]" value="<?php echo esc_attr( $ipc_role_key ); ?>" <?php checked( in_array( $ipc_role_key, $ipc_allowed_roles, true ) ); ?> />
-                                <?php echo esc_html( $ipc_role_label ); ?>
+                    <style>
+                        .ipc-plan-form .ipc-field label{font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px}
+                        .ipc-plan-form .ipc-field input[type=text],.ipc-plan-form .ipc-field input[type=number],.ipc-plan-form .ipc-field select{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;font-size:14px;transition:border-color .15s,box-shadow .15s}
+                        .ipc-plan-form .ipc-field input:focus,.ipc-plan-form .ipc-field select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+                        .ipc-plan-form .ipc-hint{color:#64748b;font-size:12px;margin:6px 0 0;line-height:1.4}
+                        .ipc-plan-form .ipc-card{border:1px solid #eef2f7;border-radius:16px;background:#fff;padding:18px}
+                        .ipc-plan-form .ipc-card-title{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+                        .ipc-plan-form .ipc-switch{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;cursor:pointer;transition:border-color .15s}
+                        .ipc-plan-form .ipc-switch:has(input:checked){border-color:#6366f1;background:#eef2ff}
+                        .ipc-plan-form .ipc-switch input{accent-color:#6366f1}
+                    </style>
+                    <div class="ipc-plan-form space-y-5">
+                        <!-- Grupo: Valores -->
+                        <div class="ipc-card">
+                            <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm">R$</span> <?php esc_html_e( 'Valores e limites', 'imovel-parceiro-core' ); ?></p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_price"><?php esc_html_e( 'Preço', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="text" id="imovel_admin_price" name="imovel_admin_price" value="<?php echo esc_attr( $edit_meta['price'] ); ?>" placeholder="Ex.: 99.90" inputmode="decimal" />
+                                    <p class="ipc-hint"><?php esc_html_e( 'Use ponto como separador decimal. Deixe vazio para plano gratuito com preço zero.', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_featured_listings"><?php esc_html_e( 'Anúncios destaque', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="text" id="imovel_admin_featured_listings" name="imovel_admin_featured_listings" value="<?php echo esc_attr( $edit_meta['featured_listings'] ); ?>" placeholder="Ex.: 5" inputmode="numeric" />
+                                    <p class="ipc-hint"><?php esc_html_e( 'Quantidade de imóveis em destaque inclusa.', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_listings"><?php esc_html_e( 'Imóveis', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="text" id="imovel_admin_listings" name="imovel_admin_listings" value="<?php echo esc_attr( $edit_meta['listings'] ); ?>" placeholder="Ex.: 20" inputmode="numeric" <?php echo ! empty( $edit_meta['unlimited_listings'] ) && '1' === (string) $edit_meta['unlimited_listings'] ? 'disabled' : ''; ?> />
+                                    <label class="ipc-switch mt-2" style="padding:8px 12px">
+                                        <input type="checkbox" name="imovel_admin_unlimited_listings" value="1" <?php checked( $edit_meta['unlimited_listings'], '1' ); ?> onchange="this.closest('.ipc-field').querySelector('#imovel_admin_listings').disabled=this.checked" />
+                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Imóveis ilimitados', 'imovel-parceiro-core' ); ?></span>
+                                        <span style="font-size:12px;color:#64748b;margin-left:auto"><?php esc_html_e( 'nativo Houzez: fave_unlimited_listings', 'imovel-parceiro-core' ); ?></span>
+                                    </label>
+                                </div>
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_images"><?php esc_html_e( 'Imagens por imóvel', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="text" id="imovel_admin_images" name="imovel_admin_images" value="<?php echo esc_attr( $edit_meta['images'] ); ?>" placeholder="Ex.: 15" inputmode="numeric" <?php echo ! empty( $edit_meta['unlimited_images'] ) && '1' === (string) $edit_meta['unlimited_images'] ? 'disabled' : ''; ?> />
+                                    <label class="ipc-switch mt-2" style="padding:8px 12px">
+                                        <input type="checkbox" name="imovel_admin_unlimited_images" value="1" <?php checked( $edit_meta['unlimited_images'], '1' ); ?> onchange="this.closest('.ipc-field').querySelector('#imovel_admin_images').disabled=this.checked" />
+                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Imagens ilimitadas', 'imovel-parceiro-core' ); ?></span>
+                                        <span style="font-size:12px;color:#64748b;margin-left:auto"><?php esc_html_e( 'nativo Houzez: fave_unlimited_images', 'imovel-parceiro-core' ); ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_package_popular"><?php esc_html_e( 'É popular / destaque?', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="imovel_admin_package_popular" name="imovel_admin_package_popular">
+                                        <option value="no" <?php selected( $edit_meta['popular'], 'no' ); ?>><?php esc_html_e( 'Não', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="yes" <?php selected( $edit_meta['popular'], 'yes' ); ?>><?php esc_html_e( 'Sim — destacar na listagem', 'imovel-parceiro-core' ); ?></option>
+                                    </select>
+                                    <p class="ipc-hint"><?php esc_html_e( 'Exibe selo de destaque no card do plano.', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_package_visible"><?php esc_html_e( 'É visível?', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="imovel_admin_package_visible" name="imovel_admin_package_visible">
+                                        <option value="yes" <?php selected( $edit_meta['visible'], 'yes' ); ?>><?php esc_html_e( 'Sim — visível para contratação', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="no" <?php selected( $edit_meta['visible'], 'no' ); ?>><?php esc_html_e( 'Não — oculto', 'imovel-parceiro-core' ); ?></option>
+                                    </select>
+                                    <p class="ipc-hint"><?php esc_html_e( 'Controla fave_package_visible. Planos ocultos não aparecem no checkout.', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grupo: Cobrança e gratuidade -->
+                        <div class="ipc-card" style="background:linear-gradient(180deg,#fff 0%,#f8fafc 100%)">
+                            <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">◷</span> <?php esc_html_e( 'Cobrança e gratuidade', 'imovel-parceiro-core' ); ?></p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_billing_cycle"><?php esc_html_e( 'Frequência de cobrança', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="imovel_admin_billing_cycle" name="imovel_admin_billing_cycle">
+                                        <?php foreach ( Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::billing_cycles() as $cycle_key => $cycle ) : ?>
+                                            <option value="<?php echo esc_attr( $cycle_key ); ?>" <?php selected( $edit_meta['billing_cycle'], $cycle_key ); ?>><?php echo esc_html( $cycle['label'] ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <p class="ipc-hint"><?php esc_html_e( 'Ciclo usado no WooCommerce Subscriptions (sincroniza fave_billing_*).', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_baseerp_id"><?php esc_html_e( 'ID do produto (BaseERP)', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="number" min="0" id="imovel_admin_baseerp_id" name="imovel_admin_baseerp_id" value="<?php echo esc_attr( $edit_meta['baseerp_id'] ); ?>" placeholder="Ex.: 123" />
+                                </div>
+                            </div>
+                            <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                                <label class="ipc-switch" style="background:#fff;border-color:#f59e0b">
+                                    <input type="checkbox" name="imovel_admin_free_plan" value="1" <?php checked( $edit_meta['free_plan'] ); ?> onchange="document.getElementById('ipc-free-validity-row').style.display=this.checked?'grid':'none'" />
+                                    <span style="font-size:13px;font-weight:700;color:#92400e"><?php esc_html_e( 'Plano gratuito', 'imovel-parceiro-core' ); ?></span>
+                                    <span style="font-size:12px;color:#a16207;margin-left:auto"><?php esc_html_e( 'Quando ativo, preço vira R$ 0 e cria assinatura sem renovação.', 'imovel-parceiro-core' ); ?></span>
+                                </label>
+                                <div id="ipc-free-validity-row" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" style="display:<?php echo ! empty( $edit_meta['free_plan'] ) ? 'grid' : 'none'; ?>">
+                                    <div class="ipc-field">
+                                        <label for="imovel_admin_free_validity_unit"><?php esc_html_e( 'Período do plano', 'imovel-parceiro-core' ); ?></label>
+                                        <select id="imovel_admin_free_validity_unit" name="imovel_admin_free_validity_unit">
+                                            <option value="day" <?php selected( $edit_meta['free_validity_unit'], 'day' ); ?>><?php esc_html_e( 'Dias', 'imovel-parceiro-core' ); ?></option>
+                                            <option value="week" <?php selected( $edit_meta['free_validity_unit'], 'week' ); ?>><?php esc_html_e( 'Semanas', 'imovel-parceiro-core' ); ?></option>
+                                            <option value="month" <?php selected( $edit_meta['free_validity_unit'], 'month' ); ?>><?php esc_html_e( 'Meses', 'imovel-parceiro-core' ); ?></option>
+                                            <option value="year" <?php selected( $edit_meta['free_validity_unit'], 'year' ); ?>><?php esc_html_e( 'Anos', 'imovel-parceiro-core' ); ?></option>
+                                        </select>
+                                        <p class="ipc-hint"><?php esc_html_e( 'Unidade da validade (nativo: _imovel_parceiro_free_validity_unit).', 'imovel-parceiro-core' ); ?></p>
+                                    </div>
+                                    <div class="ipc-field">
+                                        <label for="imovel_admin_free_validity"><?php esc_html_e( 'Validade do plano gratuito', 'imovel-parceiro-core' ); ?></label>
+                                        <input type="number" min="1" id="imovel_admin_free_validity" name="imovel_admin_free_validity" value="<?php echo esc_attr( $edit_meta['free_validity'] ); ?>" placeholder="Ex.: 30" />
+                                        <p class="ipc-hint"><?php esc_html_e( 'Número de períodos que o plano gratuito permanece ativo.', 'imovel-parceiro-core' ); ?></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grupo: Permissões -->
+                        <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : $ipc_allowed_roles = (array) $edit_meta['allowed_roles']; ?>
+                        <div class="ipc-card">
+                            <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center text-sm">◐</span> <?php esc_html_e( 'Visibilidade por tipo de conta', 'imovel-parceiro-core' ); ?></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <?php foreach ( Imovel_Parceiro_Package_Access::selectable_roles() as $ipc_role_key => $ipc_role_label ) : ?>
+                                    <label class="ipc-switch" style="padding:10px 12px">
+                                        <input type="checkbox" name="imovel_admin_allowed_roles[]" value="<?php echo esc_attr( $ipc_role_key ); ?>" <?php checked( in_array( $ipc_role_key, $ipc_allowed_roles, true ) ); ?> />
+                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php echo esc_html( $ipc_role_label ); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <p class="ipc-hint" style="margin-top:10px"><?php esc_html_e( 'Deixe tudo desmarcado para exibir o plano a todos os tipos.', 'imovel-parceiro-core' ); ?></p>
+                        </div>
+                        <?php endif; ?>
+                        <?php if ( class_exists( 'Imovel_Parceiro_Package_Extras' ) ) : ?>
+                        <div class="ipc-card">
+                            <p class="ipc-card-title"><span class="h-7 w-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm">⚙</span> <?php esc_html_e( 'Extras', 'imovel-parceiro-core' ); ?></p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_max_agents"><?php esc_html_e( 'Corretores permitidos', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="number" min="0" id="imovel_admin_max_agents" name="imovel_admin_max_agents" value="<?php echo esc_attr( $edit_meta['max_agents'] ); ?>" placeholder="0 = ilimitado" />
+                                    <p class="ipc-hint"><?php esc_html_e( 'Aplica-se a planos de imobiliária. Deixe 0 para ilimitado.', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                                <div class="ipc-field flex items-end">
+                                    <label class="ipc-switch" style="width:100%">
+                                        <input type="checkbox" name="imovel_admin_price_on_request" value="1" <?php checked( $edit_meta['price_on_request'] ); ?> />
+                                        <span style="font-size:13px;font-weight:600;color:#334155"><?php esc_html_e( 'Preço sob consulta', 'imovel-parceiro-core' ); ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <p class="ipc-hint"><?php esc_html_e( 'Oculta o preço e exibe um botão de contato para personalização.', 'imovel-parceiro-core' ); ?></p>
+                        </div>
+                        <?php endif; ?>
+                        <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : ?>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <label class="ipc-switch" style="background:#fff">
+                                <input type="checkbox" name="imovel_admin_custom_plan" value="1" <?php checked( $edit_meta['custom_plan'] ); ?> onchange="document.getElementById('ipc-custom-users-row').style.display=this.checked?'block':'none'" />
+                                <span style="font-size:13px;font-weight:700;color:#334155"><?php esc_html_e( 'Plano personalizado (oculto para os demais usuários)', 'imovel-parceiro-core' ); ?></span>
                             </label>
-                        <?php endforeach; ?>
-                        <p style="color:#666; font-size:12px; margin:4px 0 0;"><?php esc_html_e( 'Deixe tudo desmarcado para exibir o plano a todos os tipos.', 'imovel-parceiro-core' ); ?></p>
+                            <div id="ipc-custom-users-row" style="display:<?php echo ! empty( $edit_meta['custom_plan'] ) ? 'block' : 'none'; ?>;margin-top:12px">
+                                <div class="ipc-field">
+                                    <label for="imovel_admin_custom_users"><?php esc_html_e( 'Usuários autorizados', 'imovel-parceiro-core' ); ?></label>
+                                    <input type="text" id="imovel_admin_custom_users" name="imovel_admin_custom_users" value="<?php echo esc_attr( $edit_meta['custom_users'] ); ?>" placeholder="Ex.: 73, corretor2@imovelparceiro.com.br" />
+                                    <p class="ipc-hint"><?php esc_html_e( 'Informe IDs ou e-mails separados por vírgula. O plano só aparecerá para esses usuários (e para o admin).', 'imovel-parceiro-core' ); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
-                    <?php endif; ?>
-                    <?php if ( class_exists( 'Imovel_Parceiro_Package_Extras' ) ) : ?>
-                    <div style="margin-bottom:12px;">
-                        <label for="imovel_admin_max_agents" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Corretores permitidos', 'imovel-parceiro-core' ); ?></label>
-                        <input type="number" min="0" id="imovel_admin_max_agents" name="imovel_admin_max_agents" value="<?php echo esc_attr( $edit_meta['max_agents'] ); ?>" style="width:100%; padding:8px;" />
-                        <p style="color:#666; font-size:12px; margin:4px 0 0;"><?php esc_html_e( 'Aplica-se a planos de imobiliária. Deixe 0 para ilimitado.', 'imovel-parceiro-core' ); ?></p>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label style="display:block; margin-bottom:4px; font-weight:600;">
-                            <input type="checkbox" name="imovel_admin_price_on_request" value="1" <?php checked( $edit_meta['price_on_request'] ); ?> />
-                            <?php esc_html_e( 'Preço sob consulta', 'imovel-parceiro-core' ); ?>
-                        </label>
-                        <p style="color:#666; font-size:12px; margin:0;"><?php esc_html_e( 'Oculta o preço e exibe um botão de contato para personalização.', 'imovel-parceiro-core' ); ?></p>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ( class_exists( 'Imovel_Parceiro_Package_Access' ) ) : ?>
-                    <div style="margin-bottom:12px; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
-                        <label style="display:block; margin-bottom:6px; font-weight:600;">
-                            <input type="checkbox" name="imovel_admin_custom_plan" value="1" <?php checked( $edit_meta['custom_plan'] ); ?> />
-                            <?php esc_html_e( 'Plano personalizado (oculto para os demais usuários)', 'imovel-parceiro-core' ); ?>
-                        </label>
-                        <label for="imovel_admin_custom_users" style="display:block; margin:6px 0; font-weight:600;"><?php esc_html_e( 'Usuários autorizados', 'imovel-parceiro-core' ); ?></label>
-                        <input type="text" id="imovel_admin_custom_users" name="imovel_admin_custom_users" value="<?php echo esc_attr( $edit_meta['custom_users'] ); ?>" style="width:100%; padding:8px;" placeholder="Ex.: 73, corretor2@imovelparceiro.com.br" />
-                        <p style="color:#666; font-size:12px; margin:4px 0 0;"><?php esc_html_e( 'Informe IDs ou e-mails separados por vírgula. O plano só aparecerá para esses usuários (e para o admin).', 'imovel-parceiro-core' ); ?></p>
-                    </div>
-                    <?php endif; ?>
                 <?php elseif ( 'reviews' === $current_section ) : ?>
                     <div style="margin-bottom:12px;">
                         <label for="imovel_admin_stars" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Estrelas', 'imovel-parceiro-core' ); ?></label>

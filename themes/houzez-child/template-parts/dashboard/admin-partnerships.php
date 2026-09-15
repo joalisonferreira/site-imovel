@@ -128,7 +128,7 @@ $now = current_time( 'timestamp' );
 
 <style>
     .ipc-admin-kanban { display:flex; gap:14px; overflow-x:auto; padding-bottom:10px; }
-    .ipc-admin-col { flex:0 0 280px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:10px; }
+    .ipc-admin-col { flex:1 1 280px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:10px; }
     .ipc-admin-col__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
     .ipc-admin-col__title { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#64748b; }
     .ipc-admin-col__count { background:#e2e8f0; color:#334155; border-radius:999px; padding:1px 9px; font-size:12px; font-weight:700; }
@@ -180,7 +180,7 @@ $now = current_time( 'timestamp' );
     <?php endif; ?>
 
     <!-- Resumo -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div class="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
             <p class="m-0 text-xs font-bold uppercase tracking-wide text-rose-500"><?php esc_html_e( 'Alertas abertos', 'imovel-parceiro-core' ); ?></p>
             <p class="m-0 mt-1 text-2xl font-extrabold text-rose-700"><?php echo esc_html( number_format_i18n( $open_alerts ) ); ?></p>
@@ -290,7 +290,7 @@ $now = current_time( 'timestamp' );
     <!-- Acordos -->
     <h6 class="m-0 mb-3 mt-6 text-sm font-extrabold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Acordos registrados (entre corretores)', 'imovel-parceiro-core' ); ?></h6>
     <div class="overflow-x-auto rounded-xl border border-slate-100">
-        <table class="ipc-table w-full min-w-[720px] border-collapse text-sm">
+        <table class="ipc-table w-full border-collapse text-sm">
             <thead>
                 <tr class="border-b border-slate-100 bg-slate-50/70 text-left">
                     <th class="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-slate-400"><?php esc_html_e( 'Imóvel', 'imovel-parceiro-core' ); ?></th>

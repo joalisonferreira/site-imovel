@@ -1122,7 +1122,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 </a>
             </div>
 
-            <div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-5">
+            <div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mb-5">
                 <?php foreach ( $summary_cards as $card_index => $card ) : ?>
                     <?php
                     $ipc_summary_icons = array( 'timer', 'circle-check', 'triangle-alert', 'shield-check' );
@@ -1173,7 +1173,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             <?php endif; ?>
 
             <div class="overflow-x-auto rounded-xl border border-slate-100">
-                <table class="ipc-table w-full min-w-[880px] border-collapse text-sm">
+                <table class="ipc-table w-full border-collapse text-sm">
                     <thead>
                         <tr class="border-b border-slate-100 bg-slate-50/70 text-left">
                             <th class="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-slate-400"><?php esc_html_e( 'Data', 'imovel-parceiro-core' ); ?></th>
