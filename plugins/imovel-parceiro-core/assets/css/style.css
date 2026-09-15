@@ -1,0 +1,77 @@
+.imovel-parceiro-dashboard{padding:20px;border:1px solid #e6e6e6;background:#fff;border-radius:8px;margin-bottom:20px}.imovel-parceiro-acceptance{margin-top:20px;padding:15px;border:1px solid #eee;background:#fafafa;border-radius:6px}.imovel-parceiro-request-partnership{margin-top:15px}.imovel-parceiro-admin-section{margin-top:20px;padding-top:20px;border-top:1px solid #e6e6e6}.imovel-parceiro-admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}.imovel-parceiro-admin-card{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid #e6e6e6;border-radius:8px;background:#f9fbfd;color:#1f2937;text-decoration:none;transition:all .2s ease}.imovel-parceiro-admin-card:hover{border-color:#1f6feb;box-shadow:0 2px 8px rgba(31,111,235,.12);text-decoration:none;color:#1f2937}.imovel-parceiro-admin-card span{font-size:13px;color:#6b7280}
+.agent-information-module .imovel-parceiro-inline-wrap{list-style:none}.agent-information-module .imovel-parceiro-inline-wrap .imovel-parceiro-request-partnership{margin-top:0}
+.imovel-doc-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:99999}.imovel-doc-modal.is-open{display:flex}.imovel-doc-modal__dialog{width:min(1000px,100%);max-height:calc(100vh - 24px);background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}.imovel-doc-modal__header{padding:12px 16px;border-bottom:1px solid #e6e6e6;display:flex;justify-content:space-between;align-items:center}.imovel-doc-modal__body{padding:14px 16px;overflow:auto}.imovel-doc-modal__meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}.imovel-doc-modal__meta-grid strong{display:block;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.02em}.imovel-doc-modal__note{padding:10px;border:1px solid #e6e6e6;border-radius:8px;background:#fafafa;margin-bottom:12px}.imovel-doc-modal__viewer{min-height:320px;border:1px solid #e6e6e6;border-radius:8px;background:#f8fafc;overflow:hidden;display:flex;align-items:center;justify-content:center}.imovel-doc-modal__iframe{width:100%;height:62vh;border:0}.imovel-doc-modal__image{max-width:100%;max-height:62vh;display:block}.imovel-doc-modal__unavailable{padding:24px;text-align:center;color:#475569}.imovel-doc-modal__footer{padding:12px 16px;border-top:1px solid #e6e6e6;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.imovel-doc-note-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:100000}.imovel-doc-note-modal.is-open{display:flex}.imovel-doc-note-modal__dialog{width:min(560px,100%);background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}.imovel-doc-note-modal__header{padding:12px 16px;border-bottom:1px solid #e6e6e6;display:flex;justify-content:space-between;align-items:center}.imovel-doc-note-modal__body{padding:14px 16px}.imovel-doc-note-modal__footer{padding:12px 16px;border-top:1px solid #e6e6e6;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.imovel-parceiro-partnerships-panel{padding:20px;border:1px solid #e6e6e6;background:#fff;border-radius:8px;margin-bottom:20px}
+.imovel-parceiro-partnerships-panel h3{margin-bottom:12px}
+.imovel-parceiro-partnership-list{list-style:none;margin:0;padding:0}
+.imovel-parceiro-partnership-item{border:1px solid #e6e6e6;border-radius:8px;padding:14px;margin-bottom:12px;background:#fafbfc}
+.imovel-parceiro-partnership-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.imovel-parceiro-partnership-title{font-weight:600}
+.imovel-parceiro-partnership-status{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:#eef2ff;color:#3730a3}
+.imovel-parceiro-status-aceita{background:#ecfdf5;color:#047857}
+.imovel-parceiro-status-ativa{background:#eff6ff;color:#1d4ed8}
+.imovel-parceiro-status-emnegociacao{background:#fff7ed;color:#c2410c}
+.imovel-parceiro-status-ganha{background:#ecfdf5;color:#047857}
+.imovel-parceiro-status-perdida{background:#fef2f2;color:#b91c1c}
+.imovel-parceiro-status-recusada{background:#fef2f2;color:#b91c1c}
+.imovel-parceiro-status-encerrada{background:#f3f4f6;color:#374151}
+.imovel-parceiro-partnership-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:#6b7280}
+.imovel-parceiro-partnership-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.imovel-parceiro-button{display:inline-block;padding:7px 14px;border-radius:6px;border:1px solid transparent;background:#1f6feb;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.imovel-parceiro-button:hover{filter:brightness(1.05)}
+.imovel-parceiro-button:disabled{opacity:.55;cursor:not-allowed}
+.imovel-parceiro-button-secondary{background:#fff;color:#374151;border-color:#d1d5db}
+.imovel-parceiro-button-secondary:hover{background:#f9fafb}
+.imovel-parceiro-button-danger{background:#fff;color:#b91c1c;border-color:#fecaca}
+.imovel-parceiro-button-danger:hover{background:#fef2f2}
+.imovel-parceiro-empty{color:#6b7280}
+.imovel-parceiro-partnership-final{margin-top:12px;font-size:13px;color:#6b7280}
+.imovel-parceiro-price-field{position:relative}
+.imovel-parceiro-price-field .imovel-parceiro-price-prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:600;color:#6b7280;pointer-events:none;z-index:2}
+.imovel-parceiro-price-field .form-control.imovel-parceiro-price-input{padding-left:38px}
+
+/* Partnership funnel (detail) */
+.imovel-parceiro-status-badge.is-accepted{background:#dcfce7;color:#166534}
+.imovel-parceiro-status-badge.is-negotiating{background:#fef9c3;color:#854d0e}
+.imovel-parceiro-status-badge.is-opportunity{background:#e0e7ff;color:#3730a3}
+.imovel-parceiro-status-badge.is-proposal{background:#cffafe;color:#155e75}
+.ipc-funnel-wrap{font-family:inherit;color:#0f172a;padding:0}
+.ipc-funnel-head{border-bottom:1px solid #e5e7eb;padding-bottom:18px;margin-bottom:22px}
+.ipc-funnel-back{font-size:14px;color:#6b7280;text-decoration:none;display:inline-block;margin-bottom:14px}
+.ipc-funnel-back:hover{color:#7a1e2b}
+.ipc-funnel-title{display:flex;align-items:center;gap:10px}
+.ipc-funnel-emoji{font-size:24px}
+.ipc-funnel-title h2{margin:0;font-size:22px;font-weight:700;line-height:1.3}
+.ipc-funnel-statusbar{margin-top:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ipc-funnel-role{font-size:14px;color:#475569}
+.ipc-funnel-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.ipc-funnel-col{min-width:0}
+.ipc-funnel-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 2px 8px rgba(15,23,42,.04);padding:20px;margin-bottom:22px}
+.ipc-funnel-card-title{margin:0 0 14px;font-size:15px;font-weight:700;color:#334155}
+.ipc-funnel-dl{margin:0;display:flex;flex-direction:column;gap:10px}
+.ipc-funnel-dl>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9;padding-bottom:8px}
+.ipc-funnel-dl dt{font-size:13px;color:#6b7280;font-weight:600;flex:0 0 auto}
+.ipc-funnel-dl dd{margin:0;font-size:14px;font-weight:600;color:#0f172a;text-align:right}
+.ipc-funnel-timeline{list-style:none;margin:0;padding:0;position:relative}
+.ipc-funnel-timeline li{display:flex;align-items:center;gap:12px;padding:8px 0;position:relative}
+.ipc-funnel-timeline li.is-future{opacity:.45}
+.ipc-step-marker{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:#f1f5f9;color:#94a3b8;flex:0 0 26px}
+.ipc-funnel-timeline li.is-done .ipc-step-marker{background:#dcfce7;color:#16a34a}
+.ipc-funnel-timeline li.is-current .ipc-step-marker{background:#7a1e2b;color:#fff;box-shadow:0 0 0 4px rgba(122,30,43,.15)}
+.ipc-funnel-timeline li.is-current .ipc-step-label{font-weight:700}
+.ipc-step-label{font-size:14px;color:#334155}
+.ipc-funnel-next{background:#fff7ed;border-color:#fed7aa}
+.ipc-funnel-next .ipc-funnel-card-title{color:#9a3412}
+.ipc-funnel-next-text{font-size:15px;color:#7c2d12;margin:0 0 14px}
+.ipc-funnel-actions{display:flex;flex-wrap:wrap;gap:8px}
+.ipc-funnel-contact{font-size:14px;line-height:1.8;color:#334155}
+.ipc-funnel-contact p{margin:0 0 6px}
+.ipc-funnel-contact a{color:#7a1e2b;font-weight:600;text-decoration:none}
+.ipc-funnel-muted{color:#6b7280;font-size:14px}
+.ipc-funnel-events{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;max-height:340px;overflow:auto}
+.ipc-funnel-events li{border-left:2px solid #e5e7eb;padding-left:14px}
+.ipc-ev-meta{display:block;font-size:12px;color:#94a3b8}
+.ipc-ev-title{font-size:14px;color:#334155}
+.ipc-funnel-note{margin-top:22px;text-align:right;font-size:12px;color:#94a3b8}
+@media (max-width:768px){.ipc-funnel-grid{grid-template-columns:1fr}.ipc-funnel-timeline li{align-items:flex-start}.ipc-funnel-statusbar{gap:10px}}

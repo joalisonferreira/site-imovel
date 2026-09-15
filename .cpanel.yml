@@ -1,0 +1,11 @@
+---
+# Arquivo de deploy lido pelo cPanel (Git Version Control > Deploy HEAD Commit).
+# Roda a partir da raiz do repositorio clonado. $HOME = /home/SEU_USUARIO.
+deployment:
+  tasks:
+    # Caminho do repositorio clonado no cPanel (mesmo valor de "Repository Path").
+    - export REPO="$HOME/repositories/site-wp"
+    # Caminho do wp-content do site ao vivo. AJUSTE se o WordPress nao estiver em public_html.
+    - export WP="$HOME/public_html/wp-content"
+    - /bin/cp -Rf "$REPO/plugins/imovel-parceiro-core" "$WP/plugins/"
+    - /bin/cp -Rf "$REPO/themes/houzez-child" "$WP/themes/"

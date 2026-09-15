@@ -1,0 +1,13 @@
+# Normaliza quebras de linha (evita churn LF/CRLF em Windows)
+* text=auto eol=lf
+
+# Arquivos binários/imagens não devem ser tratados como texto
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.svg text

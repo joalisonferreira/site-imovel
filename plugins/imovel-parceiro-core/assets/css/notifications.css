@@ -1,0 +1,121 @@
+.ipc-notifications-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ipc-notifications-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #1f2937;
+    background: transparent;
+    border: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.ipc-notifications-toggle i {
+    font-size: 26px;
+    color: inherit;
+    line-height: 1;
+}
+
+.ipc-notifications-toggle:hover,
+.ipc-notifications-wrap.show .ipc-notifications-toggle {
+    color: #111827;
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.ipc-notifications-toggle .ipc-notifications-badge {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    min-width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    background: #cf2e2e;
+    display: none;
+    text-indent: -9999px;
+    overflow: hidden;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.ipc-notifications-toggle.has-unread {
+    color: #111827;
+}
+
+.ipc-notifications-toggle.has-unread:hover,
+.ipc-notifications-wrap.show .ipc-notifications-toggle.has-unread {
+    color: #111827;
+}
+
+.ipc-notifications-wrap.show .ipc-notifications-dropdown-panel {
+    display: block;
+}
+
+.ipc-notifications-dropdown-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(360px, calc(100vw - 24px));
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+    z-index: 10000;
+    overflow: hidden;
+}
+
+.ipc-notifications-dropdown-panel .dropdown-header,
+.ipc-notifications-dropdown-panel .dropdown-footer {
+    padding: 12px 16px;
+}
+
+.ipc-notifications-dropdown-panel .dropdown-menu {
+    position: static;
+    display: block;
+    float: none;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    max-height: 320px;
+    overflow: auto;
+}
+
+.ipc-notification-item {
+    white-space: normal;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.ipc-notification-unread strong {
+    font-weight: 700;
+}
+
+.ipc-notification-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 999px;
+    background: #dc2626;
+    vertical-align: middle;
+}
+
+.ipc-notification-critical {
+    background: #fff7ed;
+}
+
+@media (max-width: 767px) {
+    .ipc-notifications-dropdown-panel {
+        width: min(320px, calc(100vw - 20px));
+        right: -6px;
+    }
+}

@@ -1,0 +1,34 @@
+# Rastrear somente o código do projeto (plugin + child theme).
+# Ignora o restante do WordPress / temas e plugins de terceiros.
+
+# Ignora tudo na raiz por padrão
+/*
+
+# ...exceto as pastas que contêm nosso código
+!/plugins
+!/themes
+
+# ...e o arquivo de deploy do cPanel (fica na raiz do repositório)
+!/.cpanel.yml
+
+# Recursivamente ignore o conteúdo de plugins e temas
+/plugins/*
+!/plugins/imovel-parceiro-core
+/plugins/imovel-parceiro-core/**
+!/plugins/imovel-parceiro-core
+
+/themes/*
+!/themes/houzez-child
+/themes/houzez-child/**
+!/themes/houzez-child
+
+# Motivos para não versionar (fora do escopo):
+#  - wp-content/plugins/houzez-*, etc. (funcionalidade do tema)
+#  - wp-content/themes/houzez (parent do Houzez)
+#  - wp-content/uploads (mídias)
+
+# Lixo/ambiente
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
