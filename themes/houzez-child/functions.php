@@ -538,6 +538,9 @@ function imovel_parceiro_admin_create_user() {
     $user_login   = isset( $_POST['user_login'] ) ? sanitize_user( wp_unslash( $_POST['user_login'] ) ) : '';
     $user_email   = isset( $_POST['user_email'] ) ? sanitize_email( wp_unslash( $_POST['user_email'] ) ) : '';
     $phone        = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+    $usermobile   = isset( $_POST['usermobile'] ) ? sanitize_text_field( wp_unslash( $_POST['usermobile'] ) ) : '';
+    $tax_number   = isset( $_POST['tax_number'] ) ? sanitize_text_field( wp_unslash( $_POST['tax_number'] ) ) : '';
+    $license      = isset( $_POST['license'] ) ? sanitize_text_field( wp_unslash( $_POST['license'] ) ) : '';
     $password     = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
     $account_type = isset( $_POST['account_type'] ) ? sanitize_key( wp_unslash( $_POST['account_type'] ) ) : '';
 
@@ -551,6 +554,10 @@ function imovel_parceiro_admin_create_user() {
 
     if ( email_exists( $user_email ) ) {
         wp_send_json_error( array( 'message' => __( 'Este e-mail já está cadastrado.', 'imovel-parceiro-core' ) ) );
+    }
+
+    if ( '' !== $license && class_exists( 'Imovel_Parceiro_User_Fields' ) && Imovel_Parceiro_User_Fields::license_taken( $license ) ) {
+        wp_send_json_error( array( 'message' => __( 'Este CRECI já está cadastrado por outro usuário.', 'imovel-parceiro-core' ) ) );
     }
 
     $role_map = array(
@@ -581,6 +588,18 @@ function imovel_parceiro_admin_create_user() {
         update_user_meta( $user_id, 'fave_author_phone', $phone );
     }
 
+    if ( '' !== $usermobile ) {
+        update_user_meta( $user_id, 'fave_author_mobile', $usermobile );
+    }
+
+    if ( '' !== $tax_number ) {
+        update_user_meta( $user_id, 'fave_author_tax_no', $tax_number );
+    }
+
+    if ( '' !== $license ) {
+        update_user_meta( $user_id, 'fave_author_license', $license );
+    }
+
     wp_send_json_success(
         array(
             'message' => __( 'Usuário criado com sucesso.', 'imovel-parceiro-core' ),
@@ -608,6 +627,9 @@ function imovel_parceiro_admin_update_user() {
 
     $first_name   = isset( $_POST['first_name'] ) ? sanitize_text_field( wp_unslash( $_POST['first_name'] ) ) : $user->first_name;
     $user_email   = isset( $_POST['user_email'] ) ? sanitize_email( wp_unslash( $_POST['user_email'] ) ) : $user->user_email;
+    $usermobile   = isset( $_POST['usermobile'] ) ? sanitize_text_field( wp_unslash( $_POST['usermobile'] ) ) : '';
+    $tax_number   = isset( $_POST['tax_number'] ) ? sanitize_text_field( wp_unslash( $_POST['tax_number'] ) ) : '';
+    $license      = isset( $_POST['license'] ) ? sanitize_text_field( wp_unslash( $_POST['license'] ) ) : '';
     $password     = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
     $account_type = isset( $_POST['account_type'] ) ? sanitize_key( wp_unslash( $_POST['account_type'] ) ) : '';
 
@@ -618,6 +640,10 @@ function imovel_parceiro_admin_update_user() {
     $email_user = $user_email ? get_user_by( 'email', $user_email ) : false;
     if ( $email_user && (int) $email_user->ID !== (int) $user->ID ) {
         wp_send_json_error( array( 'message' => __( 'Este e-mail já está em uso por outro usuário.', 'imovel-parceiro-core' ) ) );
+    }
+
+    if ( '' !== $license && class_exists( 'Imovel_Parceiro_User_Fields' ) && Imovel_Parceiro_User_Fields::license_taken( $license, (int) $user->ID ) ) {
+        wp_send_json_error( array( 'message' => __( 'Este CRECI já está cadastrado por outro usuário.', 'imovel-parceiro-core' ) ) );
     }
 
     $update_data = array(
@@ -646,6 +672,10 @@ function imovel_parceiro_admin_update_user() {
     if ( is_wp_error( $updated ) ) {
         wp_send_json_error( array( 'message' => $updated->get_error_message() ) );
     }
+
+    update_user_meta( $user->ID, 'fave_author_mobile', $usermobile );
+    update_user_meta( $user->ID, 'fave_author_tax_no', $tax_number );
+    update_user_meta( $user->ID, 'fave_author_license', $license );
 
     wp_send_json_success(
         array(

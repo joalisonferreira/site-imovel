@@ -1600,7 +1600,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 data-first-name="<?php echo esc_attr( get_user_meta( $user_item->ID, 'first_name', true ) ); ?>"
                                                 data-user-email="<?php echo esc_attr( $user_item->user_email ); ?>"
                                                 data-user-login="<?php echo esc_attr( $user_item->user_login ); ?>"
-                                                data-role="<?php echo esc_attr( $role_key ); ?>">
+                                                data-role="<?php echo esc_attr( $role_key ); ?>"
+                                                data-mobile="<?php echo esc_attr( get_user_meta( $user_item->ID, 'fave_author_mobile', true ) ); ?>"
+                                                data-tax-number="<?php echo esc_attr( get_user_meta( $user_item->ID, 'fave_author_tax_no', true ) ); ?>"
+                                                data-license="<?php echo esc_attr( get_user_meta( $user_item->ID, 'fave_author_license', true ) ); ?>">
                                                 <?php esc_html_e( 'Editar', 'imovel-parceiro-core' ); ?>
                                             </button>
                                             <?php
@@ -1765,6 +1768,18 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                             <label for="imovel-user-phone" class="form-label" style="display:block; margin-bottom:6px; font-weight:600; color:#334155; font-size:13px;"><?php esc_html_e( 'Telefone', 'imovel-parceiro-core' ); ?></label>
                                             <input type="text" name="phone" id="imovel-user-phone" class="form-control" />
                                         </div>
+                                        <div class="col-md-12">
+                                            <label for="imovel-user-mobile" class="form-label" style="display:block; margin-bottom:6px; font-weight:600; color:#334155; font-size:13px;"><?php esc_html_e( 'Celular', 'imovel-parceiro-core' ); ?></label>
+                                            <input type="text" name="usermobile" id="imovel-user-mobile" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="imovel-user-tax-number" class="form-label" style="display:block; margin-bottom:6px; font-weight:600; color:#334155; font-size:13px;"><?php esc_html_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?></label>
+                                            <input type="text" name="tax_number" id="imovel-user-tax-number" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="imovel-user-license" class="form-label" style="display:block; margin-bottom:6px; font-weight:600; color:#334155; font-size:13px;"><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></label>
+                                            <input type="text" name="license" id="imovel-user-license" class="form-control" />
+                                        </div>
                                         <div class="col-md-6">
                                             <label for="imovel-user-password" class="form-label" id="imovel-user-pass-label" style="display:block; margin-bottom:6px; font-weight:600; color:#334155; font-size:13px;"><?php esc_html_e( 'Senha *', 'imovel-parceiro-core' ); ?></label>
                                             <input type="password" name="password" id="imovel-user-password" class="form-control" required />
@@ -1844,6 +1859,9 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                 document.getElementById('imovel-user-login').readOnly = true;
                                 document.getElementById('imovel-user-email').value = d.userEmail || '';
                                 document.getElementById('imovel-user-phone').value = '';
+                                document.getElementById('imovel-user-mobile').value = d.mobile || '';
+                                document.getElementById('imovel-user-tax-number').value = d.taxNumber || '';
+                                document.getElementById('imovel-user-license').value = d.license || '';
                                 document.getElementById('imovel-user-password').required = false;
                                 document.getElementById('imovel-user-password-confirm').required = false;
                                 document.getElementById('imovel-user-pass-label').innerHTML = 'Nova senha (opcional)';
