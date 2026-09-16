@@ -101,8 +101,22 @@ class Imovel_Parceiro_Contact_Visibility {
      * @return string
      */
     public static function strip_agent_card_contact( $content ) {
+        return self::strip_nodes_by_class(
+            $content,
+            array( 'agent-phone-wrap', 'item-buttons-wrap', 'modal-phone-number' )
+        );
+    }
+
+    /**
+     * Remove every node carrying one of the given CSS classes.
+     *
+     * @param string   $content Rendered HTML fragment.
+     * @param string[] $classes CSS classes to remove.
+     * @return string
+     */
+    public static function strip_nodes_by_class( $content, array $classes ) {
         $content = (string) $content;
-        if ( '' === trim( $content ) || ! class_exists( 'DOMDocument' ) ) {
+        if ( '' === trim( $content ) || empty( $classes ) || ! class_exists( 'DOMDocument' ) ) {
             return $content;
         }
 
@@ -116,7 +130,11 @@ class Imovel_Parceiro_Contact_Visibility {
         libxml_use_internal_errors( $prev );
 
         $xpath = new DOMXPath( $doc );
-        foreach ( array( 'agent-phone-wrap', 'item-buttons-wrap', 'modal-phone-number' ) as $class ) {
+        foreach ( $classes as $class ) {
+            $class = trim( (string) $class );
+            if ( '' === $class ) {
+                continue;
+            }
             foreach ( $xpath->query( "//*[contains(concat(' ', normalize-space(@class), ' '), ' $class ')]" ) as $node ) {
                 if ( $node->parentNode ) {
                     $node->parentNode->removeChild( $node );

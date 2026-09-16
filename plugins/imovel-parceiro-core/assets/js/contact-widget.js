@@ -186,7 +186,7 @@
             html += '<span class="ipcw-btn__icon">' + whatsappIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
             html += '<span class="ipcw-btn__title">' + (IPCW.strings ? IPCW.strings.wa_login : 'Faça login para ver o contato') + '</span>';
-            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Entre na sua conta Houzez para falar com o corretor.') + '</span>';
+            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Entre na sua conta para falar com o corretor.') + '</span>';
             html += '</span></button>';
         } else {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';

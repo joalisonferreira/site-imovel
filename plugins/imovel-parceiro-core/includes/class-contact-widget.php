@@ -117,7 +117,7 @@ class Imovel_Parceiro_Contact_Widget {
                     'wa_unavailable' => __( 'WhatsApp indisponível', 'imovel-parceiro-core' ),
                     'wa_unavailable_sub' => __( 'O contato do corretor ainda não está liberado.', 'imovel-parceiro-core' ),
                     'wa_login' => __( 'Faça login para ver o contato', 'imovel-parceiro-core' ),
-                    'wa_login_sub' => __( 'Entre na sua conta Houzez para falar com o corretor.', 'imovel-parceiro-core' ),
+                    'wa_login_sub' => __( 'Entre na sua conta para falar com o corretor.', 'imovel-parceiro-core' ),
                     'wa_owner' => __( 'WhatsApp indisponível', 'imovel-parceiro-core' ),
                     'wa_owner_sub' => __( 'Você é o proprietário deste imóvel.', 'imovel-parceiro-core' ),
                     'login_required' => __( 'Faça login para solicitar uma parceria.', 'imovel-parceiro-core' ),

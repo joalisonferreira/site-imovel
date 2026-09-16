@@ -180,11 +180,29 @@ if ( function_exists( 'houzez_edit_property' ) && houzez_edit_property() ) {
     });
 
     var form = document.getElementById('submit_property_form');
-    if (form) {
+    if (form && !form.dataset.ipcPriceSubmitBound) {
+        form.dataset.ipcPriceSubmitBound = '1';
         form.addEventListener('submit', function(){
             [].forEach.call(fields, function(el){
+                // Evita converter duas vezes (ex.: reenvio sem recarregar):
+                // toNumeric() aplicado sobre valor canônico multiplicaria por 100.
+                if (el.dataset.ipcPriceConverted === '1') {
+                    return;
+                }
                 el.value = toNumeric(el);
+                el.dataset.ipcPriceConverted = '1';
             });
+            // O Houzez pode enviar via AJAX e permanecer na página; restaura a
+            // exibição BRL no próximo tick para que blur/reenvio nunca vejam
+            // o valor canônico.
+            window.setTimeout(function(){
+                [].forEach.call(fields, function(el){
+                    delete el.dataset.ipcPriceConverted;
+                    normalizeInitial(el);
+                    mask(el);
+                    ensureCents(el);
+                });
+            }, 0);
         });
     }
 })();
