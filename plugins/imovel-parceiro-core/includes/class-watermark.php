@@ -9,9 +9,6 @@ class Imovel_Parceiro_Watermark {
     const META_PROCESSED = '_imovel_parceiro_watermark_processed';
     const META_SCALED = '_imovel_parceiro_watermark_scaled';
     const META_HASH = '_imovel_parceiro_watermark_hash';
-    // Derived sizes smaller than this (longest side, px) skip watermarking:
-    // the mark would be invisible and each size costs a full GD/Imagick pass.
-    const MIN_WATERMARK_DIMENSION = 600;
 
     private static $instance = null;
 
@@ -366,13 +363,8 @@ class Imovel_Parceiro_Watermark {
                 if ( empty( $size_data['file'] ) ) {
                     continue;
                 }
-                // Skip thumbnails: unknown dimensions are processed (safe
-                // default), only known-small sizes are skipped.
-                $size_w = isset( $size_data['width'] ) ? absint( $size_data['width'] ) : 0;
-                $size_h = isset( $size_data['height'] ) ? absint( $size_data['height'] ) : 0;
-                if ( $size_w > 0 && $size_h > 0 && max( $size_w, $size_h ) < self::MIN_WATERMARK_DIMENSION ) {
-                    continue;
-                }
+                // All derived sizes are marked (cards, widgets and archives
+                // must show the mark too, not only the full image).
                 $size_path = $dir . $size_data['file'];
                 if ( file_exists( $size_path ) ) {
                     $target_files[] = $size_path;
