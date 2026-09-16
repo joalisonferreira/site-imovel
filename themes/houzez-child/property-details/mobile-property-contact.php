@@ -31,6 +31,10 @@ if ( is_user_logged_in() && is_singular('property') ) {
         $show_partnership_btn = ! ( ( $owner_id && $owner_id === $viewer_id ) || ( $broker_id && $broker_id === $viewer_id ) );
     }
 }
+
+// Contact buttons (message/call) only for logged-in corretor/imobiliária
+// with an active plan and a verified Houzez profile.
+$ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact();
 ?>
 <div class="mobile-property-contact w-100 d-block d-lg-none" role="complementary">
     <div class="d-flex justify-content-between">
@@ -46,15 +50,17 @@ if ( is_user_logged_in() && is_singular('property') ) {
                 </ul>
             </div><!-- d-flex -->
         </div><!-- agent-details -->
+        <?php if ( $ipc_can_see_contact ) : ?>
         <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mobile-property-form">
             <i class="houzez-icon icon-envelope" aria-hidden="true"></i>
         </button>
-        <?php if ( !empty( $agent_whatsapp_call ) && houzez_option('agent_whatsapp_num', 1) ) { ?>
+        <?php endif; ?>
+        <?php if ( $ipc_can_see_contact && !empty( $agent_whatsapp_call ) && houzez_option('agent_whatsapp_num', 1) ) { ?>
         <a href="https://api.whatsapp.com/send?phone=<?php echo esc_attr( $agent_whatsapp_call ); ?>&text=<?php echo houzez_option('spl_con_interested', 'Hello, I am interested in').' ['.get_the_title().'] '.get_permalink(); ?> " class="btn btn-secondary-outlined">
             <i class="houzez-icon icon-messaging-whatsapp" aria-hidden="true"></i>
         </a>
         <?php } ?>
-        <?php if ( ! empty($agent_number_call) && houzez_option('agent_mobile_num', 1) ) { ?>
+        <?php if ( $ipc_can_see_contact && ! empty($agent_number_call) && houzez_option('agent_mobile_num', 1) ) { ?>
         <a href="tel:<?php echo esc_attr($agent_number_call); ?>" class="btn btn-secondary-outlined">
             <i class="houzez-icon icon-phone" aria-hidden="true"></i>
         </a>

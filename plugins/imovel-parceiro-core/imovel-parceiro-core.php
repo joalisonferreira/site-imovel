@@ -67,6 +67,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-blocking.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-admin-action-notifications.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-profile-guard.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-visibility.php';
     }
 
     private function hooks() {
