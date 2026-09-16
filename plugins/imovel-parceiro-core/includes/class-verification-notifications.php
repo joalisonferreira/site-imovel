@@ -33,7 +33,9 @@ class Imovel_Parceiro_Verification_Notifications {
 
         // Item 4: CRECI document type + required for corretores.
         add_filter( 'houzez_verification_document_types', array( $this, 'add_creci_document_type' ), 20, 1 );
+        add_filter( 'houzez_verification_document_types', array( $this, 'restrict_document_types_for_brokers' ), 30, 1 );
         add_action( 'houzez_before_verification_request', array( $this, 'require_creci_for_agents' ), 20, 2 );
+        add_action( 'houzez_before_additional_info_submission', array( $this, 'require_creci_for_agents' ), 20, 2 );
     }
 
     /**
@@ -289,19 +291,41 @@ class Imovel_Parceiro_Verification_Notifications {
         if ( ! isset( $document_types['creci'] ) ) {
             $document_types['creci'] = array(
                 'label'         => __( 'CRECI (Carteira profissional)', 'imovel-parceiro-core' ),
-                'requires_back' => true,
+                'requires_back' => false,
             );
+        } else {
+            $document_types['creci']['requires_back'] = false;
         }
 
         return $document_types;
     }
 
     /**
-     * Item 4: corretores must submit the CRECI document type.
+     * Corretores e imobiliárias veem somente o CRECI no seletor de documento.
+     */
+    public function restrict_document_types_for_brokers( $document_types ) {
+        if ( ! is_array( $document_types ) || ! isset( $document_types['creci'] ) ) {
+            return $document_types;
+        }
+
+        if ( ! is_user_logged_in() ) {
+            return $document_types;
+        }
+
+        $roles = (array) wp_get_current_user()->roles;
+        if ( array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles ) ) {
+            return array( 'creci' => $document_types['creci'] );
+        }
+
+        return $document_types;
+    }
+
+    /**
+     * Item 4: corretores e imobiliárias must submit the CRECI document type.
      */
     public function require_creci_for_agents( $user_id, $post_data = array() ) {
         $user = get_userdata( $user_id );
-        if ( ! $user || ! in_array( 'houzez_agent', (array) $user->roles, true ) ) {
+        if ( ! $user || ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $user->roles ) ) {
             return;
         }
 
@@ -310,7 +334,7 @@ class Imovel_Parceiro_Verification_Notifications {
         if ( 'creci' !== $document_type ) {
             wp_send_json_error(
                 array(
-                    'message' => __( 'Corretores devem enviar a carteira do CRECI para verificação.', 'imovel-parceiro-core' ),
+                    'message' => __( 'Corretores e imobiliárias devem enviar a carteira do CRECI para verificação.', 'imovel-parceiro-core' ),
                 )
             );
         }
