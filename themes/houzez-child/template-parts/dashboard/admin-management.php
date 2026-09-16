@@ -190,6 +190,8 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
             update_post_meta( $post_id, 'fave_agency_email', isset( $_POST['imovel_admin_email'] ) ? sanitize_email( wp_unslash( $_POST['imovel_admin_email'] ) ) : '' );
             update_post_meta( $post_id, 'fave_agency_phone', isset( $_POST['imovel_admin_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_phone'] ) ) : '' );
             update_post_meta( $post_id, 'fave_agency_mobile', isset( $_POST['imovel_admin_mobile'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_mobile'] ) ) : '' );
+            update_post_meta( $post_id, 'fave_agency_tax_no', isset( $_POST['imovel_admin_tax_no'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_tax_no'] ) ) : '' );
+            update_post_meta( $post_id, 'fave_agency_licenses', isset( $_POST['imovel_admin_license'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_admin_license'] ) ) : '' );
             update_post_meta( $post_id, 'fave_agency_web', isset( $_POST['imovel_admin_website'] ) ? esc_url_raw( wp_unslash( $_POST['imovel_admin_website'] ) ) : '' );
             update_post_meta( $post_id, 'fave_agency_address', isset( $_POST['imovel_admin_address'] ) ? wp_kses_post( wp_unslash( $_POST['imovel_admin_address'] ) ) : '' );
             update_post_meta( $post_id, 'fave_agency_des', isset( $_POST['imovel_admin_description'] ) ? wp_kses_post( wp_unslash( $_POST['imovel_admin_description'] ) ) : '' );
@@ -651,6 +653,14 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     <div style="margin-bottom:12px;">
                         <label for="imovel_admin_mobile" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Celular', 'imovel-parceiro-core' ); ?></label>
                         <input type="text" id="imovel_admin_mobile" name="imovel_admin_mobile" value="<?php echo esc_attr( $edit_meta['mobile'] ); ?>" style="width:100%; padding:8px;" />
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label for="imovel_admin_tax_no" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?></label>
+                        <input type="text" id="imovel_admin_tax_no" name="imovel_admin_tax_no" value="<?php echo esc_attr( $edit_meta['tax_no'] ); ?>" style="width:100%; padding:8px;" />
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label for="imovel_admin_license" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></label>
+                        <input type="text" id="imovel_admin_license" name="imovel_admin_license" value="<?php echo esc_attr( $edit_meta['license'] ); ?>" style="width:100%; padding:8px;" />
                     </div>
                     <div style="margin-bottom:12px;">
                         <label for="imovel_admin_website" style="display:block; margin-bottom:6px; font-weight:600;"><?php esc_html_e( 'Website', 'imovel-parceiro-core' ); ?></label>
@@ -1934,19 +1944,25 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     </form>
 
                     <div style="overflow-x:auto;">
-                        <table class="ipc-table" style="width:100%; border-collapse:collapse;">
+                        <table class="ipc-table table table-hover align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php echo esc_html( 'coupons' === $current_section ? __( 'Código', 'imovel-parceiro-core' ) : __( 'Título', 'imovel-parceiro-core' ) ); ?></th>
-                                    <?php if ( 'coupons' === $current_section ) : ?>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Tipo', 'imovel-parceiro-core' ); ?></th>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Valor', 'imovel-parceiro-core' ); ?></th>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Expira', 'imovel-parceiro-core' ); ?></th>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Limite', 'imovel-parceiro-core' ); ?></th>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Usado', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php echo esc_html( 'coupons' === $current_section ? __( 'Código', 'imovel-parceiro-core' ) : __( 'Título', 'imovel-parceiro-core' ) ); ?></th>
+                                    <?php if ( 'agencies' === $current_section ) : ?>
+                                    <th><?php esc_html_e( 'E-mail', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Celular', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></th>
                                     <?php endif; ?>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
-                                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e6e6e6;"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
+                                    <?php if ( 'coupons' === $current_section ) : ?>
+                                    <th><?php esc_html_e( 'Tipo', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Valor', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Expira', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Limite', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Usado', 'imovel-parceiro-core' ); ?></th>
+                                    <?php endif; ?>
+                                    <th><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1964,19 +1980,35 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                         $ipc_c_limit = get_post_meta( $item->ID, 'usage_limit', true );
                                         $ipc_c_used = get_post_meta( $item->ID, 'usage_count', true );
                                     }
+                                    $ipc_agency_email = '';
+                                    $ipc_agency_mobile = '';
+                                    $ipc_agency_tax_no = '';
+                                    $ipc_agency_license = '';
+                                    if ( 'agencies' === $current_section ) {
+                                        $ipc_agency_email = get_post_meta( $item->ID, 'fave_agency_email', true );
+                                        $ipc_agency_mobile = get_post_meta( $item->ID, 'fave_agency_mobile', true );
+                                        $ipc_agency_tax_no = get_post_meta( $item->ID, 'fave_agency_tax_no', true );
+                                        $ipc_agency_license = get_post_meta( $item->ID, 'fave_agency_licenses', true );
+                                    }
                                     ?>
                                     <tr>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo esc_html( $item->post_title ); ?></td>
-                                        <?php if ( 'coupons' === $current_section ) : ?>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo 'recurring_percent' === $ipc_c_type ? esc_html__( 'Recorrente %', 'imovel-parceiro-core' ) : esc_html__( 'Porcentagem', 'imovel-parceiro-core' ); ?></td>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo esc_html( $ipc_c_amount ); ?>%</td>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo $ipc_c_expires ? esc_html( date_i18n( 'd/m/Y', (int) $ipc_c_expires ) ) : '—'; ?></td>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo $ipc_c_limit ? esc_html( $ipc_c_limit ) : '—'; ?></td>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo esc_html( (string) $ipc_c_used ); ?></td>
+                                        <td><strong style="font-weight:600; color:#1f2937;"><?php echo esc_html( $item->post_title ); ?></strong></td>
+                                        <?php if ( 'agencies' === $current_section ) : ?>
+                                        <td><?php echo '' !== $ipc_agency_email ? esc_html( $ipc_agency_email ) : '-'; ?></td>
+                                        <td><?php echo '' !== $ipc_agency_mobile ? esc_html( $ipc_agency_mobile ) : '-'; ?></td>
+                                        <td><?php echo '' !== $ipc_agency_tax_no ? esc_html( $ipc_agency_tax_no ) : '-'; ?></td>
+                                        <td><?php echo '' !== $ipc_agency_license ? esc_html( $ipc_agency_license ) : '-'; ?></td>
                                         <?php endif; ?>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;"><?php echo esc_html( $item->post_status ); ?></td>
-                                        <td style="padding:8px; border-bottom:1px solid #f1f1f1;">
-                                            <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'edit', 'imovel_admin_id' => $item->ID ), $dashboard_url ) ); ?>" style="margin-right:8px;">
+                                        <?php if ( 'coupons' === $current_section ) : ?>
+                                        <td><?php echo 'recurring_percent' === $ipc_c_type ? esc_html__( 'Recorrente %', 'imovel-parceiro-core' ) : esc_html__( 'Porcentagem', 'imovel-parceiro-core' ); ?></td>
+                                        <td><?php echo esc_html( $ipc_c_amount ); ?>%</td>
+                                        <td><?php echo $ipc_c_expires ? esc_html( date_i18n( 'd/m/Y', (int) $ipc_c_expires ) ) : '—'; ?></td>
+                                        <td><?php echo $ipc_c_limit ? esc_html( $ipc_c_limit ) : '—'; ?></td>
+                                        <td><?php echo esc_html( (string) $ipc_c_used ); ?></td>
+                                        <?php endif; ?>
+                                        <td><span class="badge bg-secondary"><?php echo esc_html( $item->post_status ); ?></span></td>
+                                        <td>
+                                            <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'edit', 'imovel_admin_id' => $item->ID ), $dashboard_url ) ); ?>" class="btn btn-outline-secondary btn-sm" style="margin-right:8px;">
                                                 <?php esc_html_e( 'Editar', 'imovel-parceiro-core' ); ?>
                                             </a>
                                             <?php if ( in_array( $current_section, $ipc_deletable_sections, true ) ) : ?>
