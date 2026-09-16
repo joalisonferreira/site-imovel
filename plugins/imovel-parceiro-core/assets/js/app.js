@@ -997,7 +997,7 @@ jQuery(function($){
     $(document).on('click', '.imovel-parceiro-view-contact', function(e){
         e.preventDefault();
         var partnershipStatus = $(this).data('partnership-status');
-        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating']) === -1) {
+        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating', 'contact_released', 'opportunity', 'visit', 'proposal']) === -1) {
             showFeedback('O contato ficará disponível após a aprovação da parceria.', 'error');
             return;
         }
