@@ -33,8 +33,67 @@ class Imovel_Parceiro_Contact_Visibility {
         'houzez-agency-line-btn',
     );
 
+    /**
+     * Contact AJAX endpoints that email the broker directly.
+     *
+     * @var string[]
+     */
+    private static $gated_ajax_actions = array(
+        'houzez_schedule_send_message',
+        'houzez_property_agent_contact',
+        'houzez_contact_realtor',
+    );
+
     public function __construct() {
         add_filter( 'elementor/widget/render_content', array( $this, 'filter_widget_content' ), 20, 2 );
+        add_filter( 'houzez_property_schema', array( $this, 'strip_schema_contact' ), 20, 2 );
+
+        // Server-side enforcement (priority 1, before the theme handlers):
+        // UI locks alone would not stop direct POSTs.
+        foreach ( self::$gated_ajax_actions as $action ) {
+            add_action( 'wp_ajax_nopriv_' . $action, array( $this, 'block_unqualified_ajax' ), 1 );
+            add_action( 'wp_ajax_' . $action, array( $this, 'block_unqualified_ajax' ), 1 );
+        }
+    }
+
+    /**
+     * Block contact/tour submissions from unqualified viewers.
+     * Uses the `msg` key so the theme JS displays it in .form_messages.
+     */
+    public function block_unqualified_ajax() {
+        if ( self::viewer_can_see_contact() ) {
+            return;
+        }
+
+        if ( is_user_logged_in() ) {
+            $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
+        } else {
+            $message = __( 'Faça login como corretor ou imobiliária para entrar em contato.', 'imovel-parceiro-core' );
+        }
+
+        wp_send_json_error( array( 'msg' => $message ) );
+    }
+
+    /**
+     * Remove phone/email from the JSON-LD schema for unqualified viewers.
+     *
+     * @param array $schema      Complete schema array.
+     * @param int   $property_id Property post ID.
+     * @return array
+     */
+    public function strip_schema_contact( $schema, $property_id ) {
+        if ( self::viewer_can_see_contact() || ! is_array( $schema ) ) {
+            return $schema;
+        }
+
+        if ( isset( $schema['offers']['seller']['telephone'] ) ) {
+            unset( $schema['offers']['seller']['telephone'] );
+        }
+        if ( isset( $schema['offers']['seller']['email'] ) ) {
+            unset( $schema['offers']['seller']['email'] );
+        }
+
+        return $schema;
     }
 
     /**
