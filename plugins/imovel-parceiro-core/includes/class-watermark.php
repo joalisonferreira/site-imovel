@@ -8,6 +8,9 @@ class Imovel_Parceiro_Watermark {
     const OPTION_STATUS = 'imovel_parceiro_watermark_last_status';
     const META_PROCESSED = '_imovel_parceiro_watermark_processed';
     const META_HASH = '_imovel_parceiro_watermark_hash';
+    // Derived sizes smaller than this (longest side, px) skip watermarking:
+    // the mark would be invisible and each size costs a full GD/Imagick pass.
+    const MIN_WATERMARK_DIMENSION = 600;
 
     private static $instance = null;
 
@@ -346,6 +349,13 @@ class Imovel_Parceiro_Watermark {
             $dir = trailingslashit( dirname( $original_path ) );
             foreach ( $metadata['sizes'] as $size_data ) {
                 if ( empty( $size_data['file'] ) ) {
+                    continue;
+                }
+                // Skip thumbnails: unknown dimensions are processed (safe
+                // default), only known-small sizes are skipped.
+                $size_w = isset( $size_data['width'] ) ? absint( $size_data['width'] ) : 0;
+                $size_h = isset( $size_data['height'] ) ? absint( $size_data['height'] ) : 0;
+                if ( $size_w > 0 && $size_h > 0 && max( $size_w, $size_h ) < self::MIN_WATERMARK_DIMENSION ) {
                     continue;
                 }
                 $size_path = $dir . $size_data['file'];
