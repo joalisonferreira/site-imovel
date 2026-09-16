@@ -70,7 +70,8 @@ $ipc_positions = array(
         </div>
     <?php endif; ?>
 
-    <?php $ipc_wm_reqs = Imovel_Parceiro_Watermark::server_requirements(); ?>
+    <?php $ipc_wm_reqs = method_exists( 'Imovel_Parceiro_Watermark', 'server_requirements' ) ? Imovel_Parceiro_Watermark::server_requirements() : array(); ?>
+    <?php if ( ! empty( $ipc_wm_reqs ) ) : ?>
     <div class="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h4 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Requisitos do servidor', 'imovel-parceiro-core' ); ?></h4>
         <p class="mt-0.5 text-sm text-slate-500"><?php esc_html_e( 'A marca d\'água precisa de Imagick ou GD com suporte a JPEG/PNG. Itens em vermelho impedem o funcionamento.', 'imovel-parceiro-core' ); ?></p>
@@ -86,6 +87,7 @@ $ipc_positions = array(
             <?php endforeach; ?>
         </ul>
     </div>
+    <?php endif; ?>
 
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <!-- Controles -->
