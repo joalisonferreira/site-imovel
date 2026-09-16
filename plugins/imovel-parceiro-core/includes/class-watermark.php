@@ -400,6 +400,127 @@ class Imovel_Parceiro_Watermark {
     }
 
     /**
+     * Server requirements check for watermark processing.
+     *
+     * @return array List of array( 'label' => string, 'ok' => bool, 'detail' => string ).
+     */
+    public static function server_requirements() {
+        $reqs = array();
+
+        $imagick_ok = false;
+        $imagick_detail = __( 'Extensão ausente', 'imovel-parceiro-core' );
+        if ( class_exists( 'Imagick' ) ) {
+            try {
+                $version = Imagick::getVersion();
+                $imagick_ok = true;
+                $imagick_detail = isset( $version['versionString'] ) ? $version['versionString'] : __( 'Disponível', 'imovel-parceiro-core' );
+            } catch ( \Exception $e ) {
+                $imagick_detail = $e->getMessage();
+            } catch ( \Throwable $e ) {
+                $imagick_detail = $e->getMessage();
+            }
+        }
+        $reqs[] = array(
+            'label' => 'Imagick (preferencial)',
+            'ok' => $imagick_ok,
+            'detail' => $imagick_detail,
+        );
+
+        $gd_loaded = extension_loaded( 'gd' );
+        $gd_info = ( $gd_loaded && function_exists( 'gd_info' ) ) ? @gd_info() : array();
+        if ( ! is_array( $gd_info ) ) {
+            $gd_info = array();
+        }
+
+        $gd_ok = $gd_loaded && self::can_use_gd_static();
+        $reqs[] = array(
+            'label' => 'GD com funções necessárias',
+            'ok' => $gd_ok,
+            'detail' => $gd_loaded
+                ? ( $gd_ok ? __( 'Disponível', 'imovel-parceiro-core' ) : __( 'Faltam funções (veja log de erro)', 'imovel-parceiro-core' ) )
+                : __( 'Extensão ausente', 'imovel-parceiro-core' ),
+        );
+
+        foreach ( array(
+            'JPEG Support' => 'JPEG (fotos)',
+            'PNG Support' => 'PNG (marca com transparência)',
+            'WebP Support' => 'WebP',
+            'GIF Read Support' => 'GIF',
+        ) as $key => $label ) {
+            $supported = ! empty( $gd_info[ $key ] );
+            $reqs[] = array(
+                'label' => 'GD: ' . $label,
+                'ok' => $supported,
+                'detail' => $supported ? __( 'Suportado', 'imovel-parceiro-core' ) : __( 'Sem suporte', 'imovel-parceiro-core' ),
+            );
+        }
+
+        $uploads = wp_upload_dir();
+        $writable = ! empty( $uploads['basedir'] ) && wp_mkdir_p( $uploads['basedir'] ) && is_writable( $uploads['basedir'] );
+        $reqs[] = array(
+            'label' => __( 'Pasta de uploads com escrita', 'imovel-parceiro-core' ),
+            'ok' => $writable,
+            'detail' => ! empty( $uploads['basedir'] ) ? $uploads['basedir'] : __( 'Indisponível', 'imovel-parceiro-core' ),
+        );
+
+        $memory = ini_get( 'memory_limit' );
+        $memory_bytes = wp_convert_hr_to_bytes( $memory );
+        $memory_ok = $memory_bytes < 0 || $memory_bytes >= 256 * 1024 * 1024;
+        $reqs[] = array(
+            'label' => __( 'Memória PHP (recomendado 256M+)', 'imovel-parceiro-core' ),
+            'ok' => $memory_ok,
+            'detail' => (string) $memory,
+        );
+
+        return $reqs;
+    }
+
+    /**
+     * Whether at least one image engine can run.
+     *
+     * @return bool
+     */
+    public static function engine_available() {
+        if ( class_exists( 'Imagick' ) ) {
+            return true;
+        }
+
+        return extension_loaded( 'gd' ) && self::can_use_gd_static();
+    }
+
+    /**
+     * Static version of the GD capability check.
+     *
+     * @return bool
+     */
+    private static function can_use_gd_static() {
+        $required_functions = array(
+            'imagecreatefromstring',
+            'imagesx',
+            'imagesy',
+            'imagecreatetruecolor',
+            'imagealphablending',
+            'imagesavealpha',
+            'imagecolorallocatealpha',
+            'imagefill',
+            'imagecopyresampled',
+            'imagecopymerge',
+            'imagedestroy',
+            'imagepng',
+            'imagejpeg',
+            'imagegif',
+        );
+
+        foreach ( $required_functions as $function_name ) {
+            if ( ! function_exists( $function_name ) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Last processing status (shown in the dashboard section).
      *
      * @return array
@@ -447,30 +568,7 @@ class Imovel_Parceiro_Watermark {
     }
 
     private function can_use_gd() {
-        $required_functions = array(
-            'imagecreatefromstring',
-            'imagesx',
-            'imagesy',
-            'imagecreatetruecolor',
-            'imagealphablending',
-            'imagesavealpha',
-            'imagecolorallocatealpha',
-            'imagefill',
-            'imagecopyresampled',
-            'imagecopymerge',
-            'imagedestroy',
-            'imagepng',
-            'imagejpeg',
-            'imagegif',
-        );
-
-        foreach ( $required_functions as $function_name ) {
-            if ( ! function_exists( $function_name ) ) {
-                return false;
-            }
-        }
-
-        return true;
+        return self::can_use_gd_static();
     }
 
     private function apply_with_imagick( $target_file, $watermark_file, $settings ) {
