@@ -171,8 +171,12 @@ $ipc_positions = array(
                 <?php endif; ?>
             </div>
 
-            <?php $ipc_wm_pending = Imovel_Parceiro_Watermark::count_pending(); ?>
-            <div class="mt-6 rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
+            <?php
+            $ipc_wm_pending = Imovel_Parceiro_Watermark::count_pending();
+            $ipc_wm_repair = Imovel_Parceiro_Watermark::count_repair();
+            $ipc_wm_total = $ipc_wm_pending + $ipc_wm_repair;
+            ?>
+            <div class="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
                 <h4 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Fotos já cadastradas', 'imovel-parceiro-core' ); ?></h4>
                 <p class="mt-0.5 text-sm text-slate-500">
                     <?php
@@ -183,9 +187,19 @@ $ipc_positions = array(
                         )
                     );
                     ?>
+                    <?php if ( $ipc_wm_repair > 0 ) : ?>
+                        <?php
+                        echo esc_html(
+                            sprintf(
+                                _n( 'Mais %d ampliação para reparar.', 'Mais %d ampliações para reparar.', $ipc_wm_repair, 'imovel-parceiro-core' ),
+                                $ipc_wm_repair
+                            )
+                        );
+                        ?>
+                    <?php endif; ?>
                 </p>
                 <div class="mt-4 flex items-center gap-3 flex-wrap">
-                    <button type="button" id="ipc-wm-bulk-btn" class="ipc-quick-add" <?php disabled( 0 === $ipc_wm_pending ); ?>>
+                    <button type="button" id="ipc-wm-bulk-btn" class="ipc-quick-add" <?php disabled( 0 === $ipc_wm_total ); ?>>
                         <?php echo houzez_dash_icon( 'droplets', 'h-4 w-4' ); ?>
                         <?php esc_html_e( 'Aplicar marca d\'água agora', 'imovel-parceiro-core' ); ?>
                     </button>
@@ -201,8 +215,9 @@ $ipc_positions = array(
                 var btn = document.getElementById('ipc-wm-bulk-btn');
                 if (!btn || btn.__ipcBound) { return; }
                 btn.__ipcBound = true;
-                var total = <?php echo absint( $ipc_wm_pending ); ?>;
+                var total = <?php echo absint( $ipc_wm_total ); ?>;
                 var done = 0;
+                var mode = 'new';
                 var nonce = '<?php echo esc_js( wp_create_nonce( 'imovel_watermark_bulk' ) ); ?>';
                 var ajaxurl = '<?php echo esc_url_raw( admin_url( 'admin-ajax.php' ) ); ?>';
                 var statusEl = document.getElementById('ipc-wm-bulk-status');
@@ -222,6 +237,7 @@ $ipc_positions = array(
                         var data = new FormData();
                         data.append('action', 'imovel_parceiro_watermark_bulk');
                         data.append('nonce', nonce);
+                        data.append('mode', mode);
                         fetch(ajaxurl, { method: 'POST', body: data, credentials: 'same-origin' })
                             .then(function(r){ return r.json(); })
                             .then(function(res){
@@ -234,6 +250,10 @@ $ipc_positions = array(
                                 setBar();
                                 if (res.data.remaining > 0) {
                                     setStatus(done + ' / ' + total + '…');
+                                    next();
+                                } else if (mode === 'new') {
+                                    mode = 'repair';
+                                    setStatus('<?php echo esc_js( __( 'Fotos novas OK. Reparando ampliações…', 'imovel-parceiro-core' ) ); ?>');
                                     next();
                                 } else {
                                     setStatus('<?php echo esc_js( __( 'Concluído. Recarregue a página para atualizar.', 'imovel-parceiro-core' ) ); ?>');
