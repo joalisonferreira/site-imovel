@@ -1066,6 +1066,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     <tr>
                                         <th><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
                                         <th><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
+                                        <th><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
                                         <th><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
                                         <th><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
                                         <th><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
@@ -1075,7 +1076,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                 <tbody>
                                     <?php if ( empty( $verification_requests ) ) : ?>
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-4"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></td>
+                                            <td colspan="7" class="text-center text-muted py-4"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></td>
                                         </tr>
                                     <?php else : ?>
                                         <?php foreach ( $verification_requests as $request ) :
@@ -1122,6 +1123,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 </div>
                                             </td>
                                             <td><?php echo isset( $verification_data['full_name'] ) ? esc_html( $verification_data['full_name'] ) : '-'; ?></td>
+                                            <td><?php $verification_license = $user ? get_user_meta( $user->ID, 'fave_author_license', true ) : ''; echo '' !== $verification_license ? esc_html( $verification_license ) : '-'; ?></td>
                                             <td>
                                                 <?php if ( ! empty( $verification_document_url ) ) : ?>
                                                     <a href="<?php echo esc_url( $verification_document_url ); ?>" class="view-document-btn" data-document-url="<?php echo esc_url( $verification_document_url ); ?>" data-document-title="<?php echo esc_attr( isset( $verification_data['document_type'] ) ? $verification_data['document_type'] : '' ); ?>" style="cursor:pointer; display:inline-block; padding:4px 10px; background:#f1f5f9; border:1px solid #dbe2ea; border-radius:999px; font-size:12px; font-weight:600; color:#334155; text-decoration:none;">
