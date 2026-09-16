@@ -22,11 +22,14 @@ class Imovel_Parceiro_Watermark {
         return self::$instance;
     }
 
+    const BULK_BATCH = 5;
+
     private function __construct() {
         add_action( 'init', array( $this, 'handle_dashboard_request' ) );
         add_filter( 'wp_generate_attachment_metadata', array( $this, 'maybe_process_on_metadata' ), 50, 2 );
         add_action( 'added_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
         add_action( 'updated_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
+        add_action( 'wp_ajax_imovel_parceiro_watermark_bulk', array( $this, 'ajax_bulk_apply' ) );
     }
 
     public static function get_settings() {
@@ -345,6 +348,15 @@ class Imovel_Parceiro_Watermark {
 
         $target_files = array( $original_path );
 
+        // WordPress may serve a "-scaled" file as the full size instead of
+        // the original upload. Mark it too, or the lightbox shows no mark.
+        if ( ! empty( $metadata['file'] ) ) {
+            $scaled_path = trailingslashit( dirname( $original_path ) ) . basename( $metadata['file'] );
+            if ( $scaled_path !== $original_path && file_exists( $scaled_path ) ) {
+                $target_files[] = $scaled_path;
+            }
+        }
+
         if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
             $dir = trailingslashit( dirname( $original_path ) );
             foreach ( $metadata['sizes'] as $size_data ) {
@@ -423,8 +435,8 @@ class Imovel_Parceiro_Watermark {
             return false;
         }
 
-        if ( class_exists( 'Imagick' ) ) {
-            return $this->apply_with_imagick( $target_file, $watermark_file, $settings );
+        if ( class_exists( 'Imagick' ) && $this->apply_with_imagick( $target_file, $watermark_file, $settings ) ) {
+            return true;
         }
 
         if ( ! $this->can_use_gd() ) {
@@ -523,6 +535,13 @@ class Imovel_Parceiro_Watermark {
         $target_w = max( 1, (int) round( $base_w * ( (int) $settings['size_percent'] / 100 ) ) );
         $target_h = max( 1, (int) round( ( $target_w / $wm_w ) * $wm_h ) );
 
+        // Never overflow tiny base images.
+        if ( $target_w > $base_w || $target_h > $base_h ) {
+            $fit = min( $base_w / $target_w, $base_h / $target_h );
+            $target_w = max( 1, (int) floor( $target_w * $fit ) );
+            $target_h = max( 1, (int) floor( $target_h * $fit ) );
+        }
+
         $scaled = imagecreatetruecolor( $target_w, $target_h );
         imagealphablending( $scaled, false );
         imagesavealpha( $scaled, true );
@@ -531,11 +550,21 @@ class Imovel_Parceiro_Watermark {
         imagecopyresampled( $scaled, $wm, 0, 0, 0, 0, $target_w, $target_h, $wm_w, $wm_h );
 
         $coords = $this->get_overlay_coordinates( $base_w, $base_h, $target_w, $target_h, $settings['position'] );
+
+        // imagecopymerge() ignores PNG alpha (transparent areas turn black),
+        // so composite in two steps: overlay with alpha onto a background
+        // cutout, then merge the cutout honoring the opacity setting.
+        $cut = imagecreatetruecolor( $target_w, $target_h );
+        imagecopy( $cut, $base, 0, 0, $coords['x'], $coords['y'], $target_w, $target_h );
+        imagealphablending( $cut, true );
+        imagesavealpha( $cut, true );
+        imagecopy( $cut, $scaled, 0, 0, 0, 0, $target_w, $target_h );
         imagealphablending( $base, true );
-        imagecopymerge( $base, $scaled, $coords['x'], $coords['y'], 0, 0, $target_w, $target_h, (int) $settings['opacity'] );
+        imagecopymerge( $base, $cut, $coords['x'], $coords['y'], 0, 0, $target_w, $target_h, (int) $settings['opacity'] );
 
         $saved = $this->save_gd_image( $base, $target_file );
 
+        imagedestroy( $cut );
         imagedestroy( $scaled );
         imagedestroy( $wm );
         imagedestroy( $base );
@@ -665,6 +694,120 @@ class Imovel_Parceiro_Watermark {
         }
 
         return absint( $attachment_id );
+    }
+
+    /**
+     * Attachment IDs of property photos still without watermark.
+     *
+     * @param int $limit Max IDs to return (0 = all).
+     * @return int[]
+     */
+    public static function get_pending_ids( $limit = 0 ) {
+        global $wpdb;
+
+        $settings = self::get_settings();
+        $exclude_wm = absint( $settings['attachment_id'] );
+
+        $gallery_ids = $wpdb->get_col(
+            "SELECT DISTINCT m.meta_value FROM {$wpdb->postmeta} m"
+            . " INNER JOIN {$wpdb->posts} p ON p.ID = m.meta_value AND p.post_type = 'attachment'"
+            . " WHERE m.meta_key = 'fave_property_images'"
+        );
+        $parented_ids = $wpdb->get_col(
+            "SELECT a.ID FROM {$wpdb->posts} a"
+            . " INNER JOIN {$wpdb->posts} p ON p.ID = a.post_parent AND p.post_type = 'property'"
+            . " WHERE a.post_type = 'attachment' AND a.post_mime_type LIKE 'image/%'"
+        );
+
+        $ids = array();
+        foreach ( array_merge( (array) $gallery_ids, (array) $parented_ids ) as $id ) {
+            $id = absint( $id );
+            if ( ! $id || $id === $exclude_wm || isset( $ids[ $id ] ) ) {
+                continue;
+            }
+            if ( 1 === (int) get_post_meta( $id, self::META_PROCESSED, true ) ) {
+                continue;
+            }
+            if ( ! wp_attachment_is_image( $id ) ) {
+                continue;
+            }
+            $ids[ $id ] = $id;
+        }
+
+        $ids = array_values( $ids );
+        if ( $limit > 0 ) {
+            $ids = array_slice( $ids, 0, $limit );
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Count property photos still without watermark.
+     *
+     * @return int
+     */
+    public static function count_pending() {
+        return count( self::get_pending_ids( 0 ) );
+    }
+
+    /**
+     * AJAX: watermark the next batch of existing property photos.
+     */
+    public function ajax_bulk_apply() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permissão insuficiente.', 'imovel-parceiro-core' ) ) );
+        }
+
+        check_ajax_referer( 'imovel_watermark_bulk', 'nonce' );
+
+        if ( ! $this->is_watermark_enabled() ) {
+            wp_send_json_error( array( 'message' => __( 'Ative a função e envie a imagem da marca d\'água antes de aplicar.', 'imovel-parceiro-core' ) ) );
+        }
+
+        $ids = self::get_pending_ids( self::BULK_BATCH );
+        $ok = 0;
+        $failed = 0;
+        $skipped = 0;
+        $last_error = '';
+
+        foreach ( $ids as $attachment_id ) {
+            $metadata = wp_get_attachment_metadata( $attachment_id );
+            $file = get_attached_file( $attachment_id );
+            if ( ! is_array( $metadata ) || empty( $file ) || ! file_exists( $file ) ) {
+                // Flagged so the batch loop always terminates.
+                $skipped++;
+                update_post_meta( $attachment_id, self::META_PROCESSED, 1 );
+                continue;
+            }
+
+            $before = (int) get_post_meta( $attachment_id, self::META_PROCESSED, true );
+            $this->process_attachment_watermark( $attachment_id, $metadata );
+            $after = (int) get_post_meta( $attachment_id, self::META_PROCESSED, true );
+
+            if ( 1 === $after ) {
+                $ok++;
+            } elseif ( 1 === $before ) {
+                $skipped++;
+            } else {
+                $failed++;
+                $status = self::get_last_status();
+                if ( ! empty( $status['message'] ) ) {
+                    $last_error = $status['message'];
+                }
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'batch' => count( $ids ),
+                'ok' => $ok,
+                'failed' => $failed,
+                'skipped' => $skipped,
+                'remaining' => self::count_pending(),
+                'message' => $last_error,
+            )
+        );
     }
 
     private function redirect_with_notice( $type, $message ) {
