@@ -122,6 +122,28 @@ if ( function_exists( 'houzez_edit_property' ) && houzez_edit_property() ) {
         el.value = intFmt + (ci !== -1 || dec ? ',' + dec : '');
     }
 
+    // Converte o valor inicial para exibição BRL antes de mascarar.
+    // O banco guarda canônico ("350000.00"); sem isso o ponto decimal era
+    // tratado como milhar e o valor multiplicava por 100 a cada edição.
+    function normalizeInitial(el){
+        var raw = (el.value || '').trim();
+        if (!raw || raw.indexOf(',') !== -1) {
+            return;
+        }
+        var num;
+        if (/^\d+\.\d{1,2}$/.test(raw)) {
+            num = parseFloat(raw);
+        } else if (/^[\d.]+$/.test(raw)) {
+            num = parseInt(raw.replace(/\D+/g, ''), 10);
+        } else {
+            return;
+        }
+        if (isNaN(num)) {
+            return;
+        }
+        el.value = num.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
     function ensureCents(el){
         if (el.value && el.value.indexOf(',') === -1) {
             el.value += ',00';
@@ -152,6 +174,7 @@ if ( function_exists( 'houzez_edit_property' ) && houzez_edit_property() ) {
             mask(el);
             ensureCents(el);
         });
+        normalizeInitial(el);
         mask(el);
         ensureCents(el);
     });
