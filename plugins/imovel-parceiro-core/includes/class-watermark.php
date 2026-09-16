@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Imovel_Parceiro_Watermark {
     const OPTION_KEY = 'imovel_parceiro_watermark_settings';
+    const OPTION_STATUS = 'imovel_parceiro_watermark_last_status';
     const META_PROCESSED = '_imovel_parceiro_watermark_processed';
     const META_HASH = '_imovel_parceiro_watermark_hash';
 
@@ -237,13 +238,35 @@ class Imovel_Parceiro_Watermark {
             return $metadata;
         }
 
-        if ( ! $this->is_property_image_attachment( $attachment_id ) ) {
+        // Gallery uploads arrive with post_parent = 0 (the property link is
+        // created later via fave_property_images), so also accept uploads
+        // coming from the Houzez property image endpoint.
+        if ( ! $this->is_property_image_attachment( $attachment_id ) && ! $this->is_property_gallery_upload_request() ) {
             return $metadata;
         }
 
         $this->process_attachment_watermark( $attachment_id, $metadata );
 
         return $metadata;
+    }
+
+    /**
+     * Whether the current request is the Houzez property gallery upload.
+     *
+     * @return bool
+     */
+    private function is_property_gallery_upload_request() {
+        if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
+            return false;
+        }
+
+        if ( ! isset( $_REQUEST['action'] ) ) {
+            return false;
+        }
+
+        $action = sanitize_key( wp_unslash( $_REQUEST['action'] ) );
+
+        return 'houzez_property_img_upload' === $action;
     }
 
     public function maybe_process_on_property_gallery_meta( $meta_id, $object_id, $meta_key, $meta_value ) {
@@ -348,7 +371,41 @@ class Imovel_Parceiro_Watermark {
             if ( $hash ) {
                 update_post_meta( $attachment_id, self::META_HASH, $hash );
             }
+            self::record_status( true, $attachment_id, '' );
+        } else {
+            self::record_status( false, $attachment_id, __( 'Falha ao aplicar a marca d\'água. Verifique se o PHP tem GD ou Imagick e se a pasta de uploads permite escrita.', 'imovel-parceiro-core' ) );
         }
+    }
+
+    /**
+     * Last processing status (shown in the dashboard section).
+     *
+     * @return array
+     */
+    public static function get_last_status() {
+        $status = get_option( self::OPTION_STATUS, array() );
+
+        return is_array( $status ) ? $status : array();
+    }
+
+    /**
+     * Persist the last processing outcome for dashboard diagnosis.
+     *
+     * @param bool $ok            Whether at least one file was processed.
+     * @param int  $attachment_id Attachment involved.
+     * @param string $message     Error message (empty on success).
+     */
+    private static function record_status( $ok, $attachment_id, $message ) {
+        update_option(
+            self::OPTION_STATUS,
+            array(
+                'ok' => $ok ? 1 : 0,
+                'attachment_id' => absint( $attachment_id ),
+                'message' => (string) $message,
+                'time' => current_time( 'mysql' ),
+            ),
+            false
+        );
     }
 
     private function apply_watermark_to_file( $target_file, $watermark_file, $settings ) {
