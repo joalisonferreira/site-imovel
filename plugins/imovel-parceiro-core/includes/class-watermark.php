@@ -556,9 +556,10 @@ class Imovel_Parceiro_Watermark {
      * @return string[] Active conflicting plugin labels.
      */
     public static function active_conflicts() {
+        // WebP Express saiu da lista: a convivência foi implementada
+        // (purge das variantes defasadas após cada marcação) e validada.
         $map = array(
             'litespeed-cache/litespeed-cache.php' => 'LiteSpeed Cache',
-            'webp-express/webp-express.php' => 'WebP Express',
             'resize-image-after-upload/resize-image-after-upload.php' => 'Resize Image After Upload',
             'redis-cache/redis-cache.php' => 'Redis Object Cache',
             'health-check/health-check.php' => 'Health Check & Troubleshooting',
