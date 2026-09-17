@@ -477,6 +477,37 @@ class Imovel_Parceiro_Watermark {
     }
 
     /**
+     * Plugins known to interfere with the watermark (image re-encoding,
+     * WebP variants served instead of the marked file, stale caches).
+     * The feature was validated with these disabled.
+     *
+     * @return string[] Active conflicting plugin labels.
+     */
+    public static function active_conflicts() {
+        $map = array(
+            'litespeed-cache/litespeed-cache.php' => 'LiteSpeed Cache',
+            'webp-express/webp-express.php' => 'WebP Express',
+            'resize-image-after-upload/resize-image-after-upload.php' => 'Resize Image After Upload',
+            'redis-cache/redis-cache.php' => 'Redis Object Cache',
+            'health-check/health-check.php' => 'Health Check & Troubleshooting',
+        );
+
+        $active = (array) get_option( 'active_plugins', array() );
+        if ( is_multisite() ) {
+            $active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+        }
+
+        $found = array();
+        foreach ( $map as $file => $label ) {
+            if ( in_array( $file, $active, true ) ) {
+                $found[] = $label;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * Whether at least one image engine can run.
      *
      * @return bool

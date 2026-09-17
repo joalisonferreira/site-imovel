@@ -70,6 +70,14 @@ $ipc_positions = array(
         </div>
     <?php endif; ?>
 
+    <?php $ipc_wm_conflicts = method_exists( 'Imovel_Parceiro_Watermark', 'active_conflicts' ) ? Imovel_Parceiro_Watermark::active_conflicts() : array(); ?>
+    <?php if ( ! empty( $ipc_wm_conflicts ) ) : ?>
+        <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            <?php echo houzez_dash_icon( 'triangle-alert', 'h-4 w-4 shrink-0' ); ?>
+            <span><?php echo esc_html( sprintf( __( 'Atenção: estes plugins ativos podem impedir a marca d\'água (re-encode/WebP/cache): %s. A função foi validada com eles desativados.', 'imovel-parceiro-core' ), implode( ', ', $ipc_wm_conflicts ) ) ); ?></span>
+        </div>
+    <?php endif; ?>
+
     <?php $ipc_wm_reqs = method_exists( 'Imovel_Parceiro_Watermark', 'server_requirements' ) ? Imovel_Parceiro_Watermark::server_requirements() : array(); ?>
     <?php if ( ! empty( $ipc_wm_reqs ) ) : ?>
     <div class="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
