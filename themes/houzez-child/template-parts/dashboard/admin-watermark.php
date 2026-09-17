@@ -40,28 +40,9 @@ $ipc_positions = array(
     'bottom-right' => array( __( 'Base direita', 'imovel-parceiro-core' ), 'bottom-right' ),
 );
 ?>
-<?php $ipc_wm_status = Imovel_Parceiro_Watermark::get_last_status(); ?>
 <form method="post" enctype="multipart/form-data" class="ipc-watermark-form">
     <?php wp_nonce_field( 'imovel_watermark_update', '_imovel_watermark_nonce' ); ?>
     <input type="hidden" name="imovel_watermark_action" value="save" />
-
-    <?php if ( ! empty( $ipc_wm_status ) ) : ?>
-        <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border <?php echo ! empty( $ipc_wm_status['ok'] ) ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'; ?> px-4 py-3 text-sm font-medium">
-            <?php echo houzez_dash_icon( ! empty( $ipc_wm_status['ok'] ) ? 'circle-check' : 'triangle-alert', 'h-4 w-4 shrink-0' ); ?>
-            <span>
-                <?php
-                if ( ! empty( $ipc_wm_status['ok'] ) ) {
-                    echo esc_html( sprintf( __( 'Última aplicação: anexo #%d em %s.', 'imovel-parceiro-core' ), (int) $ipc_wm_status['attachment_id'], $ipc_wm_status['time'] ) );
-                } else {
-                    echo esc_html( $ipc_wm_status['message'] );
-                    if ( ! empty( $ipc_wm_status['time'] ) ) {
-                        echo esc_html( sprintf( __( ' (anexo #%d em %s)', 'imovel-parceiro-core' ), (int) $ipc_wm_status['attachment_id'], $ipc_wm_status['time'] ) );
-                    }
-                }
-                ?>
-            </span>
-        </div>
-    <?php endif; ?>
 
     <?php if ( $notice_type && $notice_text ) : ?>
         <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border <?php echo 'updated' === $notice_type ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'; ?> px-4 py-3 text-sm font-medium">
