@@ -684,3 +684,88 @@ function imovel_parceiro_admin_update_user() {
         )
     );
 }
+
+// Exibe valores monetários canônicos (1600.00) no formato pt-BR (1.600,00).
+// Aplica-se somente a campos de preço; demais campos passam intactos.
+function imovel_parceiro_format_price_display( $field_key, $value ) {
+    if ( ! is_scalar( $value ) ) {
+        return $value;
+    }
+
+    $text = trim( (string) $value );
+    if ( '' === $text || ! preg_match( '/^\d+(\.\d{1,2})?$/', $text ) ) {
+        return $value;
+    }
+
+    $key = strtolower( (string) $field_key );
+    $is_price = preg_match( '/(price|preco|condominio|iptu)/', $key )
+        || in_array(
+            $key,
+            array(
+                'valor-do-condominio',
+                'valor-do-iptu',
+                'valor_condominio',
+                'valor_iptu',
+                'condominio',
+                'iptu',
+                'property_price',
+                'property_sec_price',
+            ),
+            true
+        );
+
+    if ( ! $is_price ) {
+        return $value;
+    }
+
+    return number_format( (float) $text, 2, ',', '.' );
+}
+
+// Override do tema pai (tem function_exists): itens do overview com preços em pt-BR.
+if ( ! function_exists( 'houzez_get_overview_item' ) ) {
+    function houzez_get_overview_item( $key, $value, $label, $version = '' ) {
+        $output = '';
+        $icon_html = houzez_get_overview_icon( $key, $version );
+        $value = imovel_parceiro_format_price_display( $key, $value );
+
+        if ( $version == 'v2' ) {
+            $output .= '<div class="col" role="listitem">';
+            $output .= '<ul class="list-unstyled d-flex align-items-center gap-3">';
+
+            if ( ! empty( $icon_html ) ) {
+                $output .= '<li class="property-overview-item">' . $icon_html . '</li>';
+            }
+            $output .= '<li class="property-overview-description h-' . $key . 's">';
+            $output .= '<strong>' . esc_attr( $value ) . '</strong><br>';
+            $output .= '<span class="hz-meta-label">' . esc_attr( $label ) . '</span>';
+            $output .= '</li>';
+
+            $output .= '</ul>';
+            $output .= '</div>';
+        } elseif ( $version == 'v3' ) {
+            $output .= '<ul class="list-unstyled flex-fill m-0">';
+
+            if ( $key === 'type' ) {
+                // Special case for type in v3 - title on top, value on bottom
+                $output .= '<li class="property-overview-type hz-meta-label">' . esc_attr( $label ) . '</li>';
+                $output .= '<li><strong>' . esc_attr( $value ) . '</strong></li>';
+            } else {
+                // Normal case for other properties
+                $output .= '<li class="property-overview-item">' . $icon_html . '<strong>' . esc_attr( $value ) . '</strong></li>';
+                $output .= '<li class="h-' . $key . 's hz-meta-label">' . esc_attr( $label ) . '</li>';
+            }
+
+            $output .= '</ul>';
+        } else {
+            // Default/Version 1 structure
+            $output .= '<div class="col" role="listitem">';
+                $output .= '<ul class="list-unstyled mb-0">';
+                    $output .= '<li class="property-overview-item d-flex align-items-center">' . $icon_html . '<strong>' . esc_attr( $value ) . '</strong></li>';
+                    $output .= '<li class="h-' . $key . 's hz-meta-label">' . esc_attr( $label ) . '</li>';
+                $output .= '</ul>';
+            $output .= '</div>';
+        }
+
+        return $output;
+    }
+}
