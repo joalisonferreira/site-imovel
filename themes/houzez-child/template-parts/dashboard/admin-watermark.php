@@ -40,15 +40,53 @@ $ipc_positions = array(
     'bottom-right' => array( __( 'Base direita', 'imovel-parceiro-core' ), 'bottom-right' ),
 );
 ?>
+<?php $ipc_wm_status = Imovel_Parceiro_Watermark::get_last_status(); ?>
 <form method="post" enctype="multipart/form-data" class="ipc-watermark-form">
     <?php wp_nonce_field( 'imovel_watermark_update', '_imovel_watermark_nonce' ); ?>
     <input type="hidden" name="imovel_watermark_action" value="save" />
+
+    <?php if ( ! empty( $ipc_wm_status ) ) : ?>
+        <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border <?php echo ! empty( $ipc_wm_status['ok'] ) ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'; ?> px-4 py-3 text-sm font-medium">
+            <?php echo houzez_dash_icon( ! empty( $ipc_wm_status['ok'] ) ? 'circle-check' : 'triangle-alert', 'h-4 w-4 shrink-0' ); ?>
+            <span>
+                <?php
+                if ( ! empty( $ipc_wm_status['ok'] ) ) {
+                    echo esc_html( sprintf( __( 'Última aplicação: anexo #%d em %s.', 'imovel-parceiro-core' ), (int) $ipc_wm_status['attachment_id'], $ipc_wm_status['time'] ) );
+                } else {
+                    echo esc_html( $ipc_wm_status['message'] );
+                    if ( ! empty( $ipc_wm_status['time'] ) ) {
+                        echo esc_html( sprintf( __( ' (anexo #%d em %s)', 'imovel-parceiro-core' ), (int) $ipc_wm_status['attachment_id'], $ipc_wm_status['time'] ) );
+                    }
+                }
+                ?>
+            </span>
+        </div>
+    <?php endif; ?>
 
     <?php if ( $notice_type && $notice_text ) : ?>
         <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border <?php echo 'updated' === $notice_type ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'; ?> px-4 py-3 text-sm font-medium">
             <?php echo houzez_dash_icon( 'circle-check', 'h-4 w-4 shrink-0' ); ?>
             <?php echo esc_html( $notice_text ); ?>
         </div>
+    <?php endif; ?>
+
+    <?php $ipc_wm_reqs = method_exists( 'Imovel_Parceiro_Watermark', 'server_requirements' ) ? Imovel_Parceiro_Watermark::server_requirements() : array(); ?>
+    <?php if ( ! empty( $ipc_wm_reqs ) ) : ?>
+    <div class="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <h4 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Requisitos do servidor', 'imovel-parceiro-core' ); ?></h4>
+        <p class="mt-0.5 text-sm text-slate-500"><?php esc_html_e( 'A marca d\'água precisa de Imagick ou GD com suporte a JPEG/PNG. Itens em vermelho impedem o funcionamento.', 'imovel-parceiro-core' ); ?></p>
+        <ul class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <?php foreach ( $ipc_wm_reqs as $ipc_req ) : ?>
+                <li class="flex items-start gap-2 rounded-xl border px-3 py-2 text-sm <?php echo ! empty( $ipc_req['ok'] ) ? 'border-emerald-100 bg-emerald-50/50 text-emerald-800' : 'border-rose-100 bg-rose-50/50 text-rose-700'; ?>">
+                    <?php echo houzez_dash_icon( ! empty( $ipc_req['ok'] ) ? 'circle-check' : 'triangle-alert', 'h-4 w-4 shrink-0 mt-0.5' ); ?>
+                    <span>
+                        <strong class="font-semibold"><?php echo esc_html( $ipc_req['label'] ); ?></strong>
+                        <span class="block text-xs opacity-80"><?php echo esc_html( $ipc_req['detail'] ); ?></span>
+                    </span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
     <?php endif; ?>
 
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -135,6 +173,104 @@ $ipc_positions = array(
                 <?php endif; ?>
             </div>
 
+            <?php
+            $ipc_wm_pending = Imovel_Parceiro_Watermark::count_pending();
+            $ipc_wm_repair = Imovel_Parceiro_Watermark::count_repair();
+            $ipc_wm_total = $ipc_wm_pending + $ipc_wm_repair;
+            ?>
+            <div class="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                <h4 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Fotos já cadastradas', 'imovel-parceiro-core' ); ?></h4>
+                <p class="mt-0.5 text-sm text-slate-500">
+                    <?php
+                    echo esc_html(
+                        sprintf(
+                            _n( '%d foto de imóvel ainda sem marca d\'água.', '%d fotos de imóveis ainda sem marca d\'água.', $ipc_wm_pending, 'imovel-parceiro-core' ),
+                            $ipc_wm_pending
+                        )
+                    );
+                    ?>
+                    <?php if ( $ipc_wm_repair > 0 ) : ?>
+                        <?php
+                        echo esc_html(
+                            sprintf(
+                                _n( 'Mais %d ampliação para reparar.', 'Mais %d ampliações para reparar.', $ipc_wm_repair, 'imovel-parceiro-core' ),
+                                $ipc_wm_repair
+                            )
+                        );
+                        ?>
+                    <?php endif; ?>
+                </p>
+                <div class="mt-4 flex items-center gap-3 flex-wrap">
+                    <button type="button" id="ipc-wm-bulk-btn" class="ipc-quick-add" <?php disabled( 0 === $ipc_wm_total ); ?>>
+                        <?php echo houzez_dash_icon( 'droplets', 'h-4 w-4' ); ?>
+                        <?php esc_html_e( 'Aplicar marca d\'água agora', 'imovel-parceiro-core' ); ?>
+                    </button>
+                    <span id="ipc-wm-bulk-status" class="text-sm text-slate-500"></span>
+                </div>
+                <div class="mt-3 hidden h-2.5 w-full overflow-hidden rounded-full bg-slate-200" id="ipc-wm-bulk-bar-wrap">
+                    <div id="ipc-wm-bulk-bar" class="h-full w-0 rounded-full bg-emerald-500 transition-all"></div>
+                </div>
+                <p class="mt-3 text-xs leading-relaxed text-slate-400"><?php esc_html_e( 'Processa em lotes de 5 fotos por vez. Fotos já marcadas são ignoradas; a marca é definitiva (não reaplica sobre foto já marcada).', 'imovel-parceiro-core' ); ?></p>
+            </div>
+            <script>
+            (function(){
+                var btn = document.getElementById('ipc-wm-bulk-btn');
+                if (!btn || btn.__ipcBound) { return; }
+                btn.__ipcBound = true;
+                var total = <?php echo absint( $ipc_wm_total ); ?>;
+                var done = 0;
+                var mode = 'new';
+                var nonce = '<?php echo esc_js( wp_create_nonce( 'imovel_watermark_bulk' ) ); ?>';
+                var ajaxurl = '<?php echo esc_url_raw( admin_url( 'admin-ajax.php' ) ); ?>';
+                var statusEl = document.getElementById('ipc-wm-bulk-status');
+                var barWrap = document.getElementById('ipc-wm-bulk-bar-wrap');
+                var bar = document.getElementById('ipc-wm-bulk-bar');
+                function setStatus(msg){ if (statusEl) { statusEl.textContent = msg; } }
+                function setBar(){
+                    if (!barWrap || !bar || !total) { return; }
+                    barWrap.classList.remove('hidden');
+                    bar.style.width = Math.min(100, Math.round(done / total * 100)) + '%';
+                }
+                btn.addEventListener('click', function(){
+                    btn.disabled = true;
+                    setStatus('<?php echo esc_js( __( 'Processando…', 'imovel-parceiro-core' ) ); ?>');
+                    setBar();
+                    function next(){
+                        var data = new FormData();
+                        data.append('action', 'imovel_parceiro_watermark_bulk');
+                        data.append('nonce', nonce);
+                        data.append('mode', mode);
+                        fetch(ajaxurl, { method: 'POST', body: data, credentials: 'same-origin' })
+                            .then(function(r){ return r.json(); })
+                            .then(function(res){
+                                if (!res || !res.success) {
+                                    setStatus((res && res.data && res.data.message) ? res.data.message : '<?php echo esc_js( __( 'Falha na aplicação.', 'imovel-parceiro-core' ) ); ?>');
+                                    btn.disabled = false;
+                                    return;
+                                }
+                                done += (res.data.batch || 0);
+                                setBar();
+                                if (res.data.remaining > 0) {
+                                    setStatus(done + ' / ' + total + '…');
+                                    next();
+                                } else if (mode === 'new') {
+                                    mode = 'repair';
+                                    setStatus('<?php echo esc_js( __( 'Fotos novas OK. Reparando ampliações…', 'imovel-parceiro-core' ) ); ?>');
+                                    next();
+                                } else {
+                                    setStatus('<?php echo esc_js( __( 'Concluído. Recarregue a página para atualizar.', 'imovel-parceiro-core' ) ); ?>');
+                                    setTimeout(function(){ window.location.reload(); }, 1200);
+                                }
+                            })
+                            .catch(function(){
+                                setStatus('<?php echo esc_js( __( 'Erro de comunicação.', 'imovel-parceiro-core' ) ); ?>');
+                                btn.disabled = false;
+                            });
+                    }
+                    next();
+                });
+            })();
+            </script>
         </div>
 
         <!-- Preview ao vivo -->
