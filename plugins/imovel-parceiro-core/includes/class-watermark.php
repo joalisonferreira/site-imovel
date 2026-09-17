@@ -380,6 +380,10 @@ class Imovel_Parceiro_Watermark {
         foreach ( $target_files as $target_file ) {
             if ( $this->apply_watermark_to_file( $target_file, $watermark_path, $settings ) ) {
                 $any_processed = true;
+                // WebP Express converts at upload (pre-mark) and serves the
+                // cached .webp instead of this file. Drop the stale variants
+                // so they are regenerated from the marked source on demand.
+                self::purge_webp_variants( $target_file );
             } else {
                 error_log( sprintf( 'Imovel Parceiro watermark: failed to process attachment %d (%s).', $attachment_id, $target_file ) );
             }
@@ -397,6 +401,74 @@ class Imovel_Parceiro_Watermark {
             self::record_status( true, $attachment_id, '' );
         } else {
             self::record_status( false, $attachment_id, __( 'Falha ao aplicar a marca d\'água. Verifique se o PHP tem GD ou Imagick e se a pasta de uploads permite escrita.', 'imovel-parceiro-core' ) );
+        }
+    }
+
+    /**
+     * Delete stale WebP Express variants of a freshly marked file so the
+     * next request regenerates them from the marked source (on demand).
+     *
+     * Covers the separate-folder layout (webp-images/uploads/…) used here
+     * plus mingled fallbacks. Missing files are simply skipped.
+     *
+     * @param string $target_file Marked image absolute path.
+     */
+    public static function purge_webp_variants( $target_file ) {
+        $target_file = wp_normalize_path( (string) $target_file );
+        if ( '' === $target_file || ! preg_match( '/\.(jpe?g|png)$/i', $target_file ) ) {
+            return;
+        }
+
+        $candidates = array(
+            $target_file . '.webp',
+            (string) preg_replace( '/\.(jpe?g|png)$/i', '.webp', $target_file ),
+        );
+
+        if ( function_exists( 'wp_upload_dir' ) ) {
+            $uploads = wp_upload_dir();
+            $basedir = isset( $uploads['basedir'] ) ? wp_normalize_path( $uploads['basedir'] ) : '';
+            if ( '' !== $basedir && 0 === strpos( $target_file, trailingslashit( $basedir ) ) ) {
+                $rel = substr( $target_file, strlen( trailingslashit( $basedir ) ) );
+                $candidates[] = wp_normalize_path( WP_CONTENT_DIR . '/webp-express/webp-images/uploads/' . $rel . '.webp' );
+            }
+        }
+
+        foreach ( array_unique( $candidates ) as $candidate ) {
+            if ( $candidate !== $target_file && file_exists( $candidate ) ) {
+                @unlink( $candidate );
+            }
+        }
+    }
+
+    /**
+     * Drop every WebP Express variant of an attachment's files so they are
+     * regenerated from the current (marked) sources on demand.
+     *
+     * @param int    $attachment_id Attachment ID.
+     * @param array  $metadata      Attachment metadata.
+     * @param string $original_path Original file path.
+     */
+    public static function purge_attachment_webp_variants( $attachment_id, $metadata, $original_path ) {
+        $files = array( $original_path );
+
+        $scaled = self::scaled_file_path( (string) $original_path, (array) $metadata );
+        if ( '' !== $scaled ) {
+            $files[] = $scaled;
+        }
+
+        if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
+            $dir = trailingslashit( dirname( (string) $original_path ) );
+            foreach ( (array) $metadata['sizes'] as $size_data ) {
+                if ( ! empty( $size_data['file'] ) ) {
+                    $files[] = $dir . $size_data['file'];
+                }
+            }
+        }
+
+        foreach ( array_unique( $files ) as $file ) {
+            if ( $file && file_exists( $file ) ) {
+                self::purge_webp_variants( $file );
+            }
         }
     }
 
@@ -1092,6 +1164,9 @@ class Imovel_Parceiro_Watermark {
             }
 
             if ( 'repair' === $mode ) {
+                // Refresh every WebP variant from the (marked) sources even
+                // when nothing needs re-marking.
+                self::purge_attachment_webp_variants( $attachment_id, $metadata, $file );
                 $scaled_path = self::scaled_file_path( $file, $metadata );
                 if ( '' === $scaled_path ) {
                     $skipped++;
