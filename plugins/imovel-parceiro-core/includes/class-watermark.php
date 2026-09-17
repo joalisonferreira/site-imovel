@@ -237,7 +237,10 @@ class Imovel_Parceiro_Watermark {
             return $metadata;
         }
 
-        if ( ! $this->is_property_image_attachment( $attachment_id ) ) {
+        // Only photos uploaded by the dashboard registration form (its
+        // gallery uploader creates unattached files; anything else — media
+        // library, documents, other post types — is out of scope).
+        if ( ! $this->is_gallery_upload_request() ) {
             return $metadata;
         }
 
@@ -260,6 +263,12 @@ class Imovel_Parceiro_Watermark {
             return;
         }
 
+        // Only gallery links written by the dashboard registration form
+        // (create/update/draft). wp-admin edits, imports, REST and CLI are out.
+        if ( ! $this->is_dashboard_property_request() ) {
+            return;
+        }
+
         $attachment_id = absint( $meta_value );
         if ( ! $attachment_id ) {
             return;
@@ -278,21 +287,52 @@ class Imovel_Parceiro_Watermark {
         return ! empty( $settings['enabled'] ) && ! empty( $settings['attachment_id'] );
     }
 
-    private function is_property_image_attachment( $attachment_id ) {
-        if ( 'attachment' !== get_post_type( $attachment_id ) ) {
+    /**
+     * Whether the upload comes from the dashboard gallery uploader.
+     *
+     * @return bool
+     */
+    private function is_gallery_upload_request() {
+        if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
             return false;
         }
 
-        if ( ! wp_attachment_is_image( $attachment_id ) ) {
+        if ( ! isset( $_REQUEST['action'] ) ) {
             return false;
         }
 
-        $parent_id = (int) wp_get_post_parent_id( $attachment_id );
-        if ( $parent_id > 0 && 'property' === get_post_type( $parent_id ) ) {
-            return true;
+        return 'houzez_property_img_upload' === sanitize_key( wp_unslash( $_REQUEST['action'] ) );
+    }
+
+    /**
+     * Whether the gallery link is being written by the dashboard
+     * registration form (create, update or draft autosave).
+     *
+     * @return bool
+     */
+    private function is_dashboard_property_request() {
+        if ( ( defined( 'WP_CLI' ) && WP_CLI ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+            return false;
         }
 
-        return false;
+        $action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
+
+        // Draft autosave from the dashboard form.
+        if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+            return 'save_as_draft' === $action;
+        }
+
+        // wp-admin screens (edits, imports) are out.
+        if ( is_admin() ) {
+            return false;
+        }
+
+        // Frontend dashboard submit (create/update), regular POST.
+        if ( empty( $_SERVER['REQUEST_METHOD'] ) || 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+            return false;
+        }
+
+        return in_array( $action, array( 'add_property', 'update_property' ), true );
     }
 
     private function process_attachment_watermark( $attachment_id, $metadata ) {
