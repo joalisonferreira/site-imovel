@@ -274,7 +274,7 @@ class Imovel_Parceiro_Watermark {
     }
 
     public function maybe_process_on_property_gallery_meta( $meta_id, $object_id, $meta_key, $meta_value ) {
-        if ( 'fave_property_images' !== $meta_key ) {
+        if ( 'fave_property_images' !== $meta_key && '_thumbnail_id' !== $meta_key ) {
             return;
         }
 
@@ -287,7 +287,7 @@ class Imovel_Parceiro_Watermark {
             return;
         }
 
-        $attachment_id = absint( $meta_value );
+        $attachment_id = is_scalar( $meta_value ) ? absint( $meta_value ) : 0;
         if ( ! $attachment_id ) {
             return;
         }
@@ -798,9 +798,16 @@ class Imovel_Parceiro_Watermark {
             . " INNER JOIN {$wpdb->posts} p ON p.ID = a.post_parent AND p.post_type = 'property'"
             . " WHERE a.post_type = 'attachment' AND a.post_mime_type LIKE 'image/%'"
         );
+        // Featured images set outside the gallery flow (Media Library etc.).
+        $thumb_ids = $wpdb->get_col(
+            "SELECT DISTINCT m.meta_value FROM {$wpdb->postmeta} m"
+            . " INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id AND p.post_type = 'property'"
+            . " INNER JOIN {$wpdb->posts} a ON a.ID = m.meta_value AND a.post_type = 'attachment'"
+            . " WHERE m.meta_key = '_thumbnail_id'"
+        );
 
         $ids = array();
-        foreach ( array_merge( (array) $gallery_ids, (array) $parented_ids ) as $id ) {
+        foreach ( array_merge( (array) $gallery_ids, (array) $parented_ids, (array) $thumb_ids ) as $id ) {
             $id = absint( $id );
             if ( ! $id || $id === $exclude_wm || isset( $ids[ $id ] ) ) {
                 continue;
