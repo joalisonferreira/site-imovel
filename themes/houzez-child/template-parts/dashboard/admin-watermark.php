@@ -51,33 +51,6 @@ $ipc_positions = array(
         </div>
     <?php endif; ?>
 
-    <?php $ipc_wm_conflicts = method_exists( 'Imovel_Parceiro_Watermark', 'active_conflicts' ) ? Imovel_Parceiro_Watermark::active_conflicts() : array(); ?>
-    <?php if ( ! empty( $ipc_wm_conflicts ) ) : ?>
-        <div class="mb-4 inline-flex w-full items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-            <?php echo houzez_dash_icon( 'triangle-alert', 'h-4 w-4 shrink-0' ); ?>
-            <span><?php echo esc_html( sprintf( __( 'Atenção: estes plugins ativos podem impedir a marca d\'água (re-encode/WebP/cache): %s. A função foi validada com eles desativados.', 'imovel-parceiro-core' ), implode( ', ', $ipc_wm_conflicts ) ) ); ?></span>
-        </div>
-    <?php endif; ?>
-
-    <?php $ipc_wm_reqs = method_exists( 'Imovel_Parceiro_Watermark', 'server_requirements' ) ? Imovel_Parceiro_Watermark::server_requirements() : array(); ?>
-    <?php if ( ! empty( $ipc_wm_reqs ) ) : ?>
-    <div class="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <h4 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Requisitos do servidor', 'imovel-parceiro-core' ); ?></h4>
-        <p class="mt-0.5 text-sm text-slate-500"><?php esc_html_e( 'A marca d\'água precisa de Imagick ou GD com suporte a JPEG/PNG. Itens em vermelho impedem o funcionamento.', 'imovel-parceiro-core' ); ?></p>
-        <ul class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <?php foreach ( $ipc_wm_reqs as $ipc_req ) : ?>
-                <li class="flex items-start gap-2 rounded-xl border px-3 py-2 text-sm <?php echo ! empty( $ipc_req['ok'] ) ? 'border-emerald-100 bg-emerald-50/50 text-emerald-800' : 'border-rose-100 bg-rose-50/50 text-rose-700'; ?>">
-                    <?php echo houzez_dash_icon( ! empty( $ipc_req['ok'] ) ? 'circle-check' : 'triangle-alert', 'h-4 w-4 shrink-0 mt-0.5' ); ?>
-                    <span>
-                        <strong class="font-semibold"><?php echo esc_html( $ipc_req['label'] ); ?></strong>
-                        <span class="block text-xs opacity-80"><?php echo esc_html( $ipc_req['detail'] ); ?></span>
-                    </span>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-    <?php endif; ?>
-
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <!-- Controles -->
         <div class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
