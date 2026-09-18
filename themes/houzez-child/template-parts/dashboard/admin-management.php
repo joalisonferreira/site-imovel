@@ -133,6 +133,7 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
                 }
 
                 if ( class_exists( 'Imovel_Parceiro_Verification_Notifications' ) ) {
+                    Imovel_Parceiro_Verification_Notifications::record_dashboard_history( $user_id, $verification_action, $notes );
                     Imovel_Parceiro_Verification_Notifications::notify_dashboard_decision( $user_id, $verification_action, $notes, $verification_data );
                 }
             }
