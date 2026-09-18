@@ -776,7 +776,7 @@ jQuery(function($){
             return;
         }
 
-        if (actionType === 'close') {
+        if (actionType === 'close' || actionType === 'cancel') {
             openOutcomeModal('closed', partnershipId, status);
             return;
         }

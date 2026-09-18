@@ -663,7 +663,7 @@ window.__ipcFunnel.reasons = window.__ipcFunnel.reasons || <?php echo wp_json_en
                 close: { to:'closed', title:'Encerrar parceria',         hint:'Selecione o motivo do encerramento.' }
             }[kind];
             if (!cfg) { return; }
-            var reasons = (window.__ipcFunnel && window.__ipcFunnel.reasons && window.__ipcFunnel.reasons[kind]) || {};
+            var reasons = (window.__ipcFunnel && window.__ipcFunnel.reasons && window.__ipcFunnel.reasons[kind === 'close' ? 'closed' : kind]) || {};
             var $m = $('#ipc-funnel-outcome');
             $('#ipc-funnel-outcome-to').val(cfg.to);
             $('#ipc-funnel-outcome-title').text(cfg.title);
