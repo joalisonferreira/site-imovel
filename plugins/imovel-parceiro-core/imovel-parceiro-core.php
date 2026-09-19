@@ -62,6 +62,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-extras.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-checkout-cleanup.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-verification-notifications.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-verification-fix.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscription-links.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-purchase-redirect.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-blocking.php';
