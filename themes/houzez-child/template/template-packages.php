@@ -49,16 +49,6 @@ $ipc_check_svg = '<span class="ipc-check"><svg viewBox="0 0 24 24" fill="none" s
 $ipc_cross_svg = '<span class="ipc-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>';
 
 /**
- * Linha de recurso do card (check verde/rosa ou item desativado).
- */
-function ipc_plans_feature_row( $label, $value, $check_svg, $cross_svg, $enabled = true ) {
-    if ( $enabled ) {
-        return '<li>' . $check_svg . '<span>' . $label . ': <strong>' . esc_html( $value ) . '</strong></span></li>';
-    }
-    return '<li class="is-off">' . $cross_svg . '<span>' . esc_html( $label ) . '</span></li>';
-}
-
-/**
  * Renderiza um card de plano.
  */
 function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $where_currency, $use_woocommerce, $payment_page_link, $check_svg, $cross_svg ) {
@@ -111,7 +101,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
             <?php endif; ?>
             <li>
                 <?php echo $check_svg; ?>
-                <span>Propriedades:
+                <span>Imóveis:
                     <?php if ( $plan['unlimited'] ) : ?>
                         <strong>Anúncios ilimitados</strong>
                     <?php elseif ( null !== $plan['listings'] ) : ?>
@@ -141,15 +131,6 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php endif; ?>
                 </span>
             </li>
-            <?php if ( 'agent' === $segment ) : ?>
-                <?php
-                $has_seal = ! $plan['is_free'];
-                echo ipc_plans_feature_row( 'Selo de Corretor Verificado', '', $check_svg, $cross_svg, $has_seal );
-                if ( $has_seal ) {
-                    echo '<li>' . $check_svg . '<span><strong>Suporte prioritário via WhatsApp</strong></span></li>';
-                }
-                ?>
-            <?php endif; ?>
         </ul>
         <div class="ipc-plan-cta">
             <?php if ( $plan['price_on_request'] ) : ?>
@@ -166,38 +147,6 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
         </div>
     </article>
     <?php
-}
-
-/**
- * Células estáticas da tabela comparativa (linhas de infraestrutura).
- */
-function ipc_plans_matrix_cell( $title, $row ) {
-    $t = mb_strtolower( $title, 'UTF-8' );
-
-    if ( 'xml' === $row ) {
-        if ( false !== mb_strpos( $t, 'premium', 0, 'UTF-8' ) ) {
-            return array( 'Incluso (Zap/VivaReal/OLX)', 'is-positive' );
-        }
-        if ( preg_match( '/\bpro\b/u', $t ) ) {
-            return array( 'Opcional', '' );
-        }
-        return array( '—', 'is-dim' );
-    }
-
-    if ( 'support' === $row ) {
-        if ( false !== mb_strpos( $t, 'premium', 0, 'UTF-8' ) ) {
-            return array( 'Gerente Dedicado Exclusivo', 'is-positive' );
-        }
-        if ( preg_match( '/\bpro\b/u', $t ) ) {
-            return array( 'WhatsApp Prioritário', '' );
-        }
-        if ( false !== mb_strpos( $t, 'corretor individual', 0, 'UTF-8' ) ) {
-            return array( 'WhatsApp & E-mail', '' );
-        }
-        return array( 'Ticket & E-mail', '' );
-    }
-
-    return array( '—', 'is-dim' );
 }
 
 $user_role     = class_exists( 'Imovel_Parceiro_Package_Access' ) ? Imovel_Parceiro_Package_Access::target_role_for_user() : null;
@@ -363,31 +312,11 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                         <?php endforeach; ?>
                                     </tr>
                                     <tr>
-                                        <td>Fotos em Alta Resolução por Imóvel</td>
+                                        <td>Fotos por Imóvel</td>
                                         <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
                                             <td<?php echo (int) $table_plan['id'] === $recommended_id ? ' class="is-recommended"' : ''; ?>>
                                                 <?php echo null !== $table_plan['images'] ? esc_html( $table_plan['images'] ) . ' fotos' : '—'; ?>
                                             </td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                    <tr>
-                                        <td>Integração com Portais via XML</td>
-                                        <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
-                                            <?php
-                                            list( $xml_label, $xml_class ) = ipc_plans_matrix_cell( $table_plan['title'], 'xml' );
-                                            $xml_classes = trim( ( (int) $table_plan['id'] === $recommended_id ? 'is-recommended ' : '' ) . $xml_class );
-                                            ?>
-                                            <td<?php echo '' !== $xml_classes ? ' class="' . esc_attr( $xml_classes ) . '"' : ''; ?>><?php echo esc_html( $xml_label ); ?></td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                    <tr>
-                                        <td>Canal de Atendimento &amp; Suporte</td>
-                                        <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
-                                            <?php
-                                            list( $support_label, $support_class ) = ipc_plans_matrix_cell( $table_plan['title'], 'support' );
-                                            $support_classes = trim( ( (int) $table_plan['id'] === $recommended_id ? 'is-recommended ' : '' ) . $support_class );
-                                            ?>
-                                            <td<?php echo '' !== $support_classes ? ' class="' . esc_attr( $support_classes ) . '"' : ''; ?>><?php echo esc_html( $support_label ); ?></td>
                                         <?php endforeach; ?>
                                     </tr>
                                 </tbody>
