@@ -721,6 +721,193 @@ function imovel_parceiro_format_price_display( $field_key, $value ) {
     return number_format( (float) $text, 2, ',', '.' );
 }
 
+/**
+ * Página de planos (template-packages.php): verifica se é a página nativa
+ * de pacotes para enfileirar os assets do layout.
+ *
+ * @return bool
+ */
+function houzez_child_is_packages_page() {
+    if ( function_exists( 'is_page_template' ) && is_page_template( 'template/template-packages.php' ) ) {
+        return true;
+    }
+
+    if ( is_page( array( 2702, 17052 ) ) ) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Enfileira CSS/JS do layout da página de planos (apenas nessa página).
+ */
+function houzez_child_enqueue_plans_assets() {
+    if ( ! houzez_child_is_packages_page() ) {
+        return;
+    }
+
+    $css_path = get_stylesheet_directory() . '/assets/css/plans.css';
+    $js_path  = get_stylesheet_directory() . '/assets/js/plans.js';
+
+    wp_enqueue_style(
+        'houzez-child-plans',
+        get_stylesheet_directory_uri() . '/assets/css/plans.css',
+        array(),
+        file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
+    );
+
+    wp_enqueue_script(
+        'houzez-child-plans',
+        get_stylesheet_directory_uri() . '/assets/js/plans.js',
+        array(),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_plans_assets', 100 );
+
+/**
+ * Monta os dados dos planos visíveis para a página de pacotes.
+ *
+ * Usa os pacotes reais (houzez_packages) respeitando visibilidade e
+ * restrição por papel (corretor x imobiliária) do Imóvel Parceiro Core.
+ *
+ * @return array { agent: array, agency: array, table: array }
+ */
+function houzez_child_get_plans_groups() {
+    $groups = array( 'agent' => array(), 'agency' => array(), 'table' => array() );
+
+    if ( ! class_exists( 'Imovel_Parceiro_Package_Access' ) ) {
+        return $groups;
+    }
+
+    $visible_ids = Imovel_Parceiro_Package_Access::visible_package_ids();
+
+    $query_args = array(
+        'post_type'      => 'houzez_packages',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'orderby'        => 'ID',
+        'order'          => 'ASC',
+        'meta_query'     => array(
+            array(
+                'key'     => 'fave_package_visible',
+                'value'   => 'yes',
+                'compare' => '=',
+            ),
+        ),
+    );
+
+    if ( is_array( $visible_ids ) ) {
+        $query_args['post__in'] = $visible_ids;
+    }
+
+    $query = new WP_Query( $query_args );
+
+    if ( ! $query->have_posts() ) {
+        wp_reset_postdata();
+        return $groups;
+    }
+
+    $period_labels = array(
+        'day'   => array( 'dia', 'dias' ),
+        'week'  => array( 'semana', 'semanas' ),
+        'month' => array( 'mês', 'meses' ),
+        'year'  => array( 'ano', 'anos' ),
+    );
+
+    while ( $query->have_posts() ) {
+        $query->the_post();
+        $package_id = get_the_ID();
+
+        $is_free = class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' )
+            && Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::is_free_package( $package_id );
+
+        $price_on_request = class_exists( 'Imovel_Parceiro_Package_Extras' )
+            && Imovel_Parceiro_Package_Extras::price_on_request( $package_id );
+
+        $raw_price = (string) get_post_meta( $package_id, 'fave_package_price', true );
+        $price_num = (float) str_replace( ',', '.', $raw_price );
+
+        if ( $is_free ) {
+            $validity = Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::free_plan_validity( $package_id );
+            $unit     = isset( $period_labels[ $validity['unit'] ] ) ? $period_labels[ $validity['unit'] ] : $period_labels['month'];
+            $label    = $validity['value'] > 1 ? $unit[1] : $unit[0];
+            $validity_label = sprintf( '%d %s de acesso', $validity['value'], $label );
+        } else {
+            $freq   = absint( get_post_meta( $package_id, 'fave_billing_unit', true ) );
+            $period = strtolower( (string) get_post_meta( $package_id, 'fave_billing_time_unit', true ) );
+            $unit   = isset( $period_labels[ $period ] ) ? $period_labels[ $period ] : $period_labels['month'];
+            $label  = $freq > 1 ? $unit[1] : $unit[0];
+            $validity_label = sprintf( '%d %s (renovação automática)', max( 1, $freq ), $label );
+        }
+
+        $unlimited = '1' === (string) get_post_meta( $package_id, 'fave_unlimited_listings', true );
+
+        $listings_raw = trim( (string) get_post_meta( $package_id, 'fave_package_listings', true ) );
+        $featured_raw = trim( (string) get_post_meta( $package_id, 'fave_package_featured_listings', true ) );
+        $images_raw   = trim( (string) get_post_meta( $package_id, 'fave_package_images', true ) );
+
+        $max_agents = class_exists( 'Imovel_Parceiro_Package_Extras' )
+            ? Imovel_Parceiro_Package_Extras::max_agents( $package_id )
+            : 0;
+
+        $plan = array(
+            'id'               => $package_id,
+            'title'            => get_the_title(),
+            'is_free'          => $is_free,
+            'price_on_request' => $price_on_request,
+            'price_num'        => $price_num,
+            'price_label'      => $is_free || $price_on_request ? '' : number_format( $price_num, 2, ',', '.' ),
+            'validity_label'   => $validity_label,
+            'unlimited'        => $unlimited,
+            'listings'         => '' === $listings_raw ? null : $listings_raw,
+            'featured'         => '' === $featured_raw ? null : $featured_raw,
+            'images'           => '' === $images_raw ? null : $images_raw,
+            'max_agents'       => $max_agents,
+            'popular'          => 'yes' === get_post_meta( $package_id, 'fave_package_popular', true ),
+        );
+
+        $roles = Imovel_Parceiro_Package_Access::allowed_roles( $package_id );
+
+        if ( empty( $roles ) || in_array( 'houzez_agent', $roles, true ) ) {
+            $groups['agent'][] = $plan;
+        }
+
+        if ( empty( $roles ) || in_array( 'houzez_agency', $roles, true ) ) {
+            $groups['agency'][] = $plan;
+        }
+    }
+
+    wp_reset_postdata();
+
+    $sort_by_price = function ( $a, $b ) {
+        if ( $a['is_free'] !== $b['is_free'] ) {
+            return $a['is_free'] ? -1 : 1;
+        }
+        if ( $a['price_on_request'] !== $b['price_on_request'] ) {
+            return $a['price_on_request'] ? 1 : -1;
+        }
+        return $a['price_num'] <=> $b['price_num'];
+    };
+
+    usort( $groups['agent'], $sort_by_price );
+    usort( $groups['agency'], $sort_by_price );
+
+    // Colunas da tabela comparativa: planos pagos (sem teste grátis e sem sob consulta).
+    $table = array();
+    foreach ( array_merge( $groups['agent'], $groups['agency'] ) as $plan ) {
+        if ( $plan['is_free'] || $plan['price_on_request'] ) {
+            continue;
+        }
+        $table[ $plan['id'] ] = $plan;
+    }
+    $groups['table'] = array_values( $table );
+
+    return $groups;
+}
+
 // Override do tema pai (tem function_exists): itens do overview com preços em pt-BR.
 if ( ! function_exists( 'houzez_get_overview_item' ) ) {
     function houzez_get_overview_item( $key, $value, $label, $version = '' ) {

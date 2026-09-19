@@ -16,6 +16,7 @@ class Imovel_Parceiro_Instant_Logout {
 
     public function __construct() {
         add_filter( 'logout_url', array( $this, 'logout_url' ), 20, 2 );
+        add_filter( 'logout_redirect', array( $this, 'logout_redirect' ), 20, 3 );
         add_action( 'init', array( $this, 'maybe_logout' ), 1 );
     }
 
@@ -31,8 +32,15 @@ class Imovel_Parceiro_Instant_Logout {
     }
 
     /**
-     * Log out immediately and land on the homepage.
+     * Force every logout (even direct wp-login.php?action=logout) to land on the homepage.
      */
+    public function logout_redirect( $redirect_to, $requested_redirect_to, $user ) {
+        return home_url( '/' );
+    }
+
+    /**
+      * Log out immediately and land on the homepage.
+      */
     public function maybe_logout() {
         if ( empty( $_GET[ self::QUERY_VAR ] ) || ! is_user_logged_in() ) {
             return;
