@@ -453,6 +453,71 @@ function imovel_parceiro_standardize_account_emails( $args ) {
 }
 add_filter( 'wp_mail', 'imovel_parceiro_standardize_account_emails', 5 );
 
+/**
+ * Remove a senha em texto puro do e-mail de boas-vindas e a substitui por um
+ * link de definição (uso único, expira em ~24h — mesmo mecanismo do "esqueci
+ * a senha"). Vale para todos os caminhos de cadastro (formulário, social e
+ * corretores criados pela imobiliária). Roda antes da re-aplicação do
+ * template premium (prioridade 20) e insere o bloco dentro do cartão.
+ *
+ * @param array $args Argumentos do wp_mail.
+ * @return array
+ */
+function imovel_parceiro_welcome_setup_link( $args ) {
+	if ( empty( $args['subject'] ) || empty( $args['to'] ) ) {
+		return $args;
+	}
+
+	// Assunto do template houzez_new_user_register (após troca de tokens).
+	if ( 0 !== strpos( (string) $args['subject'], 'Bem-vindo(a) ao ' ) ) {
+		return $args;
+	}
+
+	$to = $args['to'];
+	$to_mail = is_array( $to ) ? (string) reset( $to ) : (string) $to;
+	$user = is_email( $to_mail ) ? get_user_by( 'email', $to_mail ) : false;
+	if ( ! $user ) {
+		return $args;
+	}
+
+	$message = (string) $args['message'];
+
+	// 1) Remove a linha "Senha: xxx" — senha nunca trafega por e-mail.
+	$stripped = preg_replace( '/<strong[^>]*>\s*Senha:\s*<\/strong>.*?<br[^>]*>/su', '', $message );
+	if ( null !== $stripped ) {
+		$message = $stripped;
+	}
+
+	// 2) Gera a chave de definição (não envia nada por si só).
+	$key = get_password_reset_key( $user );
+	if ( ! is_wp_error( $key ) ) {
+		$link = network_site_url( 'wp-login.php?action=rp&key=' . $key . '&login=' . rawurlencode( $user->user_login ), 'login' );
+		$block = '<p>'
+			. '<strong>' . esc_html__( 'Acesso à sua conta:', 'imovel-parceiro-core' ) . '</strong> '
+			. esc_html__( 'Por segurança, não enviamos senhas por e-mail. Defina sua senha clicando no link abaixo (uso único, expira em 24 horas):', 'imovel-parceiro-core' )
+			. '<br><a href="' . esc_url( $link ) . '">' . esc_html( $link ) . '</a></p>';
+
+		// Insere dentro do cartão de conteúdo do template legado.
+		$marker = '<div style="font-family:\'Helvetica Neue\',\'Helvetica\',Helvetica,Arial,sans-serif;font-size:100%;line-height:1.6em;display:block;max-width:600px;margin:0 auto;padding:0">';
+		$pos = strpos( $message, $marker );
+		if ( false !== $pos ) {
+			$close = strpos( $message, '</div>', $pos + strlen( $marker ) );
+			if ( false !== $close ) {
+				$message = substr( $message, 0, $close ) . $block . substr( $message, $close );
+			} else {
+				$message .= $block;
+			}
+		} else {
+			$message .= $block;
+		}
+	}
+
+	$args['message'] = $message;
+
+	return $args;
+}
+add_filter( 'wp_mail', 'imovel_parceiro_welcome_setup_link', 6 );
+
 if ( ! function_exists( 'houzez_send_emails_with_reply' ) ) {
 	function houzez_send_emails_with_reply( $user_email, $subject, $message, $sender_name = '', $sender_email = '', $cc_email = '', $bcc_email = '' ) {
 		if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
