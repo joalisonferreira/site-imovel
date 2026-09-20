@@ -333,6 +333,126 @@ function imovel_parceiro_wrap_legacy_emails( $args ) {
 }
 add_filter( 'wp_mail', 'imovel_parceiro_wrap_legacy_emails', 20 );
 
+/**
+ * Padroniza os e-mails de moderação de contas do plugin houzez-login-register
+ * (aprovação, recusa, suspensão): hoje saem em inglês e texto puro via wp_mail
+ * direto. Reescreve para PT-BR com o template premium, sem editar o plugin
+ * de terceiros.
+ *
+ * @param array $args Argumentos do wp_mail.
+ * @return array
+ */
+function imovel_parceiro_standardize_account_emails( $args ) {
+	if ( empty( $args['subject'] ) || empty( $args['to'] ) || ! class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
+		return $args;
+	}
+
+	$to = $args['to'];
+	$to_mail = is_array( $to ) ? (string) reset( $to ) : (string) $to;
+	if ( ! is_email( $to_mail ) ) {
+		return $args;
+	}
+
+	$subject = (string) $args['subject'];
+	$kind = '';
+
+	if ( 'Your account has been approved' === $subject ) {
+		$kind = 'approved';
+	} elseif ( 'Your account registration has been declined' === $subject ) {
+		$kind = 'declined';
+	} elseif ( 'Your account has been suspended' === $subject ) {
+		$kind = 'suspended';
+	} elseif ( preg_match( '/^Your account on .+ has been approved$/', $subject ) ) {
+		$kind = 'approved';
+	} elseif ( preg_match( '/^\[.*\] User Auto-Approved: (.+)$/', $subject, $matches ) ) {
+		$kind = 'admin_auto';
+		$auto_login = trim( $matches[1] );
+	}
+
+	if ( '' === $kind ) {
+		return $args;
+	}
+
+	$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	$user = get_user_by( 'email', $to_mail );
+	$name = $user ? ( $user->first_name ? $user->first_name : $user->user_login ) : '';
+
+	if ( 'admin_auto' === $kind ) {
+		$target = isset( $auto_login ) && '' !== $auto_login ? get_user_by( 'login', $auto_login ) : false;
+		$roles = array();
+		if ( $target && ! empty( $target->roles ) ) {
+			foreach ( (array) $target->roles as $role ) {
+				$roles[] = ucfirst( trim( str_replace( 'houzez_', '', $role ) ) );
+			}
+		}
+		$new_subject = sprintf( __( '[%s] Usuário aprovado automaticamente', 'imovel-parceiro-core' ), $site_name );
+		$lines = array(
+			sprintf( __( 'Um novo usuário foi aprovado automaticamente em %s.', 'imovel-parceiro-core' ), $site_name ),
+			'',
+			sprintf( __( 'Nome de usuário: %s', 'imovel-parceiro-core' ), $target ? $target->user_login : $auto_login ),
+			sprintf( __( 'E-mail: %s', 'imovel-parceiro-core' ), $target ? $target->user_email : '' ),
+			sprintf( __( 'Papéis: %s', 'imovel-parceiro-core' ), $roles ? implode( ', ', $roles ) : __( 'Nenhum', 'imovel-parceiro-core' ) ),
+			'',
+			__( 'O usuário foi aprovado porque seu papel está na lista de aprovação automática.', 'imovel-parceiro-core' ),
+		);
+		$render_args = array( 'title' => __( 'Usuário aprovado automaticamente', 'imovel-parceiro-core' ) );
+	} else {
+		$greeting = '' !== $name ? sprintf( __( 'Olá, %s!', 'imovel-parceiro-core' ), $name ) : __( 'Olá!', 'imovel-parceiro-core' );
+
+		if ( 'approved' === $kind ) {
+			$new_subject = sprintf( __( '[%s] Sua conta foi aprovada', 'imovel-parceiro-core' ), $site_name );
+			$lines = array(
+				$greeting,
+				'',
+				sprintf( __( 'Boas notícias! Sua conta em %s foi aprovada.', 'imovel-parceiro-core' ), $site_name ),
+				'',
+				__( 'Você já pode acessar a plataforma.', 'imovel-parceiro-core' ),
+			);
+			$render_args = array(
+				'title'    => __( 'Conta aprovada', 'imovel-parceiro-core' ),
+				'cta_url'  => home_url( '/' ),
+				'cta_text' => __( 'Acessar plataforma', 'imovel-parceiro-core' ),
+			);
+		} elseif ( 'declined' === $kind ) {
+			$new_subject = sprintf( __( '[%s] Seu cadastro foi recusado', 'imovel-parceiro-core' ), $site_name );
+			$lines = array(
+				$greeting,
+				'',
+				sprintf( __( 'Seu cadastro em %s não foi aprovado neste momento.', 'imovel-parceiro-core' ), $site_name ),
+				'',
+				__( 'Se você acredita que isso é um erro, entre em contato conosco.', 'imovel-parceiro-core' ),
+				'',
+				__( 'Atenciosamente,', 'imovel-parceiro-core' ),
+				__( 'Equipe Imóvel Parceiro', 'imovel-parceiro-core' ),
+			);
+			$render_args = array( 'title' => __( 'Cadastro recusado', 'imovel-parceiro-core' ) );
+		} else {
+			$new_subject = sprintf( __( '[%s] Sua conta foi suspensa', 'imovel-parceiro-core' ), $site_name );
+			$lines = array(
+				$greeting,
+				'',
+				sprintf( __( 'Sua conta em %s foi suspensa.', 'imovel-parceiro-core' ), $site_name ),
+				'',
+				__( 'Se você acredita que isso é um erro, entre em contato conosco.', 'imovel-parceiro-core' ),
+				'',
+				__( 'Atenciosamente,', 'imovel-parceiro-core' ),
+				__( 'Equipe Imóvel Parceiro', 'imovel-parceiro-core' ),
+			);
+			$render_args = array( 'title' => __( 'Conta suspensa', 'imovel-parceiro-core' ) );
+		}
+	}
+
+	$args['subject'] = $new_subject;
+	$args['message'] = Imovel_Parceiro_Email_Template::render(
+		Imovel_Parceiro_Email_Template::text_to_html( implode( "\n", $lines ) ),
+		$render_args
+	);
+	$args['headers'] = array( 'Content-Type: text/html; charset=UTF-8' );
+
+	return $args;
+}
+add_filter( 'wp_mail', 'imovel_parceiro_standardize_account_emails', 5 );
+
 if ( ! function_exists( 'houzez_send_emails_with_reply' ) ) {
 	function houzez_send_emails_with_reply( $user_email, $subject, $message, $sender_name = '', $sender_email = '', $cc_email = '', $bcc_email = '' ) {
 		if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {

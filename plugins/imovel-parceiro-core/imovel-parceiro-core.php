@@ -75,8 +75,10 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-visibility.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-instant-logout.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-first-login-redirect.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-load-test.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-upload-performance.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-mailer.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-email-verification.php';
     }
 
     private function hooks() {
@@ -404,3 +406,4 @@ class Imovel_Parceiro_Core {
 }
 
 Imovel_Parceiro_Core::instance();
+

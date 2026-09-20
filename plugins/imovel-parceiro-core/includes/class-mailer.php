@@ -22,6 +22,36 @@ class Imovel_Parceiro_Mailer {
      */
     public static function init() {
         add_action( self::AS_HOOK, array( __CLASS__, 'run_async_jobs' ), 10, 1 );
+        add_filter( 'pre_wp_mail', array( __CLASS__, 'dedupe_identical_emails' ), 10, 2 );
+    }
+
+    /**
+     * Bloqueia reenvios idênticos (mesmo destino + assunto + corpo) dentro de
+     * uma janela curta. Rede de segurança contra duplo clique e caminhos
+     * duplos de aprovação (tema + painel de gestão) que disparam o mesmo
+     * e-mail para o mesmo usuário.
+     *
+     * @param null|bool $short_circuit Curto-circuito do wp_mail.
+     * @param array     $atts          Atributos do e-mail.
+     * @return null|bool False para bloquear o envio.
+     */
+    public static function dedupe_identical_emails( $short_circuit, $atts ) {
+        if ( null !== $short_circuit || empty( $atts['to'] ) || empty( $atts['subject'] ) ) {
+            return $short_circuit;
+        }
+
+        $to = is_array( $atts['to'] ) ? implode( ',', $atts['to'] ) : (string) $atts['to'];
+        $hash = md5( $to . '|' . (string) $atts['subject'] . '|' . (string) $atts['message'] );
+        $key = 'ipc_mail_dedup_' . $hash;
+
+        if ( get_transient( $key ) ) {
+            error_log( 'Imovel Parceiro mailer: e-mail duplicado bloqueado para ' . $to . ' :: ' . (string) $atts['subject'] );
+            return false;
+        }
+
+        set_transient( $key, time(), 5 * MINUTE_IN_SECONDS );
+
+        return $short_circuit;
     }
 
     /**
