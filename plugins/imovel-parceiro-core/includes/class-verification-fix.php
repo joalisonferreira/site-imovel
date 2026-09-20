@@ -15,6 +15,7 @@ class Imovel_Parceiro_Verification_Fix {
     public function __construct() {
         // Intercepta antes do Houzez processar o pedido de verificação.
         add_action( 'houzez_before_verification_request', array( $this, 'block_resubmit_when_approved' ), 5, 2 );
+        add_action( 'houzez_before_verification_request', array( $this, 'validate_verification_upload' ), 8, 2 );
         // Após aprovação, limpa caches de user_meta.
         add_action( 'houzez_after_approve_verification', array( $this, 'clear_verification_cache' ), 20, 2 );
         add_action( 'houzez_after_add_verification_history', array( $this, 'maybe_clear_on_approved_history' ), 20, 3 );
@@ -41,6 +42,48 @@ class Imovel_Parceiro_Verification_Fix {
                 'message'  => __( 'Sua conta já está verificada.', 'houzez' ),
                 'redirect' => $redirect,
             ) );
+        }
+    }
+
+    public function validate_verification_upload( $user_id, $post_data ) {
+        if ( empty( $_FILES['verification_document']['tmp_name'] ) ) {
+            return;
+        }
+        $file = $_FILES['verification_document'];
+        $max_size = 10 * 1024 * 1024;
+        if ( isset( $file['size'] ) && $file['size'] > $max_size ) {
+            wp_send_json_error( array( 'message' => __( 'O arquivo deve ter no máximo 10MB.', 'houzez' ) ) );
+        }
+        if ( function_exists( 'finfo_open' ) ) {
+            $finfo = finfo_open( FILEINFO_MIME_TYPE );
+            $mime = $finfo ? finfo_file( $finfo, $file['tmp_name'] ) : '';
+            if ( $finfo ) {
+                finfo_close( $finfo );
+            }
+            $allowed_mimes = array( 'image/jpeg', 'image/png', 'application/pdf' );
+            $allowed_mimes = apply_filters( 'imovel_parceiro_verification_allowed_mimes', $allowed_mimes );
+            if ( ! in_array( $mime, $allowed_mimes, true ) ) {
+                wp_send_json_error( array( 'message' => __( 'Apenas JPG, PNG e PDF são permitidos.', 'houzez' ) ) );
+            }
+        }
+        // Valida também o verso, se enviado
+        if ( ! empty( $_FILES['verification_document_back']['tmp_name'] ) ) {
+            $back = $_FILES['verification_document_back'];
+            if ( isset( $back['size'] ) && $back['size'] > $max_size ) {
+                wp_send_json_error( array( 'message' => __( 'O arquivo do verso deve ter no máximo 10MB.', 'houzez' ) ) );
+            }
+            if ( function_exists( 'finfo_open' ) ) {
+                $finfo = finfo_open( FILEINFO_MIME_TYPE );
+                $mime = $finfo ? finfo_file( $finfo, $back['tmp_name'] ) : '';
+                if ( $finfo ) {
+                    finfo_close( $finfo );
+                }
+                $allowed_mimes = array( 'image/jpeg', 'image/png', 'application/pdf' );
+                $allowed_mimes = apply_filters( 'imovel_parceiro_verification_allowed_mimes', $allowed_mimes );
+                if ( ! in_array( $mime, $allowed_mimes, true ) ) {
+                    wp_send_json_error( array( 'message' => __( 'Apenas JPG, PNG e PDF são permitidos para o verso.', 'houzez' ) ) );
+                }
+            }
         }
     }
 

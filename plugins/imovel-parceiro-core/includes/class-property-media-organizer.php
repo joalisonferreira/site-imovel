@@ -67,6 +67,10 @@ class Imovel_Parceiro_Media_Organizer {
             return $dirs;
         }
 
+        if (!current_user_can('edit_post', $property_id) && !current_user_can('edit_posts')) {
+            return $dirs;
+        }
+
         $folder = $this->property_folder($property_id);
         $dirs['subdir'] = '/' . $folder;
         $dirs['path']   = $dirs['basedir'] . $dirs['subdir'];
@@ -107,6 +111,9 @@ class Imovel_Parceiro_Media_Organizer {
     public function maybe_move_gallery($post_id, $post, $update) {
         if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) return;
         if (get_post_type($post_id) !== 'property') return;
+        if (!current_user_can('edit_post', $post_id) && !current_user_can('edit_posts') && !current_user_can('manage_options')) {
+            return;
+        }
         // Evita loop: marca que já moveu esta versão
         if (get_post_meta($post_id, self::META_MOVED, true)) {
             // Se for atualização, ainda pode haver novas imagens em temp; verifica
@@ -154,6 +161,13 @@ class Imovel_Parceiro_Media_Organizer {
      * Move um attachment (original + todos os sizes + webp) para a pasta do imóvel
      */
     private function move_attachment_to_property_folder($attachment_id, $property_id) {
+        // Verifica se o usuário pode editar o imóvel ou é o autor do anexo
+        $att_author = (int) get_post_field('post_author', $attachment_id);
+        $current_user = get_current_user_id();
+        if ($att_author !== $current_user && !current_user_can('edit_post', $property_id) && !current_user_can('manage_options')) {
+            return false;
+        }
+
         $file = get_attached_file($attachment_id);
         if (!$file || !file_exists($file)) return false;
 
