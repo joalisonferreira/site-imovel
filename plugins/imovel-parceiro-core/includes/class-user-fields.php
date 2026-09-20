@@ -607,22 +607,23 @@ class Imovel_Parceiro_User_Fields {
                 fields.doc.value = maskFor(type, fields.doc.value);
 
                 if (fields.creci && fields.role) {
-                    var isBuyer = fields.role.value === 'houzez_buyer';
                     var isAgentAgency = fields.role.value === 'houzez_agent' || fields.role.value === 'houzez_agency';
-                    // Cliente (buyer) desabilita CRECI
-                    if (isBuyer) {
-                        fields.creci.value = '';
-                        fields.creci.disabled = true;
-                        fields.creci.removeAttribute('required');
-                        if (fields.creciWrap) fields.creciWrap.style.opacity = '0.5';
+                    // Cliente, Proprietário e outros não-corretores desabilitam CRECI
+                    if (!isAgentAgency) {
+                        if (fields.role.value) {
+                            fields.creci.value = '';
+                            fields.creci.disabled = true;
+                            fields.creci.removeAttribute('required');
+                            if (fields.creciWrap) fields.creciWrap.style.opacity = '0.5';
+                        } else {
+                            fields.creci.disabled = false;
+                            if (fields.creciWrap) fields.creciWrap.style.opacity = '1';
+                            fields.creci.removeAttribute('required');
+                        }
                     } else {
                         fields.creci.disabled = false;
                         if (fields.creciWrap) fields.creciWrap.style.opacity = '1';
-                        if (isAgentAgency) {
-                            fields.creci.setAttribute('required', 'required');
-                        } else {
-                            fields.creci.removeAttribute('required');
-                        }
+                        fields.creci.setAttribute('required', 'required');
                     }
                 }
             }
