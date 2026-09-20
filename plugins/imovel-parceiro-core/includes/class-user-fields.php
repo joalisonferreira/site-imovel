@@ -149,23 +149,33 @@ class Imovel_Parceiro_User_Fields {
         <input type="hidden" name="first_name" value="" />
         <input type="hidden" name="last_name" value="" />
         <?php endif; ?>
-        <div class="form-group">
-            <div class="form-group-field">
-                <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
-                    <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
-                    <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
-                    <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
-                </select>
+        <style>
+            .ipc-register-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+            .ipc-register-grid .form-group{margin-bottom:0}
+            @media(max-width:576px){.ipc-register-grid{grid-template-columns:1fr}}
+        </style>
+        <div class="ipc-register-grid">
+            <div class="form-group">
+                <div class="form-group-field">
+                    <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
+                        <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
+                        <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
+                        <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
+                    </select>
+                </div>
             </div>
-        </div>
-        <div class="form-group">
-            <div class="form-group-field">
-                <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
+            <div class="form-group">
+                <div class="form-group-field">
+                    <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
+                </div>
             </div>
-        </div>
-        <div class="form-group">
-            <div class="form-group-field">
-                <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+            <div class="form-group">
+                <div class="form-group-field">
+                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+                </div>
+            </div>
+            <div class="form-group ipc-role-slot" data-ipc-role-slot="1">
+                <!-- O select de tipo de conta (role) será movido para cá via JS -->
             </div>
         </div>
         <?php
@@ -551,8 +561,24 @@ class Imovel_Parceiro_User_Fields {
                     type: form.querySelector('select[name="person_type"]'),
                     doc: form.querySelector('input[name="person_document"]'),
                     creci: form.querySelector('input[name="creci"]'),
-                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]')
+                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]'),
+                    roleSlot: form.querySelector('[data-ipc-role-slot]'),
+                    creciWrap: form.querySelector('input[name="creci"]') ? form.querySelector('input[name="creci"]').closest('.form-group') : null
                 };
+            }
+
+            function placeRoleField(form) {
+                var fields = formFields(form);
+                if (!fields.role || !fields.roleSlot) return;
+                var roleGroup = fields.role.closest('.form-group');
+                if (!roleGroup) return;
+                // Evita mover duas vezes
+                if (fields.roleSlot.contains(fields.role)) return;
+                fields.roleSlot.appendChild(fields.role);
+                // O grupo original fica vazio, esconde
+                if (roleGroup !== fields.roleSlot) {
+                    roleGroup.style.display = 'none';
+                }
             }
 
             function syncForm(form) {
@@ -560,6 +586,10 @@ class Imovel_Parceiro_User_Fields {
                 if (!fields.type || !fields.doc) {
                     return;
                 }
+
+                placeRoleField(form);
+                // Re-obtem após mover
+                fields = formFields(form);
 
                 if (fields.role && fields.role.value === 'houzez_agency') {
                     fields.type.value = 'cnpj';
@@ -573,11 +603,22 @@ class Imovel_Parceiro_User_Fields {
                 fields.doc.value = maskFor(type, fields.doc.value);
 
                 if (fields.creci && fields.role) {
-                    var mandatory = fields.role.value === 'houzez_agent' || fields.role.value === 'houzez_agency';
-                    if (mandatory) {
-                        fields.creci.setAttribute('required', 'required');
-                    } else {
+                    var isBuyer = fields.role.value === 'houzez_buyer';
+                    var isAgentAgency = fields.role.value === 'houzez_agent' || fields.role.value === 'houzez_agency';
+                    // Cliente (buyer) desabilita CRECI
+                    if (isBuyer) {
+                        fields.creci.value = '';
+                        fields.creci.disabled = true;
                         fields.creci.removeAttribute('required');
+                        if (fields.creciWrap) fields.creciWrap.style.opacity = '0.5';
+                    } else {
+                        fields.creci.disabled = false;
+                        if (fields.creciWrap) fields.creciWrap.style.opacity = '1';
+                        if (isAgentAgency) {
+                            fields.creci.setAttribute('required', 'required');
+                        } else {
+                            fields.creci.removeAttribute('required');
+                        }
                     }
                 }
             }
