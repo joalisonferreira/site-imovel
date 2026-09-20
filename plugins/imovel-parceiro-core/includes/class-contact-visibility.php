@@ -58,20 +58,37 @@ class Imovel_Parceiro_Contact_Visibility {
 
     /**
      * Block contact/tour submissions from unqualified viewers.
-     * Uses the `msg` key so the theme JS displays it in .form_messages.
+     * Clientes (houzez_buyer e visitantes) podem contatar o corretor;
+     * corretores precisam de plano + verificação.
      */
     public function block_unqualified_ajax() {
         if ( self::viewer_can_see_contact() ) {
             return;
         }
 
-        if ( is_user_logged_in() ) {
+        // Cliente logado sem plano/verificação ainda pode contatar - não bloqueia aqui,
+        // deixa o handler original do Houzez processar (ele permite com nome/email).
+        // Apenas bloqueia corretores/imobiliárias não qualificados.
+        $user_id = get_current_user_id();
+        if ( $user_id ) {
+            $user = get_userdata( $user_id );
+            // Se não é corretor/imobiliária, é cliente ou outro papel - libera
+            if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
+                return;
+            }
             $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
+            wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'broker_verification_required' ) );
         } else {
-            $message = __( 'Faça login como corretor ou imobiliária para entrar em contato.', 'imovel-parceiro-core' );
+            // Visitante não logado: solicita login/cadastro
+            $login_url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard_profile.php' ) : home_url( '/meu-perfil/' );
+            $login_url = add_query_arg( 'hpage', 'verification', $login_url );
+            // Fallback para modal de login
+            if ( empty( $login_url ) || $login_url === home_url( '/' ) ) {
+                $login_url = home_url( '/login/' );
+            }
+            $msg = __( 'Faça login para entrar em contato.', 'imovel-parceiro-core' );
+            wp_send_json_error( array( 'msg' => $msg, 'Message' => $msg, 'message' => $msg, 'code' => 'login_required', 'login_url' => $login_url ) );
         }
-
-        wp_send_json_error( array( 'msg' => $message ) );
     }
 
     /**
@@ -109,8 +126,13 @@ class Imovel_Parceiro_Contact_Visibility {
         }
 
         $user = get_userdata( $user_id );
-        if ( ! $user || ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
+        if ( ! $user ) {
             return false;
+        }
+
+        // Clientes e outros papéis não-corretor podem ver/contatar - não aplica gate de plano/verificação
+        if ( ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
+            return true;
         }
 
         if ( class_exists( 'Imovel_Parceiro_Subscriptions' ) && ! Imovel_Parceiro_Subscriptions::has_active_subscription( $user_id ) ) {

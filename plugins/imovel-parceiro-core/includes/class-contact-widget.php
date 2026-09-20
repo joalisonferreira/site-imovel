@@ -99,6 +99,18 @@ class Imovel_Parceiro_Contact_Widget {
         wp_enqueue_style( 'imovel-parceiro-contact-widget', IMOVEL_PARCEIRO_CORE_URL . 'assets/css/contact-widget.css', array(), $css_ver );
         wp_enqueue_script( 'imovel-parceiro-contact-widget', IMOVEL_PARCEIRO_CORE_URL . 'assets/js/contact-widget.js', array( 'jquery' ), $js_ver, true );
 
+        $uid = get_current_user_id();
+        $is_client_global = false;
+        if ( $uid && class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $uid ) ) {
+            $is_client_global = true;
+        } elseif ( $uid ) {
+            $u = get_userdata( $uid );
+            if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'houzez_owner', 'administrator' ), (array) $u->roles ) ) {
+                // Qualquer papel não-corretor é tratado como cliente para ocultar parcerias
+                $is_client_global = true;
+            }
+        }
+
         wp_localize_script(
             'imovel-parceiro-contact-widget',
             'ipcwData',
@@ -107,6 +119,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'nonce' => wp_create_nonce( self::NONCE ),
                 'is_single' => $this->is_single_property(),
                 'is_listing' => $this->is_listing_context(),
+                'is_client' => $is_client_global,
                 'login_url' => Imovel_Parceiro_Partnerships::login_url(),
                 'login_modal' => '#login-register-form',
                 'partnerships_url' => Imovel_Parceiro_Partnerships::dashboard_partnerships_url(),
@@ -309,6 +322,16 @@ class Imovel_Parceiro_Contact_Widget {
         if ( current_user_can( 'manage_options' ) ) {
             return true;
         }
+        // Cliente (houzez_buyer e qualquer não-corretor) vê WhatsApp direto quando há número
+        if ( $viewer_id && class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $viewer_id ) ) {
+            return true;
+        }
+        if ( $viewer_id ) {
+            $u = get_userdata( $viewer_id );
+            if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $u->roles ) ) {
+                return true;
+            }
+        }
         if ( $row && Imovel_Parceiro_Partnership_Workflow::is_contact_released( $row ) ) {
             return true;
         }
@@ -385,8 +408,19 @@ class Imovel_Parceiro_Contact_Widget {
 
         $can_request = false;
         $needs_subscription = false;
+        $viewer_is_client = false;
+        if ( $viewer_id ) {
+            if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $viewer_id ) ) {
+                $viewer_is_client = true;
+            } else {
+                $vu = get_userdata( $viewer_id );
+                if ( $vu && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'houzez_owner', 'administrator' ), (array) $vu->roles ) ) {
+                    $viewer_is_client = true;
+                }
+            }
+        }
 
-        if ( $viewer_id && $broker_id && $viewer_id !== $broker_id && ! $viewer_is_property_owner ) {
+        if ( $viewer_id && $broker_id && $viewer_id !== $broker_id && ! $viewer_is_property_owner && ! $viewer_is_client ) {
             $viewer = get_userdata( $viewer_id );
             $is_owner_profile = $viewer && in_array( 'houzez_owner', (array) $viewer->roles, true );
             $has_cap = current_user_can( 'imovel_parceiro_manage_commercial' ) || current_user_can( 'manage_options' );
@@ -436,6 +470,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'allowed' => (bool) $can_request,
                 'needs_subscription' => (bool) $needs_subscription,
                 'is_owner' => (bool) $viewer_is_property_owner,
+                'is_client' => (bool) $viewer_is_client,
                 'plans_url' => class_exists( 'Imovel_Parceiro_Subscriptions' ) ? Imovel_Parceiro_Subscriptions::plans_url() : '',
                 'plans_message' => __( 'Para solicitar uma parceria, você precisa ter um plano ativo.', 'imovel-parceiro-core' ),
                 'message' => __( 'Olá, tenho um cliente interessado neste imóvel e gostaria de realizar uma parceria.', 'imovel-parceiro-core' ),

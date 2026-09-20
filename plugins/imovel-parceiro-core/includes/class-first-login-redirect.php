@@ -4,22 +4,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * First login redirect for brokers and agencies.
+ * First login redirect for brokers and agencies + cliente redirect para /buscar.
  *
- * After creating an account and logging in for the first time, corretor and
- * imobiliária users land on the verification screen (meu-perfil/?hpage=
- * verification) — unless already verified. Covers wp-login.php, WooCommerce
- * and modal/AJAX logins (the latter via a one-time safety net on the next
- * page view, since they redirect client-side).
+ * - Corretor/imobiliária: primeira vez vai para verificação (se não verificado).
+ * - Cliente (houzez_buyer): toda vez que logar vai para /buscar.
  */
 class Imovel_Parceiro_First_Login_Redirect {
 
     const DONE_META = 'imovel_parceiro_first_login_redirect_done';
     const TARGET_ROLES = array( 'houzez_agent', 'houzez_agency' );
+    const CLIENT_ROLES = array( 'houzez_buyer' );
 
     public function __construct() {
         add_filter( 'login_redirect', array( $this, 'login_redirect' ), 20, 3 );
         add_filter( 'woocommerce_login_redirect', array( $this, 'woocommerce_redirect' ), 20, 2 );
+        add_action( 'wp_login', array( $this, 'on_buyer_login' ), 10, 2 );
         add_action( 'template_redirect', array( $this, 'safety_net_redirect' ), 1 );
     }
 
@@ -71,10 +70,33 @@ class Imovel_Parceiro_First_Login_Redirect {
         return add_query_arg( array( 'hpage' => 'verification' ), $url );
     }
 
+    public static function is_client( $user_id ) {
+        $user = get_userdata( absint( $user_id ) );
+        return $user && array_intersect( self::CLIENT_ROLES, (array) $user->roles );
+    }
+
+    public static function buscar_url() {
+        $page = get_page_by_path( 'buscar' );
+        if ( $page ) {
+            return get_permalink( $page->ID );
+        }
+        return home_url( '/buscar/' );
+    }
+
+    public function on_buyer_login( $user_login, $user ) {
+        if ( $user instanceof WP_User && self::is_client( $user->ID ) ) {
+            update_user_meta( $user->ID, '_imovel_parceiro_buyer_redirect_pending', 1 );
+        }
+    }
+
     /**
      * wp-login.php logins.
      */
     public function login_redirect( $redirect_to, $requested_redirect_to, $user ) {
+        if ( $user instanceof WP_User && self::is_client( $user->ID ) ) {
+            update_user_meta( $user->ID, '_imovel_parceiro_buyer_redirect_pending', 1 );
+            return self::buscar_url();
+        }
         if ( $user instanceof WP_User && self::needs_redirect( $user->ID ) ) {
             update_user_meta( $user->ID, self::DONE_META, 1 );
             return self::verification_url( $user->ID );
@@ -87,6 +109,10 @@ class Imovel_Parceiro_First_Login_Redirect {
      * WooCommerce my-account logins.
      */
     public function woocommerce_redirect( $redirect, $user ) {
+        if ( $user instanceof WP_User && self::is_client( $user->ID ) ) {
+            update_user_meta( $user->ID, '_imovel_parceiro_buyer_redirect_pending', 1 );
+            return self::buscar_url();
+        }
         if ( $user instanceof WP_User && self::needs_redirect( $user->ID ) ) {
             update_user_meta( $user->ID, self::DONE_META, 1 );
             return self::verification_url( $user->ID );
@@ -112,13 +138,25 @@ class Imovel_Parceiro_First_Login_Redirect {
             return;
         }
 
+        // Buyer: se acabou de logar, manda para /buscar (uma vez)
+        $user_id = get_current_user_id();
+        if ( self::is_client( $user_id ) && get_user_meta( $user_id, '_imovel_parceiro_buyer_redirect_pending', true ) ) {
+            delete_user_meta( $user_id, '_imovel_parceiro_buyer_redirect_pending' );
+            // Evita loop se já está em /buscar ou na verificação
+            $is_buscar = ( false !== strpos( $_SERVER['REQUEST_URI'], '/buscar' ) );
+            if ( ! $is_buscar && ! isset( $_GET['hpage'] ) ) {
+                wp_safe_redirect( self::buscar_url() );
+                exit;
+            }
+            return;
+        }
+
         // Already there: just mark as done, never loop.
         if ( isset( $_GET['hpage'] ) && 'verification' === sanitize_key( wp_unslash( $_GET['hpage'] ) ) ) {
             update_user_meta( get_current_user_id(), self::DONE_META, 1 );
             return;
         }
 
-        $user_id = get_current_user_id();
         if ( ! self::needs_redirect( $user_id ) ) {
             return;
         }

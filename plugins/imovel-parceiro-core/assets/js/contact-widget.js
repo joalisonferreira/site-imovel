@@ -197,8 +197,8 @@
             html += '</span></button>';
         }
 
-        // Partnership action. Hidden for the property owner (cannot partner with self).
-        if (!req.is_owner) {
+        // Partnership action. Hidden for the property owner (cannot partner with self) and for clients (houzez_buyer).
+        if (!req.is_owner && !req.is_client) {
             if (ps.exists) {
             var badgeCls = statusBadgeClass(ps.status);
             html += '<div class="ipcw-btn ipcw-btn--partnership">';
@@ -394,6 +394,9 @@
 
     function maybeInjectListingButtons() {
         if (IPCW.is_single || !IPCW.is_listing) {
+            return;
+        }
+        if (IPCW.is_client) {
             return;
         }
         setTimeout(function () {
