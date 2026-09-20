@@ -24,11 +24,26 @@ if ( is_user_logged_in() && is_singular('property') ) {
 
     if ( $property_id > 0 ) {
         $viewer_id = get_current_user_id();
-        $owner_id  = class_exists( 'Imovel_Parceiro_Partnerships' ) ? (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id ) : 0;
-        $broker_id = class_exists( 'Imovel_Parceiro_Contact_Widget' ) ? (int) Imovel_Parceiro_Contact_Widget::property_broker_user_id( $property_id ) : 0;
+        // Cliente (houzez_buyer ou qualquer não-corretor) nunca vê botão de parceria
+        $is_client = false;
+        if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $viewer_id ) ) {
+            $is_client = true;
+        } else {
+            $u = get_userdata( $viewer_id );
+            if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) ) {
+                // houzez_owner e papéis sem cap comercial são tratados como cliente para parceria
+                if ( ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
+                    $is_client = true;
+                }
+            }
+        }
+        if ( ! $is_client ) {
+            $owner_id  = class_exists( 'Imovel_Parceiro_Partnerships' ) ? (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id ) : 0;
+            $broker_id = class_exists( 'Imovel_Parceiro_Contact_Widget' ) ? (int) Imovel_Parceiro_Contact_Widget::property_broker_user_id( $property_id ) : 0;
 
-        // The owner (and the responsible broker) cannot request a partnership for themselves.
-        $show_partnership_btn = ! ( ( $owner_id && $owner_id === $viewer_id ) || ( $broker_id && $broker_id === $viewer_id ) );
+            // The owner (and the responsible broker) cannot request a partnership for themselves.
+            $show_partnership_btn = ! ( ( $owner_id && $owner_id === $viewer_id ) || ( $broker_id && $broker_id === $viewer_id ) );
+        }
     }
 }
 

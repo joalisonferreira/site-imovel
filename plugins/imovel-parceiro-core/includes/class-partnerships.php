@@ -1419,6 +1419,14 @@ class Imovel_Parceiro_Partnerships {
         }
 
         $user_id = get_current_user_id();
+        // Cliente nunca vê modal de parceria
+        if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $user_id ) ) {
+            return;
+        }
+        $u = get_userdata( $user_id );
+        if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) && ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
+            return;
+        }
         $owner_id = $this->get_property_owner_user_id( $property_id );
 
         // The property owner (and the responsible broker) cannot request a
