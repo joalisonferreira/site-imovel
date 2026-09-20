@@ -75,11 +75,6 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-visibility.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-instant-logout.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-first-login-redirect.php';
-        // Ferramenta temporária de teste de carga: carrega só onde o arquivo
-        // existir (não commitar o require sem o arquivo quebra a produção).
-        if ( file_exists( IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-load-test.php' ) ) {
-            require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-load-test.php';
-        }
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-upload-performance.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-mailer.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-email-verification.php';
