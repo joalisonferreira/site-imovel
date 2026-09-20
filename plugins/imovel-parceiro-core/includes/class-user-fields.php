@@ -149,6 +149,7 @@ class Imovel_Parceiro_User_Fields {
         <input type="hidden" name="first_name" value="" />
         <input type="hidden" name="last_name" value="" />
         <?php endif; ?>
+        <div style="border-left:3px solid #dc2626;padding-left:10px;margin:14px 0 12px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#334155;"><?php esc_html_e( 'PERFIL E DOCUMENTO', 'imovel-parceiro-core' ); ?></div>
         <style>
             .ipc-register-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
             .ipc-register-grid .form-group{margin-bottom:0}
