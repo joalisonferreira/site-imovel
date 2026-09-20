@@ -49,7 +49,10 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnership-workflow.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-watermark.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-visibility.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-media-organizer.php';
+        $media_organizer = IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-media-organizer.php';
+        if ( file_exists( $media_organizer ) ) {
+            require_once $media_organizer;
+        }
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-opportunities.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-deals.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-commissions.php';
