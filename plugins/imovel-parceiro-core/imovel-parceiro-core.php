@@ -86,6 +86,18 @@ class Imovel_Parceiro_Core {
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_notification_assets' ) );
         add_filter( 'pre_wp_mail', array( $this, 'maybe_mock_mail_for_client' ), 10, 2 );
+        add_filter( 'gettext', array( $this, 'fix_search_labels' ), 20, 3 );
+    }
+
+    public function fix_search_labels( $translated, $text, $domain ) {
+        // Corrige truncamentos do Houzez pt_BR: Claro -> Limpar, Pesquisa -> Pesquisar
+        if ( $translated === 'Claro' ) {
+            return 'Limpar';
+        }
+        if ( $translated === 'Pesquisa' ) {
+            return 'Pesquisar';
+        }
+        return $translated;
     }
 
     public function maybe_mock_mail_for_client( $return, $atts ) {
