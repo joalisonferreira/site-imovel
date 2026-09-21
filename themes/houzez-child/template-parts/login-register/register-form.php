@@ -77,36 +77,34 @@ $show_hide_roles = houzez_option('show_hide_roles');
 
     <section class="ipc-auth-section">
         <h4 class="ipc-auth-section__title"><?php esc_html_e( 'Perfil e documento', 'houzez' ); ?></h4>
-        <div class="ipc-grid ipc-grid--2">
 
-            <?php do_action('houzez_register_form_fields'); ?>
+        <?php do_action('houzez_register_form_fields'); ?>
 
-            <?php if($user_show_roles != 0) { ?>
-            <div class="ipc-field">
-                <select name="role" class="form-control ipc-select" title="<?php esc_html_e('Select your account type', 'houzez'); ?>">
-                    <option value=""><?php esc_html_e('Select your account type', 'houzez'); ?></option>
-                    <?php
-                    if( isset($show_hide_roles['agent']) && $show_hide_roles['agent'] != 1 ) {
-                        echo '<option value="houzez_agent">'.houzez_option('agent_role').'</option>';
-                    }
-                    if( isset($show_hide_roles['agency']) && $show_hide_roles['agency'] != 1 ) {
-                        echo '<option value="houzez_agency">'.houzez_option('agency_role').'</option>';
-                    }
-                    if( isset($show_hide_roles['owner']) && $show_hide_roles['owner'] != 1 ) {
-                        echo '<option value="houzez_owner">'.houzez_option('owner_role').'</option>';
-                    }
-                    if( isset($show_hide_roles['buyer']) && $show_hide_roles['buyer'] != 1 ) {
-                        echo '<option value="houzez_buyer">'.houzez_option('buyer_role').'</option>';
-                    }
-                    if( isset($show_hide_roles['seller']) && $show_hide_roles['seller'] != 1 ) {
-                        echo '<option value="houzez_seller">'.houzez_option('seller_role').'</option>';
-                    }
-                    ?>
-                </select>
-            </div>
-            <?php } ?>
-
+        <?php if($user_show_roles != 0) { ?>
+        <div class="ipc-field ipc-field--full">
+            <select name="role" class="form-control ipc-select" title="<?php esc_html_e('Select your account type', 'houzez'); ?>">
+                <option value=""><?php esc_html_e('Select your account type', 'houzez'); ?></option>
+                <?php
+                if( isset($show_hide_roles['agent']) && $show_hide_roles['agent'] != 1 ) {
+                    echo '<option value="houzez_agent">'.houzez_option('agent_role').'</option>';
+                }
+                if( isset($show_hide_roles['agency']) && $show_hide_roles['agency'] != 1 ) {
+                    echo '<option value="houzez_agency">'.houzez_option('agency_role').'</option>';
+                }
+                if( isset($show_hide_roles['owner']) && $show_hide_roles['owner'] != 1 ) {
+                    echo '<option value="houzez_owner">'.houzez_option('owner_role').'</option>';
+                }
+                if( isset($show_hide_roles['buyer']) && $show_hide_roles['buyer'] != 1 ) {
+                    echo '<option value="houzez_buyer">'.houzez_option('buyer_role').'</option>';
+                }
+                if( isset($show_hide_roles['seller']) && $show_hide_roles['seller'] != 1 ) {
+                    echo '<option value="houzez_seller">'.houzez_option('seller_role').'</option>';
+                }
+                ?>
+            </select>
         </div>
+        <?php } ?>
+
     </section>
 
     <div class="form-tools ipc-terms">
