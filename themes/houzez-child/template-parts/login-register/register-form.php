@@ -81,7 +81,7 @@ $show_hide_roles = houzez_option('show_hide_roles');
         <?php do_action('houzez_register_form_fields'); ?>
 
         <?php if($user_show_roles != 0) { ?>
-        <div class="ipc-field ipc-field--full">
+        <div class="form-group">
             <select name="role" class="form-control ipc-select" title="<?php esc_html_e('Select your account type', 'houzez'); ?>">
                 <option value=""><?php esc_html_e('Select your account type', 'houzez'); ?></option>
                 <?php

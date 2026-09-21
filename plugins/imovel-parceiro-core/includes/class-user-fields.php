@@ -149,24 +149,38 @@ class Imovel_Parceiro_User_Fields {
         <input type="hidden" name="first_name" value="" />
         <input type="hidden" name="last_name" value="" />
         <?php endif; ?>
-        <div class="form-group">
-            <div class="form-group-field">
-                <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
-                    <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
-                    <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
-                    <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
-                </select>
+        <?php $ipc_show_role_slot = function_exists( 'houzez_option' ) && houzez_option( 'user_show_roles' ) != 0; ?>
+        <style>
+            .ipc-register-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+            .ipc-register-grid .form-group{margin-bottom:0;min-width:0}
+            .ipc-register-grid .form-control{width:100%}
+            @media(max-width:576px){.ipc-register-grid{grid-template-columns:1fr}}
+        </style>
+        <div class="ipc-register-grid">
+            <div class="form-group">
+                <div class="form-group-field">
+                    <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
+                        <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
+                        <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
+                        <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
+                    </select>
+                </div>
             </div>
-        </div>
-        <div class="form-group">
-            <div class="form-group-field">
-                <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
+            <div class="form-group">
+                <div class="form-group-field">
+                    <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
+                </div>
             </div>
-        </div>
-        <div class="form-group">
-            <div class="form-group-field">
-                <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+            <div class="form-group"<?php echo $ipc_show_role_slot ? '' : ' style="grid-column:1/-1"'; ?>>
+                <div class="form-group-field">
+                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+                </div>
             </div>
+            <?php if ( $ipc_show_role_slot ) : ?>
+            <div class="form-group ipc-role-slot" data-ipc-role-slot="1">
+                <!-- O select de tipo de conta (role) é movido para cá via JS -->
+            </div>
+            <?php endif; ?>
         </div>
         <?php
     }
