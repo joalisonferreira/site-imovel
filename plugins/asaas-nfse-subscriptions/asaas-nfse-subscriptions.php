@@ -36,8 +36,9 @@ final class Asaas_Nfse_Subscription
         // wc_orders_meta e estes hooks nunca disparam para elas.
         add_action('added_post_meta', [$this, 'onMeta'], 10, 4);
         add_action('updated_post_meta', [$this, 'onMeta'], 10, 4);
-        // HPOS: dispara em toda troca de status com o objeto WC_Subscription.
-        add_action('woocommerce_subscription_status_updated', [$this, 'onSubscriptionStatusUpdated'], 20, 4);
+        // HPOS: dispara em toda troca de status (3 args: $subscription,
+        // $old_status, $new_status) com o objeto WC_Subscription.
+        add_action('woocommerce_subscription_status_updated', [$this, 'onSubscriptionStatusUpdated'], 20, 3);
         add_action('woocommerce_subscription_status_active', [$this, 'onSubscriptionActive'], 20, 1);
         add_action('wcs_create_subscription', [$this, 'maybeConfigureById'], 20, 1);
         add_filter('woocommerce_checkout_fields', [$this, 'enforceAsaasFields'], 20);
@@ -161,9 +162,11 @@ final class Asaas_Nfse_Subscription
         $this->maybeConfigureById($id);
     }
 
-    public function onSubscriptionStatusUpdated($subscriptionId, $oldStatus, $newStatus, $subscription): void
+    public function onSubscriptionStatusUpdated($subscription, $oldStatus = '', $newStatus = ''): void
     {
-        $this->maybeConfigureById($subscription instanceof WC_Subscription ? $subscription : (int) $subscriptionId);
+        // Assinatura ainda sem ID Asaas (ex: rollback de cartão recusado)
+        // não tem o que configurar; apenas ignora sem fatal.
+        $this->maybeConfigureById($subscription);
     }
 
     public function maybeConfigureById($subscription): void
