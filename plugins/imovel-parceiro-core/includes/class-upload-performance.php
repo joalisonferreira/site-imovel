@@ -25,6 +25,30 @@ class Imovel_Parceiro_Upload_Performance {
         add_filter( 'houzez_jpeg_quality', array( $this, 'jpeg_quality' ) );
         add_filter( 'big_image_size_threshold', array( $this, 'big_image_threshold' ), 999 );
         add_filter( 'script_loader_tag', array( $this, 'inject_plupload_resize' ), 10, 2 );
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_friendly_errors' ), 20 );
+    }
+
+    /**
+     * Mensagens de erro de upload amigáveis (PT-BR) no cadastro/edição.
+     */
+    public function enqueue_friendly_errors() {
+        $is_dashboard = function_exists( 'houzez_is_dashboard' ) && houzez_is_dashboard();
+        if ( ! $is_dashboard && ! is_singular( 'property' ) ) {
+            return;
+        }
+
+        $file = IMOVEL_PARCEIRO_CORE_DIR . 'assets/js/upload-friendly-errors.js';
+        if ( ! file_exists( $file ) ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'imovel-parceiro-upload-errors',
+            IMOVEL_PARCEIRO_CORE_URL . 'assets/js/upload-friendly-errors.js',
+            array(),
+            (string) filemtime( $file ),
+            true
+        );
     }
 
     /**
