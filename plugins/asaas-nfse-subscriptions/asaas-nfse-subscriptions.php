@@ -36,6 +36,31 @@ final class Asaas_Nfse_Subscription
         add_action('updated_post_meta', [$this, 'onMeta'], 10, 4);
         add_action('woocommerce_subscription_status_active', [$this, 'onSubscriptionActive'], 20, 1);
         add_action('wcs_create_subscription', [$this, 'maybeConfigureById'], 20, 1);
+        add_filter('woocommerce_checkout_fields', [$this, 'requireNeighborhoodAndNumber'], 20);
+        add_filter('woocommerce_billing_fields', [$this, 'requireBillingFields'], 20);
+    }
+
+    public function requireNeighborhoodAndNumber($fields)
+    {
+        if (isset($fields['billing']['billing_neighborhood'])) {
+            $fields['billing']['billing_neighborhood']['required'] = true;
+        }
+        if (isset($fields['billing']['billing_number'])) {
+            $fields['billing']['billing_number']['required'] = true;
+        }
+        // Houzez/Woo extra fields: billing_address_1 já é obrigatório, garante bairro/número
+        return $fields;
+    }
+
+    public function requireBillingFields($fields)
+    {
+        if (isset($fields['billing_neighborhood'])) {
+            $fields['billing_neighborhood']['required'] = true;
+        }
+        if (isset($fields['billing_number'])) {
+            $fields['billing_number']['required'] = true;
+        }
+        return $fields;
     }
 
     public function onMeta(int $metaId, int $objectId, string $metaKey, $metaValue): void
