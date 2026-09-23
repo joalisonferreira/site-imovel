@@ -113,7 +113,14 @@
 }
 .woocommerce-checkout #customer_details {
   grid-column: 1;
+  grid-row: 1 / span 2;
   min-width: 0;
+}
+/* Empilha billing/entrega/adicional na coluna esquerda (mockup). */
+.woocommerce-checkout #customer_details .col-1,
+.woocommerce-checkout #customer_details .col-2 {
+  float: none !important;
+  width: auto !important;
 }
 .woocommerce-checkout #order_review_heading {
   grid-column: 2;
@@ -235,12 +242,17 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px 16px;
 }
+/* Imune a reescritas de classe (plugins que forçam form-row-wide):
+   floats/widths nativos anulados e spans definidos por ID do campo. */
 .woocommerce-checkout .woocommerce-billing-fields__field-wrapper .form-row,
 .woocommerce-checkout .woocommerce-shipping-fields__field-wrapper .form-row {
-  float: none;
-  width: auto;
-  clear: none;
-  margin: 0;
+  float: none !important;
+  width: auto !important;
+  clear: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   min-width: 0;
 }
 .woocommerce-checkout #billing_first_name_field,
@@ -583,6 +595,7 @@
   .woocommerce-checkout #order_review_heading,
   .woocommerce-checkout #order_review {
     grid-column: 1;
+    grid-row: auto;
   }
   .woocommerce-checkout #order_review_heading {
     grid-row: auto;
