@@ -32,8 +32,12 @@ final class Asaas_Nfse_Subscription
 
     private function __construct()
     {
+        // Legado (postmeta). Com HPOS os metas de assinatura vivem em
+        // wc_orders_meta e estes hooks nunca disparam para elas.
         add_action('added_post_meta', [$this, 'onMeta'], 10, 4);
         add_action('updated_post_meta', [$this, 'onMeta'], 10, 4);
+        // HPOS: dispara em toda troca de status com o objeto WC_Subscription.
+        add_action('woocommerce_subscription_status_updated', [$this, 'onSubscriptionStatusUpdated'], 20, 4);
         add_action('woocommerce_subscription_status_active', [$this, 'onSubscriptionActive'], 20, 1);
         add_action('wcs_create_subscription', [$this, 'maybeConfigureById'], 20, 1);
         add_filter('woocommerce_checkout_fields', [$this, 'enforceAsaasFields'], 20);
@@ -157,6 +161,11 @@ final class Asaas_Nfse_Subscription
         $this->maybeConfigureById($id);
     }
 
+    public function onSubscriptionStatusUpdated($subscriptionId, $oldStatus, $newStatus, $subscription): void
+    {
+        $this->maybeConfigureById($subscription instanceof WC_Subscription ? $subscription : (int) $subscriptionId);
+    }
+
     public function maybeConfigureById($subscription): void
     {
         try {
@@ -175,7 +184,13 @@ final class Asaas_Nfse_Subscription
 
     private function maybeConfigure(int $subscriptionId, string $asaasId): void
     {
-        if ('yes' === get_post_meta($subscriptionId, self::META_FLAG, true)) {
+        $subscription = function_exists('wcs_get_subscription') ? wcs_get_subscription($subscriptionId) : false;
+        if ($subscription) {
+            if ('yes' === $subscription->get_meta(self::META_FLAG)) {
+                $this->log("Skip {$subscriptionId} já configurado asaas={$asaasId}");
+                return;
+            }
+        } elseif ('yes' === get_post_meta($subscriptionId, self::META_FLAG, true)) {
             $this->log("Skip {$subscriptionId} já configurado asaas={$asaasId}");
             return;
         }
@@ -188,7 +203,7 @@ final class Asaas_Nfse_Subscription
         $credentials = $this->getCredentials();
         if ('' === $credentials['token'] || '' === $credentials['url']) {
             $this->log("Credenciais ausentes sub={$subscriptionId}", 'error');
-            $this->storeError($subscriptionId, 'Credenciais Asaas não configuradas');
+            $this->storeError($subscription, $subscriptionId, 'Credenciais Asaas não configuradas');
             return;
         }
 
@@ -196,12 +211,10 @@ final class Asaas_Nfse_Subscription
         $response = $this->callAsaas($asaasId, $payload, $credentials);
 
         if ($response['success']) {
-            update_post_meta($subscriptionId, self::META_FLAG, 'yes');
-            update_post_meta($subscriptionId, '_asaas_nfse_configured_at', current_time('mysql'));
-            delete_post_meta($subscriptionId, self::META_ERROR);
+            $this->storeSuccess($subscription, $subscriptionId);
             $this->log("OK sub={$subscriptionId} asaas={$asaasId} payload=" . wp_json_encode($payload));
         } else {
-            $this->storeError($subscriptionId, $response['error']);
+            $this->storeError($subscription, $subscriptionId, $response['error']);
             $this->log("FAIL sub={$subscriptionId} asaas={$asaasId} err={$response['error']} http={$response['code']}", 'error');
         }
     }
@@ -211,12 +224,34 @@ final class Asaas_Nfse_Subscription
      */
     private function getCredentials(): array
     {
+        // Pares consistentes (chave+endpoint do mesmo ambiente): misturar
+        // chave de produção com URL de sandbox dá 401 e quebra a NFS-e.
         $constToken = defined('ASAAS_API_KEY') ? trim((string) ASAAS_API_KEY) : '';
         $constUrl   = defined('ASAAS_API_URL') ? trim((string) ASAAS_API_URL) : '';
-        $token = '' !== $constToken ? $constToken : trim((string) get_option('asaas_api_key', ''));
-        $url   = '' !== $constUrl ? $constUrl : trim((string) get_option('asaas_api_url', 'https://www.asaas.com/api/v3'));
-        if ('' === $url) {
-            $url = 'https://www.asaas.com/api/v3';
+        $optToken   = trim((string) get_option('asaas_api_key', ''));
+        $optUrl     = trim((string) get_option('asaas_api_url', ''));
+        if ('' !== $constToken) {
+            $token = $constToken;
+            $url = '' !== $constUrl ? $constUrl : ('' !== $optUrl ? $optUrl : 'https://www.asaas.com/api/v3');
+        } elseif ('' !== $optToken) {
+            $token = $optToken;
+            $url = '' !== $optUrl ? $optUrl : ('' !== $constUrl ? $constUrl : 'https://www.asaas.com/api/v3');
+        } else {
+            // Fallback final: configurações do gateway woo-asaas (onde a chave
+            // real vive: credit-card -> ticket -> pix). Chave e endpoint sempre
+            // do mesmo gateway para não misturar ambientes.
+            $token = '';
+            $url = '';
+            foreach (['woocommerce_asaas-credit-card_settings','woocommerce_asaas-ticket_settings','woocommerce_asaas-pix_settings'] as $optKey) {
+                $gw = get_option($optKey, []);
+                if (!is_array($gw) || empty($gw['api_key'])) continue;
+                $token = trim((string) $gw['api_key']);
+                $url = !empty($gw['endpoint']) ? trim((string) $gw['endpoint']) : 'https://www.asaas.com/api/v3';
+                break;
+            }
+            if ('' === $url) {
+                $url = 'https://www.asaas.com/api/v3';
+            }
         }
         return [
             'token' => $token,
@@ -228,7 +263,7 @@ final class Asaas_Nfse_Subscription
     {
         $defaults = [
             'municipalServiceId'    => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_ID') ? ASAAS_NFSE_MUNICIPAL_SERVICE_ID : get_option('asaas_nfse_service_id', ''),
-            'municipalServiceName'  => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_NAME') ? ASAAS_NFSE_MUNICIPAL_SERVICE_NAME : get_option('asaas_nfse_service_name', 'Serviços de corretagem de imóveis'),
+            'municipalServiceName'  => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_NAME') ? ASAAS_NFSE_MUNICIPAL_SERVICE_NAME : get_option('asaas_nfse_service_name', 'Assinatura mensal para acesso e utilização da plataforma digital Imóvel Parceiro.'),
             'municipalServiceCode'  => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_CODE') ? ASAAS_NFSE_MUNICIPAL_SERVICE_CODE : get_option('asaas_nfse_service_code', ''),
             'updateToEffectiveDate' => 'ON_PAYMENT_CONFIRMATION',
             'deductions'            => 0,
@@ -282,8 +317,13 @@ final class Asaas_Nfse_Subscription
 
     private function getAsaasId(int $subscriptionId): string
     {
+        $subscription = function_exists('wcs_get_subscription') ? wcs_get_subscription($subscriptionId) : false;
         foreach ($this->getAsaasMetaKeys() as $key) {
-            $val = get_post_meta($subscriptionId, $key, true);
+            // HPOS primeiro (wc_orders_meta), depois legado (wp_postmeta).
+            $val = $subscription ? $subscription->get_meta($key) : get_post_meta($subscriptionId, $key, true);
+            if (('' === $val || null === $val) && $subscription) {
+                $val = get_post_meta($subscriptionId, $key, true);
+            }
             $san = $this->sanitizeAsaasId($val);
             if ('' !== $san) {
                 return $san;
@@ -312,9 +352,28 @@ final class Asaas_Nfse_Subscription
         return $v;
     }
 
-    private function storeError(int $subscriptionId, string $error): void
+    private function storeError($subscription, int $subscriptionId, string $error): void
     {
+        if ($subscription instanceof WC_Subscription) {
+            $subscription->update_meta_data(self::META_ERROR, $error);
+            $subscription->save();
+            return;
+        }
         update_post_meta($subscriptionId, self::META_ERROR, $error);
+    }
+
+    private function storeSuccess($subscription, int $subscriptionId): void
+    {
+        if ($subscription instanceof WC_Subscription) {
+            $subscription->update_meta_data(self::META_FLAG, 'yes');
+            $subscription->update_meta_data('_asaas_nfse_configured_at', current_time('mysql'));
+            $subscription->delete_meta_data(self::META_ERROR);
+            $subscription->save();
+            return;
+        }
+        update_post_meta($subscriptionId, self::META_FLAG, 'yes');
+        update_post_meta($subscriptionId, '_asaas_nfse_configured_at', current_time('mysql'));
+        delete_post_meta($subscriptionId, self::META_ERROR);
     }
 
     private function log(string $message, string $level = 'info'): void
@@ -335,7 +394,13 @@ if (defined('WP_CLI') && WP_CLI) {
         if (!$id) {
             WP_CLI::error('Use --id=<subscription_id>');
         }
-        delete_post_meta($id, Asaas_Nfse_Subscription::META_FLAG);
+        $sub = function_exists('wcs_get_subscription') ? wcs_get_subscription($id) : false;
+        if ($sub) {
+            $sub->delete_meta_data(Asaas_Nfse_Subscription::META_FLAG);
+            $sub->save();
+        } else {
+            delete_post_meta($id, Asaas_Nfse_Subscription::META_FLAG);
+        }
         (new ReflectionMethod(Asaas_Nfse_Subscription::instance(), 'maybeConfigureById'))->invoke(Asaas_Nfse_Subscription::instance(), $id);
         WP_CLI::success('Tentativa enviada. Ver WC Status > Logs > asaas-nfse');
     });
