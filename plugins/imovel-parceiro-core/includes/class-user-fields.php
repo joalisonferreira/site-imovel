@@ -566,6 +566,18 @@ class Imovel_Parceiro_User_Fields {
                 return value;
             }
 
+            function maskPhone(value) {
+                value = digits(value).slice(0, 11);
+                if (value.length > 10) {
+                    return value
+                        .replace(/(\d{2})(\d)/, '($1) $2')
+                        .replace(/(\d{5})(\d)/, '$1-$2');
+                }
+                return value
+                    .replace(/(\d{2})(\d)/, '($1) $2')
+                    .replace(/(\d{4})(\d)/, '$1-$2');
+            }
+
             function formFields(form) {
                 return {
                     type: form.querySelector('select[name="person_type"]'),
@@ -689,6 +701,12 @@ class Imovel_Parceiro_User_Fields {
                         if (masked !== target.value) {
                             target.value = masked;
                         }
+                    }
+                }
+                if (target && target.matches && target.matches('input[name="phone_number"]')) {
+                    var maskedPhone = maskPhone(target.value);
+                    if (maskedPhone !== target.value) {
+                        target.value = maskedPhone;
                     }
                 }
                 if (target && target.matches && target.matches('input[name="ipc_full_name"]')) {
