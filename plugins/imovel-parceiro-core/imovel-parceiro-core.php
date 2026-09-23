@@ -70,6 +70,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscription-links.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-purchase-redirect.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-blocking.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-deletion.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-admin-action-notifications.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-profile-guard.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-visibility.php';
