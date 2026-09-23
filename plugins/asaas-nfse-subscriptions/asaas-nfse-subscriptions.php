@@ -39,6 +39,9 @@ final class Asaas_Nfse_Subscription
         // HPOS: dispara em toda troca de status (3 args: $subscription,
         // $old_status, $new_status) com o objeto WC_Subscription.
         add_action('woocommerce_subscription_status_updated', [$this, 'onSubscriptionStatusUpdated'], 20, 3);
+        // HPOS: o woo-asaas grava o ID Asaas via update_meta_data+save sem
+        // trocar status; este hook pega exatamente esse momento.
+        add_action('woocommerce_before_order_object_save', [$this, 'onBeforeOrderSave'], 20, 2);
         add_action('woocommerce_subscription_status_active', [$this, 'onSubscriptionActive'], 20, 1);
         add_action('wcs_create_subscription', [$this, 'maybeConfigureById'], 20, 1);
         add_filter('woocommerce_checkout_fields', [$this, 'enforceAsaasFields'], 20);
@@ -167,6 +170,15 @@ final class Asaas_Nfse_Subscription
         // Assinatura ainda sem ID Asaas (ex: rollback de cartão recusado)
         // não tem o que configurar; apenas ignora sem fatal.
         $this->maybeConfigureById($subscription);
+    }
+
+    public function onBeforeOrderSave($order, $dataStore): void
+    {
+        if (!$order instanceof WC_Subscription) {
+            return;
+        }
+        // Idempotente via flag+lock dentro de maybeConfigure.
+        $this->maybeConfigureById($order);
     }
 
     public function maybeConfigureById($subscription): void
