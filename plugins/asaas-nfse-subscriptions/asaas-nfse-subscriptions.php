@@ -36,23 +36,45 @@ final class Asaas_Nfse_Subscription
         add_action('updated_post_meta', [$this, 'onMeta'], 10, 4);
         add_action('woocommerce_subscription_status_active', [$this, 'onSubscriptionActive'], 20, 1);
         add_action('wcs_create_subscription', [$this, 'maybeConfigureById'], 20, 1);
-        add_filter('woocommerce_checkout_fields', [$this, 'requireNeighborhoodAndNumber'], 20);
-        add_filter('woocommerce_billing_fields', [$this, 'requireBillingFields'], 20);
+        add_filter('woocommerce_checkout_fields', [$this, 'enforceAsaasFields'], 20);
+        add_filter('woocommerce_billing_fields', [$this, 'enforceBillingFields'], 20);
+        add_action('woocommerce_after_checkout_validation', [$this, 'validateAsaasFields'], 20, 2);
+        add_action('wp_enqueue_scripts', [$this, 'enqueueCheckoutStyles'], 20);
     }
 
-    public function requireNeighborhoodAndNumber($fields)
+    public function enforceAsaasFields($fields)
     {
+        // Asaas exige para NFS-e: nome/sobrenome, email, cpf/cnpj, cep, endereço, número, bairro, cidade, estado, telefone
+        if (isset($fields['billing']['billing_persontype'])) {
+            $fields['billing']['billing_persontype']['required'] = true;
+        }
         if (isset($fields['billing']['billing_neighborhood'])) {
             $fields['billing']['billing_neighborhood']['required'] = true;
+            $fields['billing']['billing_neighborhood']['label'] = 'Bairro *';
         }
         if (isset($fields['billing']['billing_number'])) {
             $fields['billing']['billing_number']['required'] = true;
+            $fields['billing']['billing_number']['label'] = 'Número *';
+            $fields['billing']['billing_number']['placeholder'] = 'Ex: 405';
         }
-        // Houzez/Woo extra fields: billing_address_1 já é obrigatório, garante bairro/número
+        if (isset($fields['billing']['billing_cellphone'])) {
+            $fields['billing']['billing_cellphone']['required'] = true;
+        }
+        if (isset($fields['billing']['billing_phone'])) {
+            $fields['billing']['billing_phone']['required'] = true;
+            $fields['billing']['billing_phone']['label'] = 'Celular / Telefone *';
+        }
+        // CPF/CNPJ deixamos validação condicional no validateAsaasFields
+        if (isset($fields['billing']['billing_cpf'])) {
+            $fields['billing']['billing_cpf']['custom_attributes'] = ['data-asaas'=>'cpf'];
+        }
+        if (isset($fields['billing']['billing_cnpj'])) {
+            $fields['billing']['billing_cnpj']['custom_attributes'] = ['data-asaas'=>'cnpj'];
+        }
         return $fields;
     }
 
-    public function requireBillingFields($fields)
+    public function enforceBillingFields($fields)
     {
         if (isset($fields['billing_neighborhood'])) {
             $fields['billing_neighborhood']['required'] = true;
@@ -60,7 +82,58 @@ final class Asaas_Nfse_Subscription
         if (isset($fields['billing_number'])) {
             $fields['billing_number']['required'] = true;
         }
+        if (isset($fields['billing_phone'])) {
+            $fields['billing_phone']['required'] = true;
+        }
+        if (isset($fields['billing_cellphone'])) {
+            $fields['billing_cellphone']['required'] = true;
+        }
         return $fields;
+    }
+
+    public function validateAsaasFields($data, $errors)
+    {
+        // Valida CPF/CNPJ conforme persontype para evitar "Endereço incompleto" no Asaas
+        $persontype = isset($_POST['billing_persontype']) ? sanitize_text_field($_POST['billing_persontype']) : '';
+        $cpf = isset($_POST['billing_cpf']) ? preg_replace('/\D/', '', $_POST['billing_cpf']) : '';
+        $cnpj = isset($_POST['billing_cnpj']) ? preg_replace('/\D/', '', $_POST['billing_cnpj']) : '';
+        $phone = isset($_POST['billing_phone']) ? preg_replace('/\D/', '', $_POST['billing_phone']) : '';
+        $cell = isset($_POST['billing_cellphone']) ? preg_replace('/\D/', '', $_POST['billing_cellphone']) : '';
+        $number = isset($_POST['billing_number']) ? trim($_POST['billing_number']) : '';
+        $neighborhood = isset($_POST['billing_neighborhood']) ? trim($_POST['billing_neighborhood']) : '';
+
+        if ('2' === $persontype) {
+            if (strlen($cnpj) !== 14) {
+                $errors->add('validation', 'CNPJ obrigatório e deve conter 14 dígitos para Pessoa Jurídica (Asaas).');
+            }
+        } else {
+            if (strlen($cpf) !== 11) {
+                $errors->add('validation', 'CPF obrigatório e deve conter 11 dígitos para Pessoa Física (Asaas).');
+            }
+        }
+        if ('' === $number) {
+            $errors->add('validation', 'Número do endereço é obrigatório para emissão da NFS-e.');
+        }
+        if ('' === $neighborhood) {
+            $errors->add('validation', 'Bairro é obrigatório para emissão da NFS-e.');
+        }
+        if ('' === $phone && '' === $cell) {
+            $errors->add('validation', 'Telefone/Celular é obrigatório para o Asaas.');
+        }
+    }
+
+    public function enqueueCheckoutStyles()
+    {
+        if (!function_exists('is_checkout') || !is_checkout()) {
+            return;
+        }
+        $css = plugin_dir_url(__FILE__) . 'assets/css/asaas-checkout.css';
+        // fallback se arquivo ainda não existe (evita 404)
+        wp_register_style('asaas-checkout', $css, [], '1.0.0');
+        wp_enqueue_style('asaas-checkout');
+        // JS para alternar CPF/CNPJ visualmente
+        $js = "(function(){document.addEventListener('DOMContentLoaded',function(){var pt=document.getElementById('billing_persontype');function t(){var v=pt?pt.value:'';var cpf=document.getElementById('billing_cpf_field');var cnpj=document.getElementById('billing_cnpj_field');if(!cpf||!cnpj)return;cpf.style.display=v==='2'?'none':'';cnpj.style.display=v==='2'?'':'none';}if(pt){pt.addEventListener('change',t);t();}})})();";
+        wp_add_inline_script('jquery', $js);
     }
 
     public function onMeta(int $metaId, int $objectId, string $metaKey, $metaValue): void
