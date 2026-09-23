@@ -37,6 +37,19 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
 
         add_action( 'woocommerce_subscription_status_active', array( $this, 'activate_houzez_membership' ) );
         add_action( 'woocommerce_subscription_status_changed', array( $this, 'sync_membership_after_status_change' ), 20, 4 );
+        // Asaas rejects endDate <= nextDueDate; drop it so the purchase never
+        // fails -- expiry is enforced via pending-cancel + Houzez validity.
+        add_filter( 'woocommerce_asaas_subscription_payment_data', array( $this, 'fix_asaas_end_date' ), 20, 5 );
+    }
+
+    public function fix_asaas_end_date( $data, $order = null, $subscription = null, $item = null, $gateway = null ) {
+        if ( ! is_array( $data ) || empty( $data['endDate'] ) || empty( $data['nextDueDate'] ) ) {
+            return $data;
+        }
+        if ( strtotime( (string) $data['endDate'] ) <= strtotime( (string) $data['nextDueDate'] ) ) {
+            unset( $data['endDate'] );
+        }
+        return $data;
     }
 
     public static function instance() {
@@ -263,12 +276,16 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         $is_free = self::is_free_package( $package_id );
 
         if ( $is_free ) {
-            // Free plan: priced at zero, valid for the configured period only,
-            // with no automatic renewal.
+            // Free plan: priced at zero, billed once per validity period.
+            // Length stays 0 (open-ended): the Asaas API rejects an endDate
+            // equal to nextDueDate ("A data end deve ser posterior à data do
+            // próximo pagamento"), which is exactly what length=1 produces.
+            // Expiry is enforced via pending-cancel (disable_renewal_for_free_package)
+            // plus the Houzez package_activation validity.
             $validity = self::free_plan_validity( $package_id );
             $period = $this->subscription_period( $validity['unit'] );
             $interval = max( 1, absint( $validity['value'] ) );
-            $length = 1;
+            $length = 0;
             $price = '0';
         } else {
             $period = $this->subscription_period( get_post_meta( $package_id, 'fave_billing_time_unit', true ) );
