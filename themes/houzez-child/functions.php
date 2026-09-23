@@ -740,6 +740,25 @@ function houzez_child_is_packages_page() {
 }
 
 /**
+ * Enfileira o CSS premium do checkout (apenas no checkout).
+ */
+function houzez_child_enqueue_checkout_assets() {
+    if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+        return;
+    }
+
+    $css_path = get_stylesheet_directory() . '/assets/css/checkout.css';
+
+    wp_enqueue_style(
+        'houzez-child-checkout',
+        get_stylesheet_directory_uri() . '/assets/css/checkout.css',
+        array(),
+        file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_checkout_assets', 100 );
+
+/**
  * Enfileira CSS/JS do layout da página de planos (apenas nessa página).
  */
 function houzez_child_enqueue_plans_assets() {

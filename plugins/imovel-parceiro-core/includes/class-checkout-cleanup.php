@@ -9,6 +9,7 @@ class Imovel_Parceiro_Checkout_Cleanup {
 		add_filter( 'woocommerce_subscriptions_display_recurring_totals', array( $this, 'hide_recurring_totals' ) );
 		add_action( 'wp_head', array( $this, 'print_styles' ), 100 );
 		add_filter( 'woocommerce_billing_fields', array( $this, 'restore_company_field' ), 9, 2 );
+		add_filter( 'woocommerce_checkout_fields', array( $this, 'layout_field_sizes' ), 9999 );
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'restore_company_field_late' ), 999999 );
 		add_filter( 'woocommerce_restored_session_data', array( $this, 'sanitize_restored_session' ) );
 		add_action( 'woocommerce_loaded', array( $this, 'load_safe_session_handler' ) );
@@ -126,6 +127,86 @@ class Imovel_Parceiro_Checkout_Cleanup {
 
 		if ( ! isset( $fields['billing']['billing_company'] ) ) {
 			$fields['billing']['billing_company'] = $this->company_field_definition();
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Largura dos campos conforme o tamanho do dado (metades nativas
+	 * form-row-first/last; roda depois dos plugins de checkout/BR).
+	 *
+	 * Pares: Nome+Sobrenome, CPF+RG, CNPJ+IE, Número+Complemento, Bairro+Cidade,
+	 * CEP+Estado, Telefone+E-mail. Endereço, País e Tipo/Empresa: integrais.
+	 *
+	 * @param array $fields Checkout fields.
+	 * @return array
+	 */
+	public function layout_field_sizes( $fields ) {
+		$map = array(
+			'billing_first_name'    => array( 'first', 10 ),
+			'billing_last_name'     => array( 'last', 20 ),
+			'billing_persontype'    => array( 'wide', 22 ),
+			'billing_cpf'           => array( 'first', 23 ),
+			'billing_rg'            => array( 'last', 24 ),
+			'billing_company'       => array( 'wide', 25 ),
+			'billing_cnpj'          => array( 'first', 26 ),
+			'billing_ie'            => array( 'last', 27 ),
+			'billing_country'       => array( 'wide', 40 ),
+			'billing_address_1'     => array( 'wide', 50 ),
+			'billing_number'        => array( 'first', 55 ),
+			'billing_address_2'     => array( 'last', 60 ),
+			'billing_neighborhood'  => array( 'first', 65 ),
+			'billing_city'          => array( 'last', 70 ),
+			'billing_postcode'      => array( 'first', 75 ),
+			'billing_state'         => array( 'last', 80 ),
+			'billing_phone'         => array( 'first', 100 ),
+			'billing_email'         => array( 'last', 110 ),
+			'shipping_first_name'   => array( 'first', 10 ),
+			'shipping_last_name'    => array( 'last', 20 ),
+			'shipping_country'      => array( 'wide', 40 ),
+			'shipping_address_1'    => array( 'wide', 50 ),
+			'shipping_number'       => array( 'first', 55 ),
+			'shipping_address_2'    => array( 'last', 60 ),
+			'shipping_neighborhood' => array( 'first', 65 ),
+			'shipping_city'         => array( 'last', 70 ),
+			'shipping_postcode'     => array( 'first', 75 ),
+			'shipping_state'        => array( 'last', 80 ),
+		);
+
+		foreach ( array( 'billing', 'shipping' ) as $group ) {
+			if ( empty( $fields[ $group ] ) || ! is_array( $fields[ $group ] ) ) {
+				continue;
+			}
+
+			foreach ( $map as $key => $layout ) {
+				if ( ! isset( $fields[ $group ][ $key ] ) || ! is_array( $fields[ $group ][ $key ] ) ) {
+					continue;
+				}
+
+				list( $size, $priority ) = $layout;
+
+				$classes = array();
+				if ( 'first' === $size ) {
+					$classes[] = 'form-row-first';
+				} elseif ( 'last' === $size ) {
+					$classes[] = 'form-row-last';
+				} else {
+					$classes[] = 'form-row-wide';
+				}
+
+				// Preserva marcadores funcionais dos plugins (endereço, totais, pessoa).
+				foreach ( (array) $fields[ $group ][ $key ]['class'] as $existing ) {
+					if ( in_array( $existing, array( 'address-field', 'update_totals_on_change', 'person-type-field' ), true )
+						&& ! in_array( $existing, $classes, true ) ) {
+						$classes[] = $existing;
+					}
+				}
+
+				$fields[ $group ][ $key ]['class']    = $classes;
+				$fields[ $group ][ $key ]['priority'] = $priority;
+				$fields[ $group ][ $key ]['clear']    = false;
+			}
 		}
 
 		return $fields;
