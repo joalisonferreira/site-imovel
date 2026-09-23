@@ -40,6 +40,11 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         // Asaas rejects endDate <= nextDueDate; drop it so the purchase never
         // fails -- expiry is enforced via pending-cancel + Houzez validity.
         add_filter( 'woocommerce_asaas_subscription_payment_data', array( $this, 'fix_asaas_end_date' ), 20, 5 );
+        // BaseERP issues NFe (products). Our plans are services billed via
+        // Asaas NFS-e, so BaseERP must never attempt them (it fails forever,
+        // e.g. "externalReference em formato inválido", spamming order notes).
+        add_action( 'woocommerce_payment_complete', array( $this, 'skip_baseerp_for_subscription_orders' ), 20, 1 );
+        add_filter( 'baseerp_request_args', array( $this, 'fix_baseerp_external_reference_type' ), 20, 2 );
     }
 
     public function fix_asaas_end_date( $data, $order = null, $subscription = null, $item = null, $gateway = null ) {
@@ -50,6 +55,63 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
             unset( $data['endDate'] );
         }
         return $data;
+    }
+
+    /**
+     * Whether the order contains one of our subscription package products.
+     */
+    public static function order_has_subscription_product( $order ) {
+        if ( ! $order instanceof WC_Order ) {
+            return false;
+        }
+        foreach ( $order->get_items() as $item ) {
+            $product_id = absint( $item->get_product_id() );
+            if ( $product_id && get_post_meta( $product_id, self::PRODUCT_PACKAGE_META, true ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * BaseERP fires on every paid order (woocommerce_payment_complete, prio 10)
+     * and retries 5x. Subscription orders are services (Asaas NFS-e), so cancel
+     * its scheduled attempts to avoid permanent "externalReference inválido"
+     * failures and order-note spam.
+     */
+    public function skip_baseerp_for_subscription_orders( $order_id ) {
+        if ( ! function_exists( 'wc_get_order' ) || ! function_exists( 'as_unschedule_all_actions' ) ) {
+            return;
+        }
+        $order = wc_get_order( $order_id );
+        if ( ! self::order_has_subscription_product( $order ) ) {
+            return;
+        }
+        for ( $retry = 1; $retry <= 5; $retry++ ) {
+            as_unschedule_all_actions(
+                'baseerp_generate_invoice',
+                array( 'order_id' => absint( $order_id ), 'retry_count' => $retry ),
+                'baseerp_actions'
+            );
+        }
+        $order->add_order_note( __( 'BaseERP ignorado: pedido de assinatura (serviço). Nota fiscal emitida via Asaas (NFS-e).', 'imovel-parceiro-core' ) );
+    }
+
+    /**
+     * BaseERP API rejects a numeric externalReference ("formato inválido").
+     * Force string typing for every order that still goes through BaseERP.
+     */
+    public function fix_baseerp_external_reference_type( $args, $order = null ) {
+        if ( ! is_array( $args ) ) {
+            return $args;
+        }
+        if ( isset( $args['externalReference'] ) ) {
+            $args['externalReference'] = (string) $args['externalReference'];
+        }
+        if ( isset( $args['number'] ) ) {
+            $args['number'] = (string) $args['number'];
+        }
+        return $args;
     }
 
     public static function instance() {
