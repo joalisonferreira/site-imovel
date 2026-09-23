@@ -28,6 +28,19 @@ class Imovel_Parceiro_Media_Organizer {
      * Se for upload de imagem de imóvel em edição, direciona para imoveis/{slug}-{ID}
      */
     public function filter_upload_dir($dirs) {
+        // Nunca intervenha em remoções de imagem/documento: o delete usa
+        // get_attached_file() -> wp_upload_dir() e mudar subdir aqui quebra
+        // o caminho e pode fazer o AJAX retornar erro ("Request failed").
+        if (!empty($_POST['action']) && in_array($_POST['action'], array('houzez_remove_property_thumbnail', 'houzez_remove_property_documents', 'houzez_remove_message_attachment'), true)) {
+            return $dirs;
+        }
+        // Guard contra chamadas precoces (ex: unlimited-elements no
+        // plugins_loaded, antes do pluggable): sem usuário carregado o
+        // current_user_can() dá fatal "Call to undefined function
+        // wp_get_current_user()".
+        if (!function_exists('wp_get_current_user') || !function_exists('current_user_can')) {
+            return $dirs;
+        }
         // Só intervenha em uploads via media/plupload que carregam $_POST['action']
         // Houzez usa: action=houzez_property_img_upload e também plupload genérico
         $is_property_upload = false;
