@@ -20,18 +20,33 @@ class Imovel_Parceiro_User_Deletion
     {
         $id = absint($id);
         if (!$id) return;
-        $this->purge($id);
+        $email = '';
+        if ($user instanceof WP_User) {
+            $email = $user->user_email;
+        } else {
+            $u = get_userdata($id);
+            if ($u) $email = $u->user_email;
+        }
+        // guarda email para purgeAfterDelete (quando user já não existe)
+        if ($email) {
+            set_transient('ipd_purge_email_' . $id, $email, 300);
+        }
+        $this->purge($id, $email);
     }
 
     public function purgeAfterDelete($id, $reassign, $user)
     {
         $id = absint($id);
         if (!$id) return;
-        // garante limpeza mesmo se hook anterior falhou (ex: delete via wp-cli)
-        $this->purge($id);
+        $email = get_transient('ipd_purge_email_' . $id);
+        if (!$email && $user instanceof WP_User) {
+            $email = $user->user_email;
+        }
+        $this->purge($id, (string) $email);
+        delete_transient('ipd_purge_email_' . $id);
     }
 
-    private function purge(int $userId): void
+    private function purge(int $userId, string $email = ''): void
     {
         global $wpdb;
         $reason = self::REASON;
@@ -61,6 +76,9 @@ class Imovel_Parceiro_User_Deletion
 
         // 2) Assinaturas WooCommerce Subscriptions: cancelar/encerrar
         $this->cancelSubscriptions($userId, $reason);
+
+        // 2b) Pedidos WooCommerce (HPOS + legado): excluir tudo do usuário
+        $this->deleteOrders($userId, $email, $reason);
 
         // 3) Demais tabelas imovel_parceiro: deletar registros do usuário
         $tables = [
@@ -165,6 +183,65 @@ class Imovel_Parceiro_User_Deletion
 
         // Também cancela assinaturas via Asaas se houver meta asaas_subscription_id (registra erro mas não bloqueia)
         // já cobertas pelo fluxo acima; o Asaas será cancelado via webhook se necessário
+    }
+
+    private function deleteOrders(int $userId, string $email, string $reason): void
+    {
+        global $wpdb;
+        $orderIds = [];
+
+        // HPOS: wc_orders
+        $hposTable = $wpdb->prefix . 'wc_orders';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $hposTable)) === $hposTable) {
+            $ids = [];
+            $ids = array_merge($ids, $wpdb->get_col($wpdb->prepare("SELECT id FROM {$hposTable} WHERE customer_id=%d", $userId)));
+            if ('' !== $email) {
+                $more = $wpdb->get_col($wpdb->prepare("SELECT id FROM {$hposTable} WHERE billing_email=%s", $email));
+                $ids = array_merge($ids, $more);
+            }
+            $ids = array_unique(array_map('absint', $ids));
+            foreach ($ids as $oid) {
+                $orderIds[] = $oid;
+            }
+            // deleta via API se possível, senão direto
+            foreach ($ids as $oid) {
+                if (function_exists('wc_get_order')) {
+                    $order = wc_get_order($oid);
+                    if ($order) {
+                        try { $order->delete(true); continue; } catch (Throwable $e) {}
+                    }
+                }
+                // fallback direto
+                $wpdb->delete($hposTable, ['id' => $oid]);
+                $wpdb->delete($wpdb->prefix . 'wc_order_addresses', ['order_id' => $oid]);
+                $wpdb->delete($wpdb->prefix . 'wc_order_operational_data', ['order_id' => $oid]);
+                $wpdb->delete($wpdb->prefix . 'wc_orders_meta', ['order_id' => $oid]);
+            }
+        }
+
+        // Legado: wp_posts shop_order / shop_order_placehold
+        $legacyIds = $wpdb->get_col($wpdb->prepare("SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} pm ON p.ID=pm.post_id WHERE p.post_type IN ('shop_order','shop_order_placehold') AND pm.meta_key='_customer_user' AND pm.meta_value=%d", $userId));
+        if ('' !== $email) {
+            $more = $wpdb->get_col($wpdb->prepare("SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} pm ON p.ID=pm.post_id WHERE p.post_type IN ('shop_order','shop_order_placehold') AND pm.meta_key='_billing_email' AND pm.meta_value=%s", $email));
+            $legacyIds = array_merge($legacyIds, $more);
+        }
+        $legacyIds = array_unique(array_map('absint', $legacyIds));
+        foreach ($legacyIds as $oid) {
+            if (!in_array($oid, $orderIds, true)) {
+                $orderIds[] = $oid;
+            }
+            wp_delete_post($oid, true);
+        }
+
+        // Também deleta diretamente por post_author (caso HPOS não usado)
+        $authorOrders = $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_author=%d AND post_type IN ('shop_order','shop_order_placehold')", $userId));
+        foreach ($authorOrders as $oid) {
+            wp_delete_post((int)$oid, true);
+        }
+
+        if (!empty($orderIds) && function_exists('wc_get_logger')) {
+            wc_get_logger()->log('info', "Purge pedidos usuário {$userId} (" . implode(',', $orderIds) . ") motivo: {$reason}", ['source'=>'user-deletion']);
+        }
     }
 }
 
