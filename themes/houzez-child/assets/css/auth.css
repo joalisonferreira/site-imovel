@@ -318,6 +318,24 @@
     }
 }
 
+/* ---- Checkbox "é WhatsApp" no cadastro ----------------------------------- */
+.ipc-whatsapp-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+}
+.ipc-whatsapp-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ipc-auth-primary);
+    cursor: pointer;
+}
+
 /* ---- Página de redefinição de senha -------------------------------------- */
 .ipc-reset-page {
     background: #f8fafc;

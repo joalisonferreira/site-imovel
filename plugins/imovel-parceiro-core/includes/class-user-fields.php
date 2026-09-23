@@ -432,6 +432,12 @@ class Imovel_Parceiro_User_Fields {
             update_user_meta( $user_id, self::LICENSE_META, $creci );
         }
 
+        // Se o número é WhatsApp, preenche também o campo de WhatsApp.
+        $phone = isset( $_POST['phone_number'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['phone_number'] ) ) ) : '';
+        if ( '' !== $phone && ! empty( $_POST['phone_is_whatsapp'] ) ) {
+            update_user_meta( $user_id, 'fave_author_whatsapp', $phone );
+        }
+
         if ( ! empty( $_POST['term_condition'] ) ) {
             $this->insert_terms_audit_log( $user_id, $person_type, $document_store );
         }

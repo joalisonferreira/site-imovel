@@ -48,6 +48,10 @@ $show_hide_roles = houzez_option('show_hide_roles');
             <?php if( houzez_option('register_mobile', 0) == 1 ) { ?>
             <div class="ipc-field ipc-field--full">
                 <input type="tel" inputmode="tel" class="form-control" name="phone_number" placeholder="<?php esc_html_e('Phone','houzez'); ?>" />
+                <label class="ipc-whatsapp-check">
+                    <input type="checkbox" name="phone_is_whatsapp" value="1" />
+                    <span><?php esc_html_e( 'Este número é WhatsApp', 'houzez' ); ?></span>
+                </label>
             </div>
             <?php } ?>
 
