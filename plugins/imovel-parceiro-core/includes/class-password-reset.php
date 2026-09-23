@@ -258,8 +258,23 @@ class Imovel_Parceiro_Password_Reset {
 					<?php esc_html_e( 'Enviar link de redefinição', 'imovel-parceiro-core' ); ?>
 				</button>
 			</form>
-			<p class="ipc-reset-card__back"><a href="<?php echo esc_url( wp_login_url() ); ?>"><?php esc_html_e( 'Voltar ao login', 'imovel-parceiro-core' ); ?></a></p>
+			<p class="ipc-reset-card__back"><a href="#" class="ipc-open-houzez-login" data-bs-toggle="modal" data-bs-target="#login-register-form"><?php esc_html_e( 'Voltar ao login', 'imovel-parceiro-core' ); ?></a></p>
 		</div>
+		<script>
+		document.addEventListener('DOMContentLoaded', function(){
+		  document.querySelectorAll('.ipc-open-houzez-login').forEach(function(el){
+		    el.addEventListener('click', function(e){
+		      e.preventDefault();
+		      var modal=document.getElementById('login-register-form');
+		      if(modal){
+		        if(window.bootstrap&&bootstrap.Modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+		        else if(window.jQuery&&jQuery.fn.modal) jQuery(modal).modal('show');
+		        else window.location.href='/';
+		      }
+		    });
+		  });
+		});
+		</script>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -322,8 +337,23 @@ class Imovel_Parceiro_Password_Reset {
 			<div class="ipc-reset-card">
 				<h3 class="ipc-reset-card__title"><?php esc_html_e( 'Senha alterada!', 'imovel-parceiro-core' ); ?></h3>
 				<p class="ipc-reset-card__text"><?php esc_html_e( 'Sua nova senha foi salva. Use-a no próximo acesso.', 'imovel-parceiro-core' ); ?></p>
-				<p><a class="btn btn-primary w-100" href="<?php echo esc_url( wp_login_url() ); ?>"><?php esc_html_e( 'Fazer login', 'imovel-parceiro-core' ); ?></a></p>
+				<p><a class="btn btn-primary w-100 ipc-open-houzez-login" href="#" data-bs-toggle="modal" data-bs-target="#login-register-form"><?php esc_html_e( 'Fazer login', 'imovel-parceiro-core' ); ?></a></p>
 			</div>
+			<script>
+			document.addEventListener('DOMContentLoaded', function(){
+			  document.querySelectorAll('.ipc-open-houzez-login').forEach(function(el){
+			    el.addEventListener('click', function(e){
+			      e.preventDefault();
+			      var modal = document.getElementById('login-register-form');
+			      if(modal){
+			        if(window.bootstrap && bootstrap.Modal){ bootstrap.Modal.getOrCreateInstance(modal).show(); }
+			        else if(window.jQuery && jQuery.fn.modal){ jQuery(modal).modal('show'); }
+			        else { window.location.href='/'; }
+			      }
+			    });
+			  });
+			});
+			</script>
 			<?php
 			return (string) ob_get_clean();
 		}
