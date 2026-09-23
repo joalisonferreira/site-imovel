@@ -755,6 +755,23 @@ function houzez_child_enqueue_checkout_assets() {
         array(),
         file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
     );
+
+    $js_path = get_stylesheet_directory() . '/assets/js/checkout.js';
+
+    wp_enqueue_script(
+        'houzez-child-checkout',
+        get_stylesheet_directory_uri() . '/assets/js/checkout.js',
+        array(),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+
+    wp_enqueue_style(
+        'houzez-child-checkout-fonts',
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
+        array(),
+        null
+    );
 }
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_checkout_assets', 100 );
 

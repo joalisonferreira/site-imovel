@@ -10,6 +10,9 @@ class Imovel_Parceiro_Checkout_Cleanup {
 		add_action( 'wp_head', array( $this, 'print_styles' ), 100 );
 		add_filter( 'woocommerce_billing_fields', array( $this, 'restore_company_field' ), 9, 2 );
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'layout_field_sizes' ), 9999 );
+		add_action( 'woocommerce_before_checkout_form', array( $this, 'render_checkout_header' ), 5 );
+		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'render_person_type_toggle' ), 5 );
+		add_action( 'woocommerce_review_order_after_submit', array( $this, 'render_support_card' ), 20 );
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'restore_company_field_late' ), 999999 );
 		add_filter( 'woocommerce_restored_session_data', array( $this, 'sanitize_restored_session' ) );
 		add_action( 'woocommerce_loaded', array( $this, 'load_safe_session_handler' ) );
@@ -209,7 +212,90 @@ class Imovel_Parceiro_Checkout_Cleanup {
 			}
 		}
 
+		if ( isset( $fields['billing']['billing_postcode'] ) ) {
+			$fields['billing']['billing_postcode']['description'] = sprintf(
+				'<a href="%s" target="_blank" rel="noopener">%s</a>',
+				esc_url( 'https://buscacepinter.correios.com.br/app/endereco/index.php' ),
+				esc_html__( 'Não sei meu CEP', 'imovel-parceiro-core' )
+			);
+		}
+
+		if ( isset( $fields['billing']['billing_email'] ) ) {
+			$fields['billing']['billing_email']['description'] = esc_html__( 'O comprovante e credenciais serão enviados para este endereço.', 'imovel-parceiro-core' );
+		}
+
 		return $fields;
+	}
+
+	/**
+	 * Cabeçalho da página: breadcrumb + título + etapas (Plano > Faturamento > Confirmação).
+	 */
+	public function render_checkout_header() {
+		$plans_url = function_exists( 'houzez_get_template_link' ) ? houzez_get_template_link( 'template/template-packages.php' ) : home_url( '/' );
+		?>
+		<nav class="ipc-co-breadcrumb" aria-label="Breadcrumb">
+			<a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'imovel-parceiro-core' ); ?></a>
+			<span class="ipc-co-breadcrumb__sep">›</span>
+			<a href="<?php echo esc_url( $plans_url ); ?>"><?php esc_html_e( 'Planos de Assinatura', 'imovel-parceiro-core' ); ?></a>
+			<span class="ipc-co-breadcrumb__sep">›</span>
+			<strong><?php esc_html_e( 'Finalização de compra', 'imovel-parceiro-core' ); ?></strong>
+		</nav>
+		<div class="ipc-co-steps">
+			<div class="ipc-co-steps__titles">
+				<h1><?php esc_html_e( 'Finalização de compra', 'imovel-parceiro-core' ); ?></h1>
+				<p><?php esc_html_e( 'Revise sua assinatura e insira as informações de faturamento credenciadas.', 'imovel-parceiro-core' ); ?></p>
+			</div>
+			<div class="ipc-co-steps__pills">
+				<span class="ipc-co-pill is-done">✓ 1. <?php esc_html_e( 'Plano', 'imovel-parceiro-core' ); ?></span>
+				<span class="ipc-co-pill__sep"></span>
+				<span class="ipc-co-pill is-active"><span class="ipc-co-pill__dot"></span> 2. <?php esc_html_e( 'Faturamento & Checkout', 'imovel-parceiro-core' ); ?></span>
+				<span class="ipc-co-pill__sep"></span>
+				<span class="ipc-co-pill">3. <?php esc_html_e( 'Confirmação', 'imovel-parceiro-core' ); ?></span>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Controle segmentado PF/PJ que espelha o select nativo (billing_persontype).
+	 */
+	public function render_person_type_toggle() {
+		?>
+		<div class="ipc-co-persontype">
+			<span class="ipc-co-persontype__label"><?php esc_html_e( 'Tipo de Faturamento', 'imovel-parceiro-core' ); ?></span>
+			<div class="ipc-co-persontype__toggle" role="tablist">
+				<button type="button" class="ipc-co-persontype__btn" data-person-type="1" role="tab">
+					Pessoa Física (CPF)
+				</button>
+				<button type="button" class="ipc-co-persontype__btn" data-person-type="2" role="tab">
+					Pessoa Jurídica (CNPJ)
+				</button>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Cartão de suporte/garantia abaixo do CTA.
+	 */
+	public function render_support_card() {
+		$whatsapp = function_exists( 'houzez_option' ) ? houzez_option( 'agent_whatsapp_num' ) : '';
+		?>
+		<div class="ipc-co-trust">
+			<span>✓ <?php esc_html_e( 'Garantia de 7 dias ou reembolso integral', 'imovel-parceiro-core' ); ?></span>
+			<span class="ipc-co-trust__sep">•</span>
+			<span><?php esc_html_e( 'Sem fidelidade obrigatória', 'imovel-parceiro-core' ); ?></span>
+			<span class="ipc-co-trust__sep">•</span>
+			<span><?php esc_html_e( 'Cancele quando quiser', 'imovel-parceiro-core' ); ?></span>
+		</div>
+		<div class="ipc-co-support">
+			<div class="ipc-co-support__icon">✦</div>
+			<div>
+				<strong><?php esc_html_e( 'Suporte Especializado', 'imovel-parceiro-core' ); ?></strong>
+				<p><?php esc_html_e( 'Dúvidas na contratação? Nosso time está disponível para ajudar.', 'imovel-parceiro-core' ); ?></p>
+			</div>
+		</div>
+		<?php
 	}
 
 	public function hide_recurring_totals( $show ) {
