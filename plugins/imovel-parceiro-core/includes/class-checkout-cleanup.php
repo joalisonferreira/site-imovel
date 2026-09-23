@@ -12,7 +12,7 @@ class Imovel_Parceiro_Checkout_Cleanup {
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'layout_field_sizes' ), 9999 );
 		add_action( 'woocommerce_before_checkout_form', array( $this, 'render_checkout_header' ), 5 );
 		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'render_person_type_toggle' ), 5 );
-		add_action( 'woocommerce_review_order_after_submit', array( $this, 'render_support_card' ), 20 );
+		add_action( 'woocommerce_review_order_after_payment', array( $this, 'render_support_card' ), 20 );
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'restore_company_field_late' ), 999999 );
 		add_filter( 'woocommerce_restored_session_data', array( $this, 'sanitize_restored_session' ) );
 		add_action( 'woocommerce_loaded', array( $this, 'load_safe_session_handler' ) );

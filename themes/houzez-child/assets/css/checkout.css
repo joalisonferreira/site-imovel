@@ -122,6 +122,20 @@
   float: none !important;
   width: auto !important;
 }
+/* Tema/Woo limitam estes blocos a ~48-50% (floats); no grid precisam
+   ocupar a trilha inteira. */
+.woocommerce-checkout #customer_details,
+.woocommerce-checkout #order_review,
+.woocommerce-checkout #order_review_heading,
+.woocommerce-checkout .woocommerce-billing-fields,
+.woocommerce-checkout .woocommerce-shipping-fields,
+.woocommerce-checkout .woocommerce-additional-fields,
+.woocommerce-checkout .woocommerce-billing-fields__field-wrapper,
+.woocommerce-checkout .woocommerce-shipping-fields__field-wrapper {
+  float: none !important;
+  width: auto !important;
+  max-width: none !important;
+}
 .woocommerce-checkout #order_review_heading {
   grid-column: 2;
   grid-row: 1;
@@ -575,6 +589,30 @@
   margin: 2px 0 0;
   font-size: 12px;
   color: #cbd5e1;
+}
+
+/* ---- Normalizações contra CSS de terceiros ---------------------------------------- */
+/* Título nativo duplicado (breadcrumb + H1 já inclusos acima). */
+.woocommerce-checkout .page-title-wrap {
+  display: none;
+}
+/* Cartão de entrega vazio (sem necessidade de envio). */
+.woocommerce-checkout .woocommerce-shipping-fields:not(:has(.form-row)) {
+  display: none;
+}
+/* Inputs do gateway (Asaas) em largura total. */
+.woocommerce-checkout #payment div.payment_box .form-row input.input-text,
+.woocommerce-checkout #payment div.payment_box .form-row select {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+/* Quebras só entre palavras na faixa de confiança. */
+.ipc-co-trust,
+.ipc-co-trust span,
+.ipc-co-support p {
+  word-break: normal !important;
+  overflow-wrap: break-word;
 }
 
 /* ---- Avisos --------------------------------------------------------------------- */
