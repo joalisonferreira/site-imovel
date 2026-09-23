@@ -228,6 +228,7 @@ final class Asaas_Nfse_Subscription
     {
         $defaults = [
             'municipalServiceId'    => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_ID') ? ASAAS_NFSE_MUNICIPAL_SERVICE_ID : get_option('asaas_nfse_service_id', ''),
+            'municipalServiceName'  => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_NAME') ? ASAAS_NFSE_MUNICIPAL_SERVICE_NAME : get_option('asaas_nfse_service_name', 'Serviços de corretagem de imóveis'),
             'municipalServiceCode'  => defined('ASAAS_NFSE_MUNICIPAL_SERVICE_CODE') ? ASAAS_NFSE_MUNICIPAL_SERVICE_CODE : get_option('asaas_nfse_service_code', ''),
             'updateToEffectiveDate' => 'ON_PAYMENT_CONFIRMATION',
             'deductions'            => 0,
