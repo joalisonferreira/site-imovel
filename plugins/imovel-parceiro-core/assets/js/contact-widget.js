@@ -113,8 +113,17 @@
 
     function whatsappIcon() { return '&#128172;'; }
     function handshakeIcon() { return '&#129309;'; }
+    function homeIcon() { return '&#127968;'; }
     function lockIcon() { return '&#128274;'; }
     function checkIcon() { return '&#10003;'; }
+
+    function brokerInitials(name) {
+        var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) { return 'IP'; }
+        var first = parts[0].charAt(0);
+        var last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+        return (first + last).toUpperCase();
+    }
 
     function renderPanel(config) {
         if (!config) {
@@ -134,16 +143,12 @@
         var brokerMeta = brokerMetaParts.join(' · ');
         if (!brokerMeta) { brokerMeta = 'Corretor de imóveis'; }
 
-        var brokerAvatar = b.avatar
-            ? 'src="' + esc(b.avatar) + '" alt="' + esc(b.name) + '"'
-            : 'class="ipcw-broker__avatar"';
-
         var html = '';
         html += '<div class="ipcw-broker">';
         if (b.avatar) {
-            html += '<img ' + brokerAvatar + ' />';
+            html += '<img src="' + esc(b.avatar) + '" alt="' + esc(b.name) + '" />';
         } else {
-            html += '<span ' + brokerAvatar + '>??</span>';
+            html += '<span class="ipcw-broker__avatar" aria-hidden="true">' + esc(brokerInitials(b.name)) + '</span>';
         }
         html += '<div class="ipcw-broker__info">';
         html += '<p class="ipcw-broker__name">' + esc(b.name || 'Corretor') + '</p>';
@@ -241,6 +246,29 @@
 
         html += '</div>';
 
+        // Client interest flow ("Tenho interesse neste imóvel"). Clients never
+        // get direct WhatsApp — the lead is registered and the broker reaches out.
+        var it = config.interest || {};
+        if (!req.is_owner && req.is_client && (it.allowed || it.has_open_lead)) {
+            html += '<div class="ipcw-actions">';
+            if (it.has_open_lead) {
+                html += '<button type="button" class="ipcw-btn ipcw-btn--interest" disabled>';
+                html += '<span class="ipcw-btn__icon" aria-hidden="true">' + checkIcon() + '</span>';
+                html += '<span class="ipcw-btn__text">';
+                html += '<span class="ipcw-btn__title">' + esc(IPCW.strings ? IPCW.strings.interest_done : 'Interesse já registrado') + '</span>';
+                html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.interest_done_sub : 'O corretor responsável já foi avisado.') + '</span>';
+                html += '</span></button>';
+            } else {
+                html += '<button type="button" class="ipcw-btn ipcw-btn--interest ipcw-interest-btn">';
+                html += '<span class="ipcw-btn__icon" aria-hidden="true">' + homeIcon() + '</span>';
+                html += '<span class="ipcw-btn__text">';
+                html += '<span class="ipcw-btn__title">' + esc(IPCW.strings ? IPCW.strings.interest : 'Tenho interesse neste imóvel') + '</span>';
+                html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.interest_sub : 'O corretor responsável entrará em contato') + '</span>';
+                html += '</span></button>';
+            }
+            html += '</div>';
+        }
+
         $body.html(html);
 
         var $req = $body.find('.ipcw-request-btn');
@@ -258,6 +286,68 @@
                 renderRequestForm(config);
             });
         }
+
+        var $it = $body.find('.ipcw-interest-btn');
+        if ($it.length) {
+            $it.on('click', function () { renderInterestForm(config); });
+        }
+    }
+
+    function renderInterestForm(config) {
+        var p = config.property || {};
+        var max = 500;
+
+        var html = '<div class="ipcw-form">';
+        html += '<label for="ipcw-interest-message">' + esc(IPCW.strings ? IPCW.strings.interest : 'Tenho interesse neste imóvel') + '</label>';
+        html += '<textarea id="ipcw-interest-message" maxlength="' + max + '" placeholder="' + esc(IPCW.strings ? IPCW.strings.interest_message_ph : 'Mensagem opcional para o corretor (máx. 500 caracteres)') + '"></textarea>';
+        html += '<div class="ipcw-char-count"><span>0</span>/' + max + '</div>';
+        html += '<button type="button" class="ipcw-submit">' + esc(IPCW.strings ? IPCW.strings.interest_send : 'Enviar interesse') + '</button>';
+        html += '<div class="ipcw-char-count ipcw-feedback" aria-live="polite"></div>';
+        html += '</div>';
+
+        $body.append(html);
+
+        var $area = $('#ipcw-interest-message');
+        var $count = $body.find('.ipcw-form .ipcw-char-count span').first();
+        var $submit = $body.find('.ipcw-submit');
+        var $feedback = $body.find('.ipcw-form .ipcw-feedback').first();
+
+        $area.on('input', function () { $count.text($area.val().length); });
+
+        $submit.on('click', function () {
+            var payload = {
+                action: 'imovel_parceiro_property_interest',
+                nonce: IPCW.nonce,
+                property_id: String(p.id || ''),
+                message: $area.val()
+            };
+            $submit.prop('disabled', true).text(IPCW.strings ? IPCW.strings.interest_sending : 'Enviando…');
+
+            $.post(IPCW.ajax_url, payload, function (response) {
+                if (response && response.success) {
+                    if (lastConfig && lastConfig.interest) { lastConfig.interest.has_open_lead = true; }
+                    renderInterestConfirmed(config, response.data && response.data.message);
+                } else {
+                    var msg = (response && response.data && response.data.message) ? response.data.message : (IPCW.strings ? IPCW.strings.error : 'Erro');
+                    $feedback.text(msg).removeClass('is-success').addClass('is-error');
+                    $submit.prop('disabled', false).text(IPCW.strings ? IPCW.strings.interest_send : 'Enviar interesse');
+                }
+            }).fail(function () {
+                $feedback.text(IPCW.strings ? IPCW.strings.error : 'Erro').removeClass('is-success').addClass('is-error');
+                $submit.prop('disabled', false).text(IPCW.strings ? IPCW.strings.interest_send : 'Enviar interesse');
+            });
+        });
+    }
+
+    function renderInterestConfirmed(config, message) {
+        var b = (config && config.broker) || {};
+        var html = '<div class="ipcw-confirm">';
+        html += '<div class="ipcw-confirm__check"><span aria-hidden="true">' + checkIcon() + '</span></div>';
+        html += '<h4>' + esc(IPCW.strings ? IPCW.strings.interest_ok : 'Interesse registrado!') + '</h4>';
+        html += '<p>' + esc(message || 'O corretor responsável foi avisado e entrará em contato com você.') + '</p>';
+        html += '<p>' + esc(b.name ? ('Corretor responsável: ' + b.name) : '') + '</p>';
+        html += '</div>';
+        $body.html(html);
     }
 
     /**

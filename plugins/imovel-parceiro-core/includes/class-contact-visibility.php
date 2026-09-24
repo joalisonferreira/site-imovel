@@ -10,6 +10,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * are logged in as corretor/imobiliária, with an active plan and a verified
  * Houzez profile. Everyone else gets no contact markup at all (server-side,
  * so phone numbers never leak into the page source).
+ *
+ * Clientes (compradores) nunca veem contato direto: usam o fluxo "Tenho
+ * interesse neste imóvel" (lead registrada + intermediação).
  */
 class Imovel_Parceiro_Contact_Visibility {
 
@@ -58,21 +61,26 @@ class Imovel_Parceiro_Contact_Visibility {
 
     /**
      * Block contact/tour submissions from unqualified viewers.
-     * Clientes (houzez_buyer e visitantes) podem contatar o corretor;
-     * corretores precisam de plano + verificação.
+     *
+     * Proteção de lead: clientes NÃO contatam o corretor direto (nem pelos
+     * formulários nativos). Eles usam o fluxo "Tenho interesse neste imóvel",
+     * que registra a lead e faz a intermediação. Corretores precisam de
+     * plano + verificação.
      */
     public function block_unqualified_ajax() {
         if ( self::viewer_can_see_contact() ) {
             return;
         }
 
-        // Cliente logado sem plano/verificação ainda pode contatar - não bloqueia aqui,
-        // deixa o handler original do Houzez processar (ele permite com nome/email).
-        // Apenas bloqueia corretores/imobiliárias não qualificados.
         $user_id = get_current_user_id();
         if ( $user_id ) {
             $user = get_userdata( $user_id );
-            // Se não é corretor/imobiliária, é cliente ou outro papel - libera
+            // Cliente: força o fluxo de interesse (lead registrada + intermediação).
+            if ( $user && class_exists( 'Imovel_Parceiro_Property_Interest' ) && Imovel_Parceiro_Property_Interest::is_client( $user_id ) ) {
+                $message = __( 'Para falar sobre este imóvel, use o botão "Tenho interesse neste imóvel". O corretor responsável entrará em contato com você.', 'imovel-parceiro-core' );
+                wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'use_interest_flow' ) );
+            }
+            // Se não é corretor/imobiliária (outro papel qualquer), libera.
             if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
                 return;
             }
@@ -116,6 +124,10 @@ class Imovel_Parceiro_Contact_Visibility {
     /**
      * Whether the viewer may see phone/contact buttons.
      *
+     * Corretores/imobiliárias: apenas com plano ativo + perfil verificado.
+     * Clientes: NUNCA (usam o fluxo "Tenho interesse neste imóvel", com lead
+     * registrada e intermediação). Demais casos: visitante/deslogado, não.
+     *
      * @param int $user_id Optional user id. Defaults to current user.
      * @return bool
      */
@@ -130,9 +142,13 @@ class Imovel_Parceiro_Contact_Visibility {
             return false;
         }
 
-        // Clientes e outros papéis não-corretor podem ver/contatar - não aplica gate de plano/verificação
+        // Cliente comprador: contato direto bloqueado (proteção de lead).
+        if ( class_exists( 'Imovel_Parceiro_Property_Interest' ) && Imovel_Parceiro_Property_Interest::is_client( $user_id ) ) {
+            return false;
+        }
+
         if ( ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
-            return true;
+            return false;
         }
 
         if ( class_exists( 'Imovel_Parceiro_Subscriptions' ) && ! Imovel_Parceiro_Subscriptions::has_active_subscription( $user_id ) ) {
@@ -162,6 +178,18 @@ class Imovel_Parceiro_Contact_Visibility {
             return $content;
         }
 
+        return self::suppress_contact_markup( $content, $widget );
+    }
+
+    /**
+     * Suppress contact widgets (or strip contact parts) for viewers without
+     * direct-contact access.
+     *
+     * @param string $content Rendered widget HTML.
+     * @param object $widget  Elementor widget instance.
+     * @return string
+     */
+    private static function suppress_contact_markup( $content, $widget ) {
         $name = $widget->get_name();
         if ( in_array( $name, self::$blocked_widgets, true ) ) {
             return '';

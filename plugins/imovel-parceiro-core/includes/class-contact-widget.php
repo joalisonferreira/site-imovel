@@ -140,6 +140,14 @@ class Imovel_Parceiro_Contact_Widget {
                     'error' => __( 'Não foi possível concluir. Tente novamente.', 'imovel-parceiro-core' ),
                     'needs_subscription' => __( 'Para solicitar uma parceria, você precisa ter um plano ativo.', 'imovel-parceiro-core' ),
                     'view_plans' => __( 'Ver planos', 'imovel-parceiro-core' ),
+                    'interest' => __( 'Tenho interesse neste imóvel', 'imovel-parceiro-core' ),
+                    'interest_sub' => __( 'O corretor responsável entrará em contato', 'imovel-parceiro-core' ),
+                    'interest_done' => __( 'Interesse já registrado', 'imovel-parceiro-core' ),
+                    'interest_done_sub' => __( 'O corretor responsável já foi avisado.', 'imovel-parceiro-core' ),
+                    'interest_message_ph' => __( 'Mensagem opcional para o corretor (máx. 500 caracteres)', 'imovel-parceiro-core' ),
+                    'interest_send' => __( 'Enviar interesse', 'imovel-parceiro-core' ),
+                    'interest_sending' => __( 'Enviando…', 'imovel-parceiro-core' ),
+                    'interest_ok' => __( 'Interesse registrado!', 'imovel-parceiro-core' ),
                 ),
             )
         );
@@ -322,16 +330,9 @@ class Imovel_Parceiro_Contact_Widget {
         if ( current_user_can( 'manage_options' ) ) {
             return true;
         }
-        // Cliente (houzez_buyer e qualquer não-corretor) vê WhatsApp direto quando há número
-        if ( $viewer_id && class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $viewer_id ) ) {
-            return true;
-        }
-        if ( $viewer_id ) {
-            $u = get_userdata( $viewer_id );
-            if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $u->roles ) ) {
-                return true;
-            }
-        }
+        // Proteção de lead: o cliente NÃO recebe WhatsApp direto. Ele usa o
+        // fluxo "Tenho interesse neste imóvel" (lead registrada + corretor
+        // notificado para fazer o primeiro contato).
         if ( $row && Imovel_Parceiro_Partnership_Workflow::is_contact_released( $row ) ) {
             return true;
         }
@@ -436,6 +437,25 @@ class Imovel_Parceiro_Contact_Widget {
 
         $status_meta = self::widget_status_label( $canonical );
 
+        // Proteção de lead: e-mail do corretor só trafega para quem tem
+        // acesso a contato direto (nunca para o cliente).
+        $can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' )
+            ? Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact( $viewer_id )
+            : true;
+
+        // Fluxo "Tenho interesse neste imóvel" (proteção de lead do cliente).
+        $interest = array(
+            'allowed'       => false,
+            'has_open_lead' => false,
+            'needs_login'   => ! $viewer_id,
+        );
+        if ( $viewer_is_client && $broker_id && $viewer_id !== $broker_id && ! $viewer_is_property_owner ) {
+            $interest['allowed'] = true;
+            if ( class_exists( 'Imovel_Parceiro_Property_Interest' ) ) {
+                $interest['has_open_lead'] = (bool) Imovel_Parceiro_Property_Interest::open_lead_for( $viewer_id, $property_id );
+            }
+        }
+
         return array(
             'property' => array(
                 'id' => $property_id,
@@ -449,7 +469,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'id' => $broker_id,
                 'name' => ! empty( $broker['name'] ) ? $broker['name'] : '',
                 'avatar' => ! empty( $broker['user_id'] ) ? get_avatar_url( $broker['user_id'], array( 'size' => 96 ) ) : '',
-                'email' => ! empty( $broker['email'] ) ? $broker['email'] : '',
+                'email' => $can_see_contact && ! empty( $broker['email'] ) ? $broker['email'] : '',
                 'creci' => ! empty( $broker['creci'] ) ? $broker['creci'] : '',
                 'company' => ! empty( $broker['company'] ) ? $broker['company'] : '',
             ),
@@ -466,6 +486,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'link' => $wa_link,
                 'needs_login' => ! $viewer_id,
             ),
+            'interest' => $interest,
             'request' => array(
                 'allowed' => (bool) $can_request,
                 'needs_subscription' => (bool) $needs_subscription,

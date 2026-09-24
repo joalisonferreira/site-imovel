@@ -482,6 +482,113 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         return 0;
     }
 
+    /**
+     * Assinaturas de plano do usuário que ainda aguardam pagamento (ex.: boleto
+     * emitido mas não confirmado). Enquanto existirem, o plano Houzez NÃO está
+     * liberado (a liberação ocorre apenas em activate_houzez_membership, no
+     * status active) e o usuário não deve contratar outra assinatura.
+     *
+     * @param int $user_id ID do usuário (ou da agência, quando aplicável).
+     * @return array Lista de arrays com chaves subscription, package_id e payment.
+     */
+    public static function pending_payment_subscriptions_for_user( $user_id ) {
+        $found = array();
+        if ( ! function_exists( 'wcs_get_users_subscriptions' ) ) {
+            return $found;
+        }
+        $subscriptions = wcs_get_users_subscriptions( absint( $user_id ) );
+        if ( ! is_array( $subscriptions ) ) {
+            return $found;
+        }
+        foreach ( $subscriptions as $subscription ) {
+            if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'has_status' ) ) {
+                continue;
+            }
+            if ( ! $subscription->has_status( array( 'pending', 'on-hold', 'failed' ) ) ) {
+                continue;
+            }
+            if ( method_exists( $subscription, 'needs_payment' ) && ! $subscription->needs_payment() ) {
+                continue;
+            }
+            $package_id = 0;
+            if ( method_exists( $subscription, 'get_items' ) ) {
+                foreach ( $subscription->get_items() as $item ) {
+                    if ( ! is_object( $item ) || ! method_exists( $item, 'get_product_id' ) ) {
+                        continue;
+                    }
+                    $candidate = absint( get_post_meta( $item->get_product_id(), self::PRODUCT_PACKAGE_META, true ) );
+                    if ( $candidate ) {
+                        $package_id = $candidate;
+                        break;
+                    }
+                }
+            }
+            if ( ! $package_id ) {
+                continue;
+            }
+            $found[] = array(
+                'subscription' => $subscription,
+                'package_id'   => $package_id,
+                'payment'      => self::pending_payment_info( $subscription ),
+            );
+        }
+        return $found;
+    }
+
+    /**
+     * Detalhes de pagamento pendente de uma assinatura (URLs do boleto e vencimento).
+     *
+     * @param object $subscription WC_Subscription.
+     * @return array Com chaves is_boleto, pay_url, ticket_url e due_date.
+     */
+    public static function pending_payment_info( $subscription ) {
+        $info = array(
+            'is_boleto'  => false,
+            'pay_url'    => '',
+            'ticket_url' => '',
+            'due_date'   => '',
+        );
+        if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'get_payment_method' ) ) {
+            return $info;
+        }
+        if ( 'asaas-ticket' === $subscription->get_payment_method() ) {
+            $info['is_boleto'] = true;
+        }
+
+        $parent = null;
+        if ( method_exists( $subscription, 'get_parent_id' ) && function_exists( 'wc_get_order' ) ) {
+            $parent_id = absint( $subscription->get_parent_id() );
+            if ( $parent_id ) {
+                $parent = wc_get_order( $parent_id );
+            }
+        }
+
+        if ( $parent ) {
+            if ( method_exists( $parent, 'needs_payment' ) && method_exists( $parent, 'get_checkout_payment_url' ) && $parent->needs_payment() ) {
+                $info['pay_url'] = $parent->get_checkout_payment_url();
+            }
+            // Meta __ASAAS_ORDER do gateway woo-asaas: JSON do pagamento com
+            // bankSlipUrl (boleto), billingType (BOLETO) e dueDate (Y-m-d).
+            $raw = method_exists( $parent, 'get_meta' ) ? $parent->get_meta( '__ASAAS_ORDER' ) : '';
+            if ( '' !== (string) $raw ) {
+                $data = json_decode( (string) $raw );
+                if ( is_object( $data ) ) {
+                    if ( isset( $data->billingType ) && 'BOLETO' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+                        $info['is_boleto'] = true;
+                    }
+                    if ( isset( $data->bankSlipUrl ) && '' !== (string) $data->bankSlipUrl ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+                        $info['ticket_url'] = esc_url_raw( (string) $data->bankSlipUrl ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+                    }
+                    if ( isset( $data->dueDate ) && '' !== (string) $data->dueDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+                        $info['due_date'] = sanitize_text_field( (string) $data->dueDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+                    }
+                }
+            }
+        }
+
+        return $info;
+    }
+
     public function activate_houzez_membership( $subscription ) {
         $user_id = absint( $subscription->get_user_id() );
         $package_id = self::active_package_for_user( $user_id );

@@ -59,6 +59,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-dashboard.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-security.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-widget.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-interest.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscriptions.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-houzez-woocommerce-subscriptions.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-fields.php';

@@ -23,6 +23,10 @@ $ipc_is_logged_in = is_user_logged_in();
 $ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact();
 $ipc_login_message = __( 'Faça login como corretor ou imobiliária para agendar uma visita.', 'imovel-parceiro-core' );
 $ipc_qualify_message = __( 'Agendamento disponível para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
+// Proteção de lead: cliente usa o fluxo "Tenho interesse neste imóvel".
+if ( class_exists( 'Imovel_Parceiro_Property_Interest' ) && Imovel_Parceiro_Property_Interest::is_client() ) {
+	$ipc_qualify_message = __( 'Para visitar este imóvel, use o botão "Tenho interesse neste imóvel". O corretor responsável entrará em contato.', 'imovel-parceiro-core' );
+}
 
 $ipc_agent_data_html = isset( $return_array['agent_data'] ) ? $return_array['agent_data'] : '';
 if ( ! $ipc_can_see_contact && '' !== $ipc_agent_data_html && class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {

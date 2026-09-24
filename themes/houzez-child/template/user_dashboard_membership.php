@@ -103,7 +103,43 @@ get_template_part( 'template-parts/dashboard/sidebar' );
             </div>
             <div class="houzez-membership-btn mt-3"><ul class="d-flex align-items-center gap-2"><li><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Alterar assinatura', 'imovel-parceiro-core' ); ?></a></li></ul></div>
         <?php else : ?>
-            <div class="houzez-membership"><div class="membership-inner d-flex align-items-center justify-content-between mb-4"><div class="d-flex flex-column"><p class="mb-3"><?php esc_html_e( 'Você não possui assinatura.', 'imovel-parceiro-core' ); ?></p><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Obter assinatura', 'imovel-parceiro-core' ); ?></a></div></div></div>
+            <?php
+            $pending_subscriptions = array();
+            if ( class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ) {
+                $pending_subscriptions = Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::pending_payment_subscriptions_for_user( $user_id );
+            }
+            ?>
+            <?php if ( ! empty( $pending_subscriptions ) ) : ?>
+                <div class="houzez-membership">
+                    <div class="alert alert-warning mb-4">
+                        <strong><?php esc_html_e( ' Pagamento aguardando confirmação', 'imovel-parceiro-core' ); ?></strong><br>
+                        <?php esc_html_e( 'Identificamos uma assinatura com pagamento pendente. O seu plano será liberado automaticamente assim que o pagamento for confirmado — não é necessário contratar uma nova assinatura.', 'imovel-parceiro-core' ); ?>
+                    </div>
+                    <?php foreach ( $pending_subscriptions as $pending ) : ?>
+                        <?php
+                        $pending_subscription = $pending['subscription'];
+                        $pending_package_id   = absint( $pending['package_id'] );
+                        $pending_payment      = $pending['payment'];
+                        $pending_due          = '';
+                        if ( ! empty( $pending_payment['due_date'] ) ) {
+                            $pending_due = date_i18n( get_option( 'date_format' ), strtotime( $pending_payment['due_date'] . ' 12:00:00' ) );
+                        }
+                        ?>
+                        <ul class="list-group list-group-flush mb-3">
+                            <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Assinatura', 'imovel-parceiro-core' ); ?></span><span>#<?php echo esc_html( $pending_subscription->get_id() ); ?></span></li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Plano', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( get_the_title( $pending_package_id ) ); ?></span></li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Valor aguardando pagamento', 'imovel-parceiro-core' ); ?></span><strong><?php echo wp_kses_post( wc_price( $pending_subscription->get_total() ) ); ?></strong></li>
+                            <?php if ( $pending_due ) : ?><li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Vencimento do boleto', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( $pending_due ); ?></span></li><?php endif; ?>
+                        </ul>
+                        <div class="houzez-membership-btn mb-4 d-flex flex-wrap gap-2">
+                            <?php if ( ! empty( $pending_payment['ticket_url'] ) ) : ?><a href="<?php echo esc_url( $pending_payment['ticket_url'] ); ?>" target="_blank" rel="noopener" class="btn btn-primary"><?php esc_html_e( 'Abrir boleto', 'imovel-parceiro-core' ); ?></a><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                    <div class="membership-inner d-flex align-items-center justify-content-between mb-4"><div class="d-flex flex-column"><span class="btn btn-primary disabled" aria-disabled="true"><?php esc_html_e( 'Obter assinatura', 'imovel-parceiro-core' ); ?></span><small class="text-muted mt-2"><?php esc_html_e( 'Disponível após a confirmação do pagamento.', 'imovel-parceiro-core' ); ?></small></div></div>
+                </div>
+            <?php else : ?>
+                <div class="houzez-membership"><div class="membership-inner d-flex align-items-center justify-content-between mb-4"><div class="d-flex flex-column"><p class="mb-3"><?php esc_html_e( 'Você não possui assinatura.', 'imovel-parceiro-core' ); ?></p><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Obter assinatura', 'imovel-parceiro-core' ); ?></a></div></div></div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>

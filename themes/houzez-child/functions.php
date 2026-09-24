@@ -740,42 +740,6 @@ function houzez_child_is_packages_page() {
 }
 
 /**
- * Enfileira o CSS premium do checkout (apenas no checkout).
- */
-function houzez_child_enqueue_checkout_assets() {
-    if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
-        return;
-    }
-
-    $css_path = get_stylesheet_directory() . '/assets/css/checkout.css';
-
-    wp_enqueue_style(
-        'houzez-child-checkout',
-        get_stylesheet_directory_uri() . '/assets/css/checkout.css',
-        array(),
-        file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
-    );
-
-    $js_path = get_stylesheet_directory() . '/assets/js/checkout.js';
-
-    wp_enqueue_script(
-        'houzez-child-checkout',
-        get_stylesheet_directory_uri() . '/assets/js/checkout.js',
-        array(),
-        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
-        true
-    );
-
-    wp_enqueue_style(
-        'houzez-child-checkout-fonts',
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
-        array(),
-        null
-    );
-}
-add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_checkout_assets', 100 );
-
-/**
  * Enfileira CSS/JS do layout da página de planos (apenas nessa página).
  */
 function houzez_child_enqueue_plans_assets() {
@@ -991,4 +955,32 @@ if ( ! function_exists( 'houzez_get_overview_item' ) ) {
 
         return $output;
     }
+}
+
+/**
+ * Avatar genérico de corretor/imobiliária (sem foto cadastrada).
+ *
+ * Substitui o placeholder cinza do Houzez por uma silhueta genérica, sem
+ * depender de imagem externa. Usado pelos overrides do child theme:
+ * template-parts/realtors/agent/{image,agent-item,agent-grid}.php
+ *
+ * @param int    $post_id    ID do post do corretor (0 = post global).
+ * @param string $image_size Tamanho da imagem quando houver thumbnail.
+ * @param string $img_class  Classe CSS da tag img.
+ */
+function houzez_child_agent_avatar( $post_id = 0, $image_size = 'thumbnail', $img_class = 'img-fluid' ) {
+    $post_id = $post_id ? absint( $post_id ) : get_the_ID();
+    if ( $post_id && has_post_thumbnail( $post_id ) && get_the_post_thumbnail( $post_id ) != '' ) {
+        echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => $img_class ) );
+        return;
+    }
+    ?>
+    <span class="ipc-agent-avatar" aria-hidden="true">
+        <svg viewBox="0 0 64 64" focusable="false">
+            <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="2" opacity="0.35"/>
+            <circle cx="32" cy="24" r="9" fill="currentColor" opacity="0.55"/>
+            <path d="M14 50c3.5-9.5 10.5-14 18-14s14.5 4.5 18 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+        </svg>
+    </span>
+    <?php
 }
