@@ -69,7 +69,9 @@ class Imovel_Parceiro_User_Deletion
                 $sql = "UPDATE {$table} SET status='encerrada', notes = CASE WHEN notes IS NULL OR notes='' THEN %s ELSE CONCAT(notes,' | ',%s) END, responded_at=NOW() WHERE {$where} AND status NOT IN ('encerrada','closed','cancelled','rejected','won','lost')";
                 $wpdb->query($wpdb->prepare($sql, $reason, $reason));
                 if (in_array('updated_at', $cols, true)) {
-                    $wpdb->query($wpdb->prepare("UPDATE {$table} SET updated_at=NOW() WHERE {$where}", $userId));
+                    // $where já vem com os IDs preparados acima; sem placeholders aqui
+                    // (prepare() com args e sem placeholder falha no WP 6.2+).
+                    $wpdb->query("UPDATE {$table} SET updated_at=NOW() WHERE {$where}");
                 }
             }
         }
