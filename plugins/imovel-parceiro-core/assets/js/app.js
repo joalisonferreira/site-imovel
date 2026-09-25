@@ -588,16 +588,25 @@ jQuery(function($){
             syncAcceptanceSubmitState();
         });
 
-        $(document).on('click', '#submit_property_form .ipc-acceptance-toggle', function(e){
-            e.preventDefault();
-            var $btn = $(this);
-            var $item = $btn.closest('.ipc-acceptance-item');
-            var $full = $item.find('.ipc-acceptance-full');
-            var open = !!$full.prop('hidden');
-            $full.prop('hidden', !open);
-            $btn.attr('aria-expanded', open ? 'true' : 'false');
-            $item.toggleClass('is-open', open);
-        });
+        bindAcceptanceToggle();
+    }
+
+    function bindAcceptanceToggle() {
+        // off+on com namespace: seguro chamar várias vezes (init + load),
+        // nunca duplica o handler e nunca depende dos outros módulos.
+        $(document)
+            .off('click.ipcAcceptanceToggle')
+            .on('click.ipcAcceptanceToggle', '#submit_property_form .ipc-acceptance-toggle', function(e){
+                e.preventDefault();
+                e.stopPropagation();
+                var $btn = $(this);
+                var $item = $btn.closest('.ipc-acceptance-item');
+                var $full = $item.find('.ipc-acceptance-full');
+                var open = !!$full.prop('hidden');
+                $full.prop('hidden', !open);
+                $btn.attr('aria-expanded', open ? 'true' : 'false');
+                $item.toggleClass('is-open', open);
+            });
     }
 
     function showPartnershipModal() {
@@ -1754,22 +1763,31 @@ jQuery(function($){
         handlePartnershipCancel($(this));
     });
 
-    ensureAcceptanceFields();
-    precheckAcceptanceOnEdit();
-    bindAcceptanceValidation();
-    syncAcceptanceSubmitState();
-    initPriceUi();
-    validateAcceptanceBeforeSubmit();
-    bindGalleryCounter();
-    bindDraftStamp();
-    $(window).on('load', function(){
-        ensureAcceptanceFields();
-        precheckAcceptanceOnEdit();
-        bindAcceptanceValidation();
-        syncAcceptanceSubmitState();
-        initPriceUi();
-        bindGalleryCounter();
-        bindDraftStamp();
-    });
-    syncPartnershipButtonState();
+    // Cada módulo isolado em try/catch: uma falha nunca impede os demais
+    // (foi assim que o botão "detalhes" ficou morto uma vez).
+    function safeInit(name, fn) {
+        try {
+            fn();
+        } catch (err) {
+            if (window.console && console.warn) {
+                console.warn('[imovel-parceiro] init falhou em ' + name + ':', err && err.message ? err.message : err);
+            }
+        }
+    }
+
+    function bootAll() {
+        safeInit('acceptance-fields', ensureAcceptanceFields);
+        safeInit('acceptance-precheck', precheckAcceptanceOnEdit);
+        safeInit('acceptance-validation', bindAcceptanceValidation);
+        safeInit('acceptance-state', syncAcceptanceSubmitState);
+        safeInit('price-ui', initPriceUi);
+        safeInit('acceptance-submit', validateAcceptanceBeforeSubmit);
+        safeInit('acceptance-toggle', bindAcceptanceToggle);
+        safeInit('gallery-counter', bindGalleryCounter);
+        safeInit('draft-stamp', bindDraftStamp);
+        safeInit('partnership-buttons', syncPartnershipButtonState);
+    }
+
+    bootAll();
+    $(window).on('load', bootAll);
 });
