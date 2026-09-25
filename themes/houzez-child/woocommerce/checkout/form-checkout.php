@@ -65,11 +65,9 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
     </div>
     <div class="bg-white border border-slate-200/90 rounded-2xl shadow-[0_2px_8px_-2px_rgba(15,23,42,.05)] p-6 sm:p-8">
       <div class="flex items-center gap-3 mb-4"><span class="w-2.5 h-6 bg-slate-400 rounded-full inline-block"></span><h2 class="text-xl font-bold text-slate-900 tracking-tight" style="font-family:'Plus Jakarta Sans',Inter,sans-serif">2. Informação adicional</h2></div>
-      <?php do_action('woocommerce_before_order_notes', $checkout); ?>
       <div class="woocommerce-additional-fields__field-wrapper">
         <?php foreach ($checkout->get_checkout_fields('order') as $key => $field) : ?><?php woocommerce_form_field($key, $field, $checkout->get_value($key)); ?><?php endforeach; ?>
       </div>
-      <?php do_action('woocommerce_after_order_notes', $checkout); ?>
     </div>
   </div>
   <div class="lg:col-span-5">
