@@ -125,6 +125,12 @@ class Imovel_Parceiro_Contact_Widget {
                 'partnerships_url' => Imovel_Parceiro_Partnerships::dashboard_partnerships_url(),
                 'property_base' => $this->property_base(),
                 'partnership_message_default' => __( 'Olá, tenho um cliente interessado neste imóvel e gostaria de realizar uma parceria.', 'imovel-parceiro-core' ),
+                'terms_url' => self::partnership_terms_url(),
+                'partnership_chips' => array(
+                    __( 'Tenho cliente', 'imovel-parceiro-core' ),
+                    __( 'Quero visitar', 'imovel-parceiro-core' ),
+                    __( 'Tenho proposta', 'imovel-parceiro-core' ),
+                ),
                 'strings' => array(
                     'loading' => __( 'Carregando…', 'imovel-parceiro-core' ),
                     'wa_unavailable' => __( 'WhatsApp indisponível', 'imovel-parceiro-core' ),
@@ -134,11 +140,29 @@ class Imovel_Parceiro_Contact_Widget {
                     'wa_owner' => __( 'WhatsApp indisponível', 'imovel-parceiro-core' ),
                     'wa_owner_sub' => __( 'Você é o proprietário deste imóvel.', 'imovel-parceiro-core' ),
                     'login_required' => __( 'Faça login para solicitar uma parceria.', 'imovel-parceiro-core' ),
+                    'login_cta' => __( 'Fazer login', 'imovel-parceiro-core' ),
                     'partnership' => __( 'Parceria', 'imovel-parceiro-core' ),
-                    'open_partnership' => __( 'Abrir parceria', 'imovel-parceiro-core' ),
+                    'partnership_ask' => __( 'Dividir este imóvel?', 'imovel-parceiro-core' ),
+                    'partnership_cta' => __( 'Solicitar parceria', 'imovel-parceiro-core' ),
+                    'partnership_commission_sub' => __( 'Dividir comissão', 'imovel-parceiro-core' ),
+                    'open_partnership' => __( 'Acompanhar', 'imovel-parceiro-core' ),
+                    'pending_title' => __( 'Aguardando {name}', 'imovel-parceiro-core' ),
+                    'plans_cta' => __( 'Ver planos', 'imovel-parceiro-core' ),
+                    'request_title' => __( 'Mensagem para {name}', 'imovel-parceiro-core' ),
+                    'request_terms' => __( 'Concordo com os Termos da parceria', 'imovel-parceiro-core' ),
+                    'request_terms_prefix' => __( 'Concordo com os', 'imovel-parceiro-core' ),
+                    'request_terms_link' => __( 'Termos da parceria', 'imovel-parceiro-core' ),
+                    'request_send' => __( 'Enviar solicitação', 'imovel-parceiro-core' ),
+                    'request_sending' => __( 'Enviando…', 'imovel-parceiro-core' ),
+                    'request_ph' => __( 'Ex: "Tenho cliente aprovado para visita sábado."', 'imovel-parceiro-core' ),
                     'sent' => __( 'Solicitação enviada!', 'imovel-parceiro-core' ),
+                    'sent_title' => __( 'Solicitação enviada para {name}!', 'imovel-parceiro-core' ),
+                    'sent_body' => __( 'Avisaremos aqui e por e-mail quando ele responder.', 'imovel-parceiro-core' ),
+                    'sent_track' => __( 'Acompanhar no dashboard', 'imovel-parceiro-core' ),
+                    'sent_back' => __( 'Voltar ao imóvel', 'imovel-parceiro-core' ),
+                    'already_requested' => __( 'Você já solicitou este imóvel.', 'imovel-parceiro-core' ),
                     'error' => __( 'Não foi possível concluir. Tente novamente.', 'imovel-parceiro-core' ),
-                    'needs_subscription' => __( 'Para solicitar uma parceria, você precisa ter um plano ativo.', 'imovel-parceiro-core' ),
+                    'needs_subscription' => __( 'Seu plano acabou ou não está ativo.', 'imovel-parceiro-core' ),
                     'view_plans' => __( 'Ver planos', 'imovel-parceiro-core' ),
                     'interest' => __( 'Tenho interesse neste imóvel', 'imovel-parceiro-core' ),
                     'interest_sub' => __( 'O corretor responsável entrará em contato', 'imovel-parceiro-core' ),
@@ -293,6 +317,32 @@ class Imovel_Parceiro_Contact_Widget {
         );
 
         return $row ? $row : null;
+    }
+
+    /**
+     * Divisão de comissão padrão exibida no widget (filtro para regras
+     * futuras por imóvel/plano). Formato "50/50".
+     *
+     * @return array owner, requester, label
+     */
+    public static function default_commission_split() {
+        $split = apply_filters( 'imovel_parceiro_partnership_commission', '50/50' );
+        $parts = explode( '/', (string) $split );
+        $owner = isset( $parts[0] ) ? absint( $parts[0] ) : 50;
+        $requester = isset( $parts[1] ) ? absint( $parts[1] ) : 50;
+
+        return array(
+            'owner' => $owner,
+            'requester' => $requester,
+            'label' => $owner . '% | ' . $requester . '%',
+        );
+    }
+
+    /**
+     * URL dos Termos da parceria (filtro; vazio = sem link).
+     */
+    public static function partnership_terms_url() {
+        return apply_filters( 'imovel_parceiro_partnership_terms_url', '' );
     }
 
     public static function widget_status_label( $canonical ) {
@@ -492,6 +542,8 @@ class Imovel_Parceiro_Contact_Widget {
                 'needs_subscription' => (bool) $needs_subscription,
                 'is_owner' => (bool) $viewer_is_property_owner,
                 'is_client' => (bool) $viewer_is_client,
+                'state' => $partnership_row ? 'existing' : ( $can_request ? 'ok' : ( $needs_subscription ? 'needs_plan' : 'needs_login' ) ),
+                'commission' => self::default_commission_split(),
                 'plans_url' => class_exists( 'Imovel_Parceiro_Subscriptions' ) ? Imovel_Parceiro_Subscriptions::plans_url() : '',
                 'plans_message' => __( 'Para solicitar uma parceria, você precisa ter um plano ativo.', 'imovel-parceiro-core' ),
                 'message' => __( 'Olá, tenho um cliente interessado neste imóvel e gostaria de realizar uma parceria.', 'imovel-parceiro-core' ),

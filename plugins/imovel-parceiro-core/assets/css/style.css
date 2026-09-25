@@ -75,3 +75,46 @@
 .ipc-ev-title{font-size:14px;color:#334155}
 .ipc-funnel-note{margin-top:22px;text-align:right;font-size:12px;color:#94a3b8}
 @media (max-width:768px){.ipc-funnel-grid{grid-template-columns:1fr}.ipc-funnel-timeline li{align-items:flex-start}.ipc-funnel-statusbar{gap:10px}}
+/* F2 — Declarações: progresso, fileiras próprias, destaque de pendência */
+.imovel-parceiro-acceptance-block .block-title-wrap{flex-wrap:wrap;row-gap:8px}
+.ipc-acceptance-progress{font-size:13px;font-weight:700;color:#475569;background:#f1f5f9;border-radius:999px;padding:6px 14px;white-space:nowrap}
+.ipc-acceptance-progress.is-complete{background:#dcfce7;color:#15803d}
+.ipc-acceptance-item{border:1px solid transparent;border-radius:12px;padding:8px 10px;transition:background .2s ease,box-shadow .2s ease,border-color .2s ease}
+.ipc-acceptance-item + .ipc-acceptance-item{margin-top:2px}
+.ipc-acceptance-item.is-missing{background:#fffbeb;border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b}
+.ipc-acceptance-row{display:flex;align-items:center;gap:12px}
+.ipc-acceptance-check{display:flex !important;align-items:center;gap:12px;flex:1;min-height:48px;margin:0 !important;padding:0 !important;cursor:pointer;font-weight:500 !important;text-align:left !important}
+.ipc-acceptance-check input{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ipc-acceptance-box{flex:0 0 auto;width:24px;height:24px;border-radius:7px;border:2px solid #cbd5e1;background:#fff;display:inline-flex;align-items:center;justify-content:center;transition:background .15s ease,border-color .15s ease}
+.ipc-acceptance-box::after{content:"";width:12px;height:7px;border-left:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(-45deg) translateY(-1px);opacity:0}
+.ipc-acceptance-check input:checked + .ipc-acceptance-box{background:#7a1e2b;border-color:#7a1e2b}
+.ipc-acceptance-check input:checked + .ipc-acceptance-box::after{opacity:1}
+.ipc-acceptance-check input:focus-visible + .ipc-acceptance-box{outline:2px solid #7a1e2b;outline-offset:2px}
+.ipc-acceptance-short{flex:1;font-size:14px;color:#1f2937;line-height:1.4}
+.ipc-acceptance-toggle{flex:0 0 auto;border:0;background:none;color:#7a1e2b;font-size:12px;font-weight:700;min-height:44px;padding:0 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.ipc-acceptance-toggle:hover,.ipc-acceptance-toggle:focus-visible{color:#5c1420;outline:none}
+.ipc-acceptance-full{margin:2px 0 4px 36px;font-size:12.5px;color:#64748b;line-height:1.6}
+.ipc-acceptance-full[hidden]{display:none}
+.ipc-acceptance-full p{margin:0}
+/* F2 — Contador da galeria sempre visível */
+.ipc-gallery-count{font-size:12px;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:4px 12px;margin-left:10px;white-space:nowrap}
+.ipc-gallery-count.is-warning{background:#fef3c7;color:#b45309}
+.ipc-gallery-count.is-limit{background:#fee2e2;color:#b91c1c}
+/* F2 — Selo de rascunho */
+.ipc-draft-stamp{font-size:12px;color:#64748b;margin-left:12px}
+@media (max-width:576px){.ipc-acceptance-details{margin-left:0}.ipc-draft-stamp{display:block;margin:8px 0 0}}
+
+
+/* F4 — Resumo do plano no checkout */
+.ipc-checkout-plan{border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:20px;background:#f8fafc}
+.ipc-checkout-plan__head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ipc-checkout-plan__badge{font-size:11px;font-weight:700;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.ipc-checkout-plan__name{font-size:15px;color:#0f172a}
+.ipc-checkout-plan__meta{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ipc-checkout-plan__meta li{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#475569}
+.ipc-checkout-plan__meta li strong{color:#0f172a;font-weight:700;text-align:right}
+/* F4 — Próximos passos no obrigado */
+.ipc-thankyou-steps{border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin:24px 0;background:#fff}
+.ipc-thankyou-steps__title{font-size:16px;font-weight:700;color:#0f172a;margin:0 0 12px}
+.ipc-thankyou-steps__actions{display:flex;flex-wrap:wrap;gap:10px}
+

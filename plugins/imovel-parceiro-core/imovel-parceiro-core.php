@@ -196,6 +196,37 @@ class Imovel_Parceiro_Core {
                 'acceptances_required' => __( 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.', 'imovel-parceiro-core' ),
                 'partnership_terms_required' => __( 'Voce deve aceitar os termos da parceria para enviar a solicitacao.', 'imovel-parceiro-core' ),
                 'request_exists' => __( 'Voce ja enviou uma solicitacao para este imovel e nao pode pedir novamente.', 'imovel-parceiro-core' ),
+                'acceptance_title' => __( 'Declarações para publicar', 'imovel-parceiro-core' ),
+                'acceptance_progress' => __( '{done} de {total}', 'imovel-parceiro-core' ),
+                'acceptance_missing' => __( 'Falta {n}: {item}. Toque para concluir.', 'imovel-parceiro-core' ),
+                'acceptance_details' => __( 'detalhes', 'imovel-parceiro-core' ),
+                'acceptance_draft_saved' => __( 'Rascunho salvo às {hora}', 'imovel-parceiro-core' ),
+                'acceptance_draft_saving' => __( 'Salvando rascunho…', 'imovel-parceiro-core' ),
+                'gallery_counter' => __( 'Fotos {n} de {max}', 'imovel-parceiro-core' ),
+                'gallery_limit' => __( 'Você atingiu {max} fotos. Exclua uma para adicionar outra.', 'imovel-parceiro-core' ),
+                'gallery_almost' => __( 'Quase no limite: {n} de {max} fotos.', 'imovel-parceiro-core' ),
+            ),
+            'acceptance_items' => array(
+                array(
+                    'key' => 'authorization',
+                    'short' => __( 'Autorizo a divulgação', 'imovel-parceiro-core' ),
+                    'full' => __( 'Declaro que sou proprietário ou representante legal do imóvel e autorizo a plataforma e seus corretores parceiros a divulgar e intermediar oportunidades relacionadas a este imóvel, conforme os termos da plataforma.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'partnership',
+                    'short' => __( 'Aberto a parcerias', 'imovel-parceiro-core' ),
+                    'full' => __( 'Autorizo que este imóvel seja disponibilizado para parceria com outros corretores cadastrados na plataforma.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'commission',
+                    'short' => __( 'Comissão 50/50 em parceria', 'imovel-parceiro-core' ),
+                    'full' => __( 'Aceito a divisão de comissão de 50% | 50% em parceria direta.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'terms',
+                    'short' => __( 'Aceito os Termos de Uso', 'imovel-parceiro-core' ),
+                    'full' => __( 'Aceito os Termos de Uso e as regras da plataforma.', 'imovel-parceiro-core' ),
+                ),
             ),
         ) );
 

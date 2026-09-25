@@ -22,9 +22,21 @@
             pending: 'is-pending',
             accepted: 'is-accepted',
             negotiating: 'is-negotiating',
+            contact_released: 'is-released',
+            opportunity: 'is-opportunity',
+            visit: 'is-visit',
+            proposal: 'is-proposal',
             rejected: 'is-lost'
         };
         return map[status] || '';
+    }
+
+    function str(key, fallback) {
+        return (IPCW.strings && IPCW.strings[key]) ? IPCW.strings[key] : fallback;
+    }
+
+    function fillName(template, name) {
+        return String(template || '').replace('{name}', name || '');
     }
 
     function init() {
@@ -203,16 +215,23 @@
         }
 
         // Partnership action. Hidden for the property owner (cannot partner with self) and for clients (houzez_buyer).
+        // Cada estado tem rótulo explícito: o corretor sabe antes do clique.
         if (!req.is_owner && !req.is_client) {
+            var brokerName = b.name || '';
+            var commissionLabel = (req.commission && req.commission.label) ? req.commission.label : '';
             if (ps.exists) {
             var badgeCls = statusBadgeClass(ps.status);
+            var isPending = (ps.status === 'pending');
+            var existTitle = isPending
+                ? fillName(str('pending_title', 'Aguardando {name}'), brokerName)
+                : ((IPCW.strings ? IPCW.strings.partnership : 'Parceria') + (ps.label ? ' · ' + ps.label : ''));
             html += '<div class="ipcw-btn ipcw-btn--partnership">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">' + (IPCW.strings ? IPCW.strings.partnership : 'Parceria') + ' <span class="ipcw-status-badge ' + esc(badgeCls) + '">' + esc(ps.label || '') + '</span></span>';
+            html += '<span class="ipcw-btn__title">' + esc(existTitle) + ' <span class="ipcw-status-badge ' + esc(badgeCls) + '">' + esc(ps.label || '') + '</span></span>';
             html += '<span class="ipcw-btn__sub">';
             if (ps.detail_url) {
-                html += '<a href="' + esc(ps.detail_url) + '">' + (IPCW.strings ? IPCW.strings.open_partnership : 'Abrir parceria') + '</a>';
+                html += '<a href="' + esc(ps.detail_url) + '">' + esc(str('open_partnership', 'Acompanhar')) + '</a>';
             }
             html += '</span>';
             html += '</span></div>';
@@ -220,26 +239,22 @@
             html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-request-btn">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
-            html += '<span class="ipcw-btn__sub">Trabalhar este imóvel em conjunto</span>';
+            html += '<span class="ipcw-btn__title">' + esc(str('partnership_cta', 'Solicitar parceria')) + '</span>';
+            html += '<span class="ipcw-btn__sub">' + esc(str('partnership_commission_sub', 'Dividir comissão') + (commissionLabel ? ' ' + commissionLabel : '')) + '</span>';
             html += '</span></button>';
         } else if (req.needs_subscription) {
             html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-request-btn ipcw-needs-subscription">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
-            html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.needs_subscription : 'Para solicitar uma parceria, você precisa ter um plano ativo.') + '</span>';
+            html += '<span class="ipcw-btn__title">' + esc(str('plans_cta', 'Ver planos')) + '</span>';
+            html += '<span class="ipcw-btn__sub">' + esc(str('needs_subscription', 'Seu plano acabou ou não está ativo.')) + '</span>';
             html += '</span></button>';
         } else {
-            var sub = 'Trabalhar este imóvel em conjunto';
-            if (!requestAllowedUser()) {
-                sub = (IPCW.strings ? IPCW.strings.login_required : 'Faça login para solicitar uma parceria.');
-            }
             html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-request-btn ipcw-needs-login">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
-            html += '<span class="ipcw-btn__sub">' + esc(sub) + '</span>';
+            html += '<span class="ipcw-btn__title">' + esc(str('login_cta', 'Fazer login')) + '</span>';
+            html += '<span class="ipcw-btn__sub">' + esc(str('login_required', 'Faça login para solicitar uma parceria.')) + '</span>';
             html += '</span></button>';
         }
         }
@@ -389,16 +404,41 @@
         var req = config.request || {};
         var message = req.message || (IPCW.partnership_message_default || '');
         var max = req.max_chars || 500;
+        var brokerName = b.name || '';
+        var commissionLabel = (req.commission && req.commission.label) ? req.commission.label : '';
+        var chips = (IPCW.partnership_chips && IPCW.partnership_chips.length) ? IPCW.partnership_chips : [];
+        var termsUrl = IPCW.terms_url || '';
+        var termsLabel = termsUrl
+            ? str('request_terms_prefix', 'Concordo com os') + ' <a href="' + esc(termsUrl) + '" target="_blank" rel="noopener">' + esc(str('request_terms_link', 'Termos da parceria')) + '</a>'
+            : esc(str('request_terms', 'Concordo com os Termos da parceria'));
 
         var html = '<div class="ipcw-form">';
-        html += '<label for="ipcw-partnership-message">Mensagem</label>';
-        html += '<textarea id="ipcw-partnership-message" maxlength="' + max + '">' + esc(message) + '</textarea>';
-        html += '<div class="ipcw-char-count"><span>0</span>/' + max + '</div>';
+        // Resumo: miniatura + título + comissão explícita.
+        html += '<div class="ipcw-req-summary">';
+        if (p.thumb) {
+            html += '<span class="ipcw-req-summary__thumb"><img src="' + esc(p.thumb) + '" alt="" /></span>';
+        }
+        html += '<div class="ipcw-req-summary__info">';
+        html += '<p class="ipcw-req-summary__title">' + esc(p.title || '') + '</p>';
+        if (commissionLabel) {
+            html += '<span class="ipcw-commission-chip" aria-label="' + esc(str('partnership_commission_sub', 'Dividir comissão') + ' ' + commissionLabel) + '">' + esc(commissionLabel) + '</span>';
+        }
+        html += '</div></div>';
+        html += '<label for="ipcw-partnership-message">' + esc(fillName(str('request_title', 'Mensagem para {name}'), brokerName)) + '</label>';
+        if (chips.length) {
+            html += '<div class="ipcw-chips" role="group" aria-label="' + esc(str('partnership_ask', 'Dividir este imóvel?')) + '">';
+            for (var ci = 0; ci < chips.length; ci++) {
+                html += '<button type="button" class="ipcw-chip" data-chip="' + esc(chips[ci]) + '">' + esc(chips[ci]) + '</button>';
+            }
+            html += '</div>';
+        }
+        html += '<textarea id="ipcw-partnership-message" maxlength="' + max + '" placeholder="' + esc(str('request_ph', 'Ex: "Tenho cliente aprovado para visita sábado."')) + '" aria-describedby="ipcw-partnership-count">' + esc(message) + '</textarea>';
+        html += '<div class="ipcw-char-count" id="ipcw-partnership-count"><span>0</span>/' + max + '</div>';
         html += '<div class="ipcw-terms">';
         html += '<input type="checkbox" id="ipcw-terms" />';
-        html += '<label for="ipcw-terms">Li e concordo com os termos da parceria.</label>';
+        html += '<label for="ipcw-terms">' + termsLabel + '</label>';
         html += '</div>';
-        html += '<button type="button" class="ipcw-submit" disabled>Enviar solicitação</button>';
+        html += '<button type="button" class="ipcw-submit" disabled>' + esc(str('request_send', 'Enviar solicitação')) + '</button>';
         html += '<div class="ipcw-char-count ipcw-feedback" aria-live="polite"></div>';
         html += '</div>';
 
@@ -416,6 +456,13 @@
         }
 
         $area.on('input', updateCount);
+        $body.find('.ipcw-chip').on('click', function () {
+            var preset = $(this).data('chip') || '';
+            var current = $area.val().trim();
+            $area.val(current ? (current + ' ' + preset) : preset);
+            $area.trigger('input');
+            $area.trigger('focus');
+        });
 
         function sync() {
             var ok = $terms.is(':checked') && $area.val().trim().length > 0;
@@ -434,44 +481,55 @@
                 message: $area.val(),
                 partnership_terms: 1
             };
-            $submit.prop('disabled', true).text('Enviando…');
+            $submit.prop('disabled', true).text(str('request_sending', 'Enviando…'));
 
             $.post(IPCW.ajax_url, payload, function (response) {
                 if (response && response.success) {
-                    renderConfirmed(config);
+                    renderConfirmed(config, (response && response.data) || {});
                 } else {
-                    var msg = (response && response.data && response.data.message) ? response.data.message : (IPCW.strings ? IPCW.strings.error : 'Erro');
+                    var msg = (response && response.data && response.data.message) ? response.data.message : str('error', 'Erro');
                     if (response && response.data && response.data.code === 'subscription_required') {
                         var plansUrl = (response.data.plans_url) || (config.request && config.request.plans_url) || IPCW.plans_url || '';
                         $feedback.text(msg).removeClass('is-success').addClass('is-error');
-                        if (plansUrl) { $feedback.append(' <a href="' + esc(plansUrl) + '" target="_blank" rel="noopener">' + (IPCW.strings ? IPCW.strings.view_plans : 'Ver planos') + '</a>'); }
-                        $submit.prop('disabled', false).text('Enviar solicitação');
+                        if (plansUrl) { $feedback.append(' <a href="' + esc(plansUrl) + '" target="_blank" rel="noopener">' + esc(str('plans_cta', 'Ver planos')) + '</a>'); }
+                        $submit.prop('disabled', false).text(str('request_send', 'Enviar solicitação'));
                         return;
                     }
                     $feedback.text(msg).removeClass('is-success').addClass('is-error');
-                    $submit.prop('disabled', false).text('Enviar solicitação');
+                    if (/j[aá] (enviou|possui)/i.test(msg)) {
+                        $feedback.text(str('already_requested', 'Você já solicitou este imóvel.'));
+                        if (IPCW.partnerships_url) {
+                            $feedback.append(' <a href="' + esc(IPCW.partnerships_url) + '">' + esc(str('sent_track', 'Acompanhar no dashboard')) + '</a>');
+                        }
+                    }
+                    $submit.prop('disabled', false).text(str('request_send', 'Enviar solicitação'));
                 }
             }).fail(function () {
-                $feedback.text(IPCW.strings ? IPCW.strings.error : 'Erro').removeClass('is-success').addClass('is-error');
-                $submit.prop('disabled', false).text('Enviar solicitação');
+                $feedback.text(str('error', 'Erro')).removeClass('is-success').addClass('is-error');
+                $submit.prop('disabled', false).text(str('request_send', 'Enviar solicitação'));
             });
         });
     }
 
-    function renderConfirmed(config) {
+    function renderConfirmed(config, data) {
         var b = config.broker || {};
+        var brokerName = b.name || '';
+        var trackUrl = (data && data.detail_url) || IPCW.partnerships_url || '';
         var html = '<div class="ipcw-confirm">';
         html += '<div class="ipcw-confirm__check"><span aria-hidden="true">' + checkIcon() + '</span></div>';
-        html += '<h4>' + (IPCW.strings ? IPCW.strings.sent : 'Solicitação enviada!') + '</h4>';
-        html += '<p>Sua solicitação foi enviada para ' + esc(b.name || 'o corretor') + '.</p>';
-        html += '<p>Aguarde a aprovação do corretor responsável.</p>';
-        html += '<p class="ipcw-confirm__redirect">Redirecionando para suas parcerias…</p>';
-        html += '</div>';
+        html += '<h4>' + esc(fillName(str('sent_title', 'Solicitação enviada para {name}!'), brokerName)) + '</h4>';
+        html += '<p>' + esc(str('sent_body', 'Avisaremos aqui e por e-mail quando ele responder.')) + '</p>';
+        html += '<div class="ipcw-confirm__actions">';
+        if (trackUrl) {
+            html += '<a class="ipcw-confirm__btn ipcw-confirm__btn--primary" href="' + esc(trackUrl) + '">' + esc(str('sent_track', 'Acompanhar no dashboard')) + '</a>';
+        }
+        html += '<button type="button" class="ipcw-confirm__btn ipcw-confirm__btn--ghost ipcw-confirm__back">' + esc(str('sent_back', 'Voltar ao imóvel')) + '</button>';
+        html += '</div></div>';
         $body.html(html);
 
-        if (IPCW.partnerships_url) {
-            setTimeout(function () { window.location.href = IPCW.partnerships_url; }, 1500);
-        }
+        $body.find('.ipcw-confirm__back').on('click', function () {
+            closePanel();
+        });
     }
 
     /* ---------------------------------------------------------------------
