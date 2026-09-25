@@ -670,15 +670,22 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         // Pedido mais recente ainda aguardando pagamento (ex.: renovação
         // manual). Tem prioridade sobre o pedido pai, pois carrega o QR
         // do ciclo atual e não o do primeiro pagamento.
+        // ATENÇÃO: o 1º parâmetro é $return_fields ('ids'|'all'), o tipo de
+        // pedido vai no 2º ('any' = parent+renewal+switch+resubscribe).
         $target = $parent;
         if ( method_exists( $subscription, 'get_related_orders' ) && function_exists( 'wc_get_order' ) ) {
-            foreach ( (array) $subscription->get_related_orders( 'any' ) as $related_id ) {
-                $related = wc_get_order( absint( $related_id ) );
-                if ( ! $related || ! method_exists( $related, 'needs_payment' ) || ! $related->needs_payment() ) {
+            foreach ( (array) $subscription->get_related_orders( 'ids', array( 'any' ) ) as $related ) {
+                // Defesa extra: se algum filtro devolver objetos em vez de IDs.
+                if ( is_object( $related ) && method_exists( $related, 'needs_payment' ) ) {
+                    $related_order = $related;
+                } else {
+                    $related_order = wc_get_order( absint( $related ) );
+                }
+                if ( ! $related_order || ! method_exists( $related_order, 'needs_payment' ) || ! $related_order->needs_payment() ) {
                     continue;
                 }
-                if ( ! $target || (int) $related->get_id() > (int) $target->get_id() ) {
-                    $target = $related;
+                if ( ! $target || (int) $related_order->get_id() > (int) $target->get_id() ) {
+                    $target = $related_order;
                 }
             }
         }
