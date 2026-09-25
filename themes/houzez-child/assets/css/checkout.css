@@ -62,6 +62,7 @@ body.woocommerce-checkout .breadcrumb-wrap {
 .woocommerce-checkout-fresh #order_review .shop_table th, .woocommerce-checkout-fresh #order_review .shop_table td { border-top: 1px solid #f1f5f9; padding: 12px 8px; }
 .woocommerce-checkout-fresh #order_review .shop_table thead th { border-top: none; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
 .woocommerce-checkout-fresh #payment ul.payment_methods { list-style: none; padding: 0; margin: 0; border: none; }
+.woocommerce-checkout-fresh .woocommerce-terms-and-conditions-wrapper { padding: 15px 15px 15px; }
 .woocommerce-checkout-fresh #payment ul.payment_methods li { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
 .woocommerce-checkout-fresh #payment ul.payment_methods li > input.input-radio { position: absolute; top: 17px; left: 16px; width: 20px !important; height: 20px; margin: 0; padding: 0; accent-color: #2563eb; z-index: 1; cursor: pointer; }
 .woocommerce-checkout-fresh #payment ul.payment_methods li:has(input:checked) { border-color: #dc2626; border-width: 2px; box-shadow: 0 4px 16px rgba(220,38,38,.15); }
