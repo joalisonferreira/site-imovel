@@ -55,12 +55,15 @@ jQuery(function($){
         items.forEach(function (item) {
             html += '' +
                 '<div class="form-group mb-2 ipc-acceptance-item" data-acceptance-key="' + escapeHtml(item.key) + '">' +
-                    '<label class="control control--checkbox ipc-acceptance-label" style="font-weight:400;">' +
-                        '<input type="checkbox" name="imovel_parceiro_acceptance[' + escapeHtml(item.key) + ']" value="1" class="imovel-parceiro-acceptance-checkbox" data-short="' + escapeHtml(item.short) + '" required> ' +
-                        '<span class="ipc-acceptance-short">' + escapeHtml(item.short) + '</span>' +
-                        '<span class="control__indicator"></span>' +
-                    '</label>' +
-                    '<details class="ipc-acceptance-details"><summary>' + escapeHtml(detailsLabel) + '</summary><p>' + escapeHtml(item.full) + '</p></details>' +
+                    '<div class="ipc-acceptance-row">' +
+                        '<label class="ipc-acceptance-check">' +
+                            '<input type="checkbox" name="imovel_parceiro_acceptance[' + escapeHtml(item.key) + ']" value="1" class="imovel-parceiro-acceptance-checkbox" data-short="' + escapeHtml(item.short) + '" required>' +
+                            '<span class="ipc-acceptance-box" aria-hidden="true"></span>' +
+                            '<span class="ipc-acceptance-short">' + escapeHtml(item.short) + '</span>' +
+                        '</label>' +
+                        '<button type="button" class="ipc-acceptance-toggle" aria-expanded="false">' + escapeHtml(detailsLabel) + '</button>' +
+                    '</div>' +
+                    '<div class="ipc-acceptance-full" hidden><p>' + escapeHtml(item.full) + '</p></div>' +
                 '</div>';
         });
         html += '' +
@@ -108,6 +111,7 @@ jQuery(function($){
 
         $form.find('.imovel-parceiro-acceptance-checkbox').prop('checked', true);
         $form.data('imovel-parceiro-acceptance-prefilled', true);
+        updateAcceptanceProgress();
     }
 
     function hasAllAcceptances($scope) {
@@ -582,6 +586,17 @@ jQuery(function($){
         $(document).on('change', '#submit_property_form .imovel-parceiro-acceptance-checkbox', function(){
             $(this).closest('.ipc-acceptance-item').removeClass('is-missing');
             syncAcceptanceSubmitState();
+        });
+
+        $(document).on('click', '#submit_property_form .ipc-acceptance-toggle', function(e){
+            e.preventDefault();
+            var $btn = $(this);
+            var $item = $btn.closest('.ipc-acceptance-item');
+            var $full = $item.find('.ipc-acceptance-full');
+            var open = !!$full.prop('hidden');
+            $full.prop('hidden', !open);
+            $btn.attr('aria-expanded', open ? 'true' : 'false');
+            $item.toggleClass('is-open', open);
         });
     }
 
