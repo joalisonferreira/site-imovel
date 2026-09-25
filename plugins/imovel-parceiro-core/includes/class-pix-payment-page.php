@@ -95,25 +95,50 @@ class Imovel_Parceiro_Pix_Payment_Page {
      */
     public static function extract_pix( $order ) {
         $out  = array( 'payload' => '', 'image_src' => '', 'expires' => '' );
-        $meta = $order->get_meta( '__ASAAS_ORDER' );
-        if ( empty( $meta ) || ! is_array( $meta ) ) {
+        if ( ! is_object( $order ) || ! method_exists( $order, 'get_meta' ) ) {
             return $out;
         }
-        if ( ! empty( $meta['qrcode'] ) ) {
-            $out['payload'] = (string) $meta['qrcode'];
+        // O meta __ASAAS_ORDER do woo-asaas é uma string JSON que decodifica
+        // para objeto com payload (copia-e-cola), encodedImage (QR em base64)
+        // e expirationDate — mesmos campos lidos pelo painel do dashboard
+        // (extract_asaas_meta). Mantém os nomes legados qrcode* como fallback.
+        $raw = $order->get_meta( '__ASAAS_ORDER' );
+        if ( '' === (string) $raw ) {
+            return $out;
         }
-        if ( ! empty( $meta['qrcode_image'] ) ) {
-            $raw = trim( (string) $meta['qrcode_image'] );
-            if ( 0 === strpos( $raw, 'data:' ) || 0 === strpos( $raw, 'http' ) ) {
-                $out['image_src'] = $raw;
+        if ( is_array( $raw ) ) {
+            $data = (object) $raw;
+        } elseif ( is_object( $raw ) ) {
+            $data = $raw;
+        } else {
+            $data = json_decode( (string) $raw );
+        }
+        if ( ! is_object( $data ) && ! is_array( $data ) ) {
+            return $out;
+        }
+        $data = (object) $data;
+        if ( ! empty( $data->payload ) ) {
+            $out['payload'] = (string) $data->payload; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        } elseif ( ! empty( $data->qrcode ) ) {
+            $out['payload'] = (string) $data->qrcode;
+        }
+        $qr_raw = '';
+        if ( ! empty( $data->encodedImage ) ) {
+            $qr_raw = trim( (string) $data->encodedImage ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        } elseif ( ! empty( $data->qrcode_image ) ) {
+            $qr_raw = trim( (string) $data->qrcode_image );
+        }
+        if ( '' !== $qr_raw ) {
+            if ( 0 === strpos( $qr_raw, 'data:' ) || 0 === strpos( $qr_raw, 'http' ) ) {
+                $out['image_src'] = $qr_raw;
             } else {
-                $out['image_src'] = 'data:image/png;base64,' . preg_replace( '/\s+/', '', $raw );
+                $out['image_src'] = 'data:image/png;base64,' . preg_replace( '/\s+/', '', $qr_raw );
             }
         }
-        if ( ! empty( $meta['qrcode_expiration_date'] ) ) {
-            $out['expires'] = (string) $meta['qrcode_expiration_date'];
-        } elseif ( ! empty( $meta['expirationDate'] ) ) {
-            $out['expires'] = (string) $meta['expirationDate'];
+        if ( ! empty( $data->expirationDate ) ) {
+            $out['expires'] = (string) $data->expirationDate; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        } elseif ( ! empty( $data->qrcode_expiration_date ) ) {
+            $out['expires'] = (string) $data->qrcode_expiration_date;
         }
         return $out;
     }
