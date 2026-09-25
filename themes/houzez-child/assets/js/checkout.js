@@ -26,14 +26,18 @@
       if(pfBtn) pfBtn.addEventListener('click', function(){ sel.value='1'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
       if(pjBtn) pjBtn.addEventListener('click', function(){ sel.value='2'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
     }
-    // Coupon toggle (usa .showcoupon nativo mas também expande container)
-    var couponToggle = document.querySelector('.showcoupon');
+    // Coupon toggle (classe própria p/ não conflitar com o handler nativo do Woo)
+    var couponToggle = document.querySelector('.ipc-showcoupon');
     var couponForm = document.querySelector('form.checkout_coupon');
     if(couponToggle && couponForm){
       couponToggle.addEventListener('click', function(e){
         e.preventDefault();
-        couponForm.classList.toggle('hidden');
-        couponForm.classList.toggle('!block');
+        var isHidden = couponForm.style.display === 'none' || getComputedStyle(couponForm).display === 'none';
+        couponForm.style.display = isHidden ? 'block' : 'none';
+        if(isHidden){
+          var input = couponForm.querySelector('input[name="coupon_code"]');
+          if(input) input.focus();
+        }
       });
     }
   });

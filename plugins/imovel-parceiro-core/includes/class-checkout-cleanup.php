@@ -154,7 +154,7 @@ class Imovel_Parceiro_Checkout_Cleanup {
 			'billing_country'       => array( 'wide', 40 ),
 			'billing_postcode'      => array( 'wide', 42 ),
 			'billing_address_1'     => array( 'wide', 50 ),
-			'billing_number'        => array( 'first', 55 ),
+			'billing_number'        => array( 'wide', 55 ),
 			'billing_address_2'     => array( 'last', 60 ),
 			'billing_neighborhood'  => array( 'first', 65 ),
 			'billing_city'          => array( 'last', 70 ),
@@ -166,7 +166,7 @@ class Imovel_Parceiro_Checkout_Cleanup {
 			'shipping_country'      => array( 'wide', 40 ),
 			'shipping_postcode'     => array( 'wide', 42 ),
 			'shipping_address_1'    => array( 'wide', 50 ),
-			'shipping_number'       => array( 'first', 55 ),
+			'shipping_number'       => array( 'wide', 55 ),
 			'shipping_address_2'    => array( 'last', 60 ),
 			'shipping_neighborhood' => array( 'first', 65 ),
 			'shipping_city'         => array( 'last', 70 ),
@@ -219,6 +219,9 @@ class Imovel_Parceiro_Checkout_Cleanup {
 		if ( isset( $fields['billing']['billing_email'] ) ) {
 			$fields['billing']['billing_email']['description'] = esc_html__( 'O comprovante e credenciais serão enviados para este endereço.', 'imovel-parceiro-core' );
 		}
+
+		// Complemento desativado: endereço usa só Rua + Número.
+		unset( $fields['billing']['billing_address_2'], $fields['shipping']['shipping_address_2'] );
 
 		return $fields;
 	}

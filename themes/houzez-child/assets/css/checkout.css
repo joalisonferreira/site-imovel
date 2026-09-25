@@ -32,8 +32,8 @@ body.woocommerce-checkout .breadcrumb-wrap {
 .woocommerce-checkout-fresh #billing_country_field, .woocommerce-checkout-fresh #shipping_country_field { grid-column: span 12 / span 12; }
 .woocommerce-checkout-fresh #billing_postcode_field, .woocommerce-checkout-fresh #shipping_postcode_field { grid-column: span 12 / span 12; }
 .woocommerce-checkout-fresh #billing_address_1_field, .woocommerce-checkout-fresh #shipping_address_1_field { grid-column: span 12 / span 12; }
-.woocommerce-checkout-fresh #billing_number_field, .woocommerce-checkout-fresh #shipping_number_field { grid-column: span 6 / span 6; }
-.woocommerce-checkout-fresh #billing_address_2_field, .woocommerce-checkout-fresh #shipping_address_2_field { grid-column: span 6 / span 6; }
+.woocommerce-checkout-fresh #billing_number_field, .woocommerce-checkout-fresh #shipping_number_field { grid-column: span 12 / span 12; }
+.woocommerce-checkout-fresh #billing_address_2_field, .woocommerce-checkout-fresh #shipping_address_2_field { display: none !important; }
 .woocommerce-checkout-fresh #billing_neighborhood_field, .woocommerce-checkout-fresh #shipping_neighborhood_field,
 .woocommerce-checkout-fresh #billing_city_field, .woocommerce-checkout-fresh #shipping_city_field { grid-column: span 6 / span 6; }
 .woocommerce-checkout-fresh #billing_state_field, .woocommerce-checkout-fresh #shipping_state_field { grid-column: span 12 / span 12; }
@@ -60,9 +60,10 @@ body.woocommerce-checkout .breadcrumb-wrap {
 .woocommerce-checkout-fresh #order_review .shop_table th, .woocommerce-checkout-fresh #order_review .shop_table td { border-top: 1px solid #f1f5f9; padding: 12px 8px; }
 .woocommerce-checkout-fresh #order_review .shop_table thead th { border-top: none; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
 .woocommerce-checkout-fresh #payment ul.payment_methods { list-style: none; padding: 0; margin: 0; border: none; }
-.woocommerce-checkout-fresh #payment ul.payment_methods li { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+.woocommerce-checkout-fresh #payment ul.payment_methods li { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+.woocommerce-checkout-fresh #payment ul.payment_methods li > input.input-radio { position: absolute; top: 17px; left: 16px; width: 20px !important; height: 20px; margin: 0; padding: 0; accent-color: #2563eb; z-index: 1; cursor: pointer; }
 .woocommerce-checkout-fresh #payment ul.payment_methods li:has(input:checked) { border-color: #dc2626; border-width: 2px; box-shadow: 0 4px 16px rgba(220,38,38,.15); }
-.woocommerce-checkout-fresh #payment ul.payment_methods li > label { display: flex; align-items: center; gap: 10px; padding: 14px 16px; font-weight: 700; cursor: pointer; }
+.woocommerce-checkout-fresh #payment ul.payment_methods li > label { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 48px !important; font-weight: 700; cursor: pointer; margin: 0; }
 .woocommerce-checkout-fresh #payment div.payment_box { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 16px; font-size: 13px; color: #334155; }
 .woocommerce-checkout-fresh #payment div.payment_box::before { display: none; }
 .woocommerce-checkout-fresh #place_order { width: 100%; background: linear-gradient(to right, #dc2626, #b91c1c) !important; color: #fff !important; border: none !important; border-radius: 12px !important; padding: 16px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 20px 40px -12px rgba(220,38,38,.4) !important; }
