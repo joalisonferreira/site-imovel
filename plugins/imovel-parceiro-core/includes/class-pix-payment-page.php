@@ -260,7 +260,15 @@ class Imovel_Parceiro_Pix_Payment_Page {
      */
     private function render_page( $order, $pix, $is_paid, $plan_name ) {
         $amount       = $order->get_formatted_order_total();
-        $expires_iso  = $pix['expires'] ? gmdate( 'c', strtotime( $pix['expires'] ) ) : '';
+        // Timestamp real da expiração; se inválido ou já passado, esconde o
+        // contador (antes, um strtotime(false) gerava data de 1970 e o
+        // contador nascia "expirado").
+        $expires_ts   = $pix['expires'] ? (int) strtotime( $pix['expires'] ) : 0;
+        if ( $expires_ts <= time() ) {
+            $expires_ts = 0;
+        }
+        $expires_iso  = $expires_ts ? gmdate( 'c', $expires_ts ) : '';
+        $expires_br   = $expires_ts ? date_i18n( 'd/m/Y H:i', $expires_ts ) : '';
         $dashboard    = self::get_dashboard_url();
         $ajax_url     = admin_url( 'admin-ajax.php' );
         $nonce        = wp_create_nonce( self::NONCE_ACTION );
@@ -272,6 +280,7 @@ class Imovel_Parceiro_Pix_Payment_Page {
             'orderKey'  => $order->get_order_key(),
             'pollMs'    => self::POLL_MS,
             'expires'   => $expires_iso,
+            'expiresBr' => $expires_br,
             'redirect'  => $dashboard,
             'i18n'      => array(
                 'waiting'   => __( 'Aguardando pagamento…', 'imovel-parceiro-core' ),
@@ -279,6 +288,10 @@ class Imovel_Parceiro_Pix_Payment_Page {
                 'expired'   => __( 'QR Code expirado. Gere uma nova cobrança no dashboard.', 'imovel-parceiro-core' ),
                 'copy'      => __( 'Copiar código', 'imovel-parceiro-core' ),
                 'copied'    => __( 'Código copiado!', 'imovel-parceiro-core' ),
+                'expiresIn' => __( 'O código expira em', 'imovel-parceiro-core' ),
+                'validUntil'=> __( 'Válido até', 'imovel-parceiro-core' ),
+                'days'      => __( 'dias', 'imovel-parceiro-core' ),
+                'day'       => __( 'dia', 'imovel-parceiro-core' ),
             ),
         );
         ?>
@@ -306,6 +319,8 @@ class Imovel_Parceiro_Pix_Payment_Page {
                 .imovel-pix-copy{white-space:nowrap;background:#6366f1;color:#fff;border:0;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer;}
                 .imovel-pix-meta{color:#64748b;font-size:14px;margin:6px 0;}
                 .imovel-pix-count{font-weight:700;color:#dc2626;}
+                .imovel-pix-count.urgent{animation:imovel-pix-urgent 1s infinite;}
+                @keyframes imovel-pix-urgent{0%,100%{opacity:1}50%{opacity:.45}}
                 .imovel-pix-actions{margin-top:20px;display:flex;flex-direction:column;gap:10px;}
                 .imovel-pix-btn{display:block;border-radius:10px;padding:13px;font-weight:700;text-decoration:none;cursor:pointer;border:0;font-size:15px;}
                 .imovel-pix-btn.primary{background:#6366f1;color:#fff;}
@@ -389,10 +404,15 @@ class Imovel_Parceiro_Pix_Payment_Page {
                 }
 
                 // Contagem regressiva da expiração.
+                // Formatos: >= 2 dias mostra "Válido até dd/mm/aaaa HH:mm (N dias)";
+                // abaixo disso, relógio HH:MM:SS (ou MM:SS na última hora, com
+                // destaque pulsante nos últimos 15 minutos).
                 var expiresAt = cfg.expires ? new Date(cfg.expires).getTime() : 0;
                 var cdWrap = document.getElementById('imovel-pix-countdown-wrap');
                 var cdEl = document.getElementById('imovel-pix-countdown');
                 var expired = false;
+                function pad(n){ return ('0' + n).slice(-2); }
+                function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
                 function tick(){
                     if (!expiresAt || expired) return;
                     var diff = expiresAt - Date.now();
@@ -404,8 +424,18 @@ class Imovel_Parceiro_Pix_Payment_Page {
                         stop();
                         return;
                     }
-                    var h = Math.floor(diff / 3600000), m = Math.floor(diff % 3600000 / 60000), s = Math.floor(diff % 60000 / 1000);
-                    if (cdEl) cdEl.textContent = (h > 0 ? h + ':' : '') + ('0' + m).slice(-2) + ':' + ('0' + s).slice(-2);
+                    var totalS = Math.floor(diff / 1000);
+                    var d = Math.floor(totalS / 86400),
+                        h = Math.floor(totalS % 86400 / 3600),
+                        m = Math.floor(totalS % 3600 / 60),
+                        s = totalS % 60;
+                    if (!cdWrap) return;
+                    if (d >= 2) {
+                        cdWrap.innerHTML = esc(cfg.i18n.validUntil) + ' <strong>' + esc(cfg.expiresBr || '') + '</strong> (' + d + ' ' + esc(cfg.i18n.days) + ')';
+                    } else {
+                        var clock = (d > 0 ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+                        cdWrap.innerHTML = esc(cfg.i18n.expiresIn) + ' <span class="imovel-pix-count' + (totalS < 900 ? ' urgent' : '') + '">' + esc(clock) + '</span>';
+                    }
                 }
                 if (expiresAt) { tick(); setInterval(tick, 1000); } else if (cdWrap) { cdWrap.style.display = 'none'; }
 
