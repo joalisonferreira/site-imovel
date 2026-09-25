@@ -57,7 +57,7 @@ body.woocommerce-checkout .breadcrumb-wrap {
 .woocommerce-checkout-fresh .woocommerce-additional-fields__field-wrapper .form-row { grid-column: span 12 / span 12 !important; }
 .woocommerce-checkout-fresh .woocommerce-additional-fields__field-wrapper textarea { min-height: 96px; }
 .woocommerce-checkout-fresh form.checkout #order_review,
-.woocommerce-checkout-fresh form.checkout #order_review_heading { width: 100% !important; float: none !important; padding-left: 0 !important; margin-left: 0 !important; }
+.woocommerce-checkout-fresh form.checkout #order_review_heading { width: 100% !important; float: none !important; margin-left: 0 !important; padding-right: 30px !important; padding-left: 30px !important; }
 .woocommerce-checkout-fresh #order_review .shop_table { border: none; margin-bottom: 16px; font-size: 14px; width: 100%; }
 .woocommerce-checkout-fresh #order_review .shop_table th, .woocommerce-checkout-fresh #order_review .shop_table td { border-top: 1px solid #f1f5f9; padding: 12px 8px; }
 .woocommerce-checkout-fresh #order_review .shop_table thead th { border-top: none; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
