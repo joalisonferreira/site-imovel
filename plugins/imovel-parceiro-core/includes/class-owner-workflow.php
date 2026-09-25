@@ -410,7 +410,7 @@ class Imovel_Parceiro_Owner_Workflow {
 
         $role = get_role( self::ROLE_PROPRIETARIO );
         if ( ! $role ) {
-            add_role( self::ROLE_PROPRIETARIO, __( 'Owner', 'imovel-parceiro-core' ), $caps );
+            add_role( self::ROLE_PROPRIETARIO, __( 'Proprietário', 'imovel-parceiro-core' ), $caps );
             return;
         }
 
