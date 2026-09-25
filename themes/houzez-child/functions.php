@@ -740,11 +740,19 @@ function houzez_child_is_packages_page() {
 }
 
 /**
- * Enfileira o CSS premium do checkout (apenas no checkout).
- * DESATIVADO: checkout voltou ao padrão WooCommerce (solicitação 2026-09-25).
+ * Enfileira layout fresco do checkout (stitch code.html) — Tailwind CDN + CSS/JS novos.
+ * Não reutiliza checkout antigo.
  */
 function houzez_child_enqueue_checkout_assets() {
-    return;
+    if ( ! function_exists('is_checkout') || ! is_checkout() ) return;
+
+    // Tailwind CDN + plugins forms/container-queries
+    wp_enqueue_script('tailwind-cdn', 'https://cdn.tailwindcss.com?plugins=forms,container-queries', array(), null, false);
+    wp_add_inline_script('tailwind-cdn', "tailwind.config={theme:{extend:{fontFamily:{sans:['\"Plus Jakarta Sans\"','\"Inter\"','sans-serif'],mono:['ui-monospace','SFMono-Regular','Menlo','monospace']},colors:{brand:{50:'#fef2f2',100:'#fee2e2',500:'#ef4444',600:'#dc2626',700:'#b91c1c',800:'#991b1b',900:'#7f1d1d'},navy:{900:'#0f172a',950:'#020617'}},boxShadow:{subtle:'0 2px 8px -2px rgba(15,23,42,0.05), 0 1px 4px -1px rgba(15,23,42,0.03)',card:'0 12px 32px -8px rgba(15,23,42,0.06), 0 4px 12px -2px rgba(15,23,42,0.03)',elevated:'0 20px 40px -12px rgba(220,38,38,0.25)'}}}}");
+
+    wp_enqueue_style('houzez-child-checkout', get_stylesheet_directory_uri().'/assets/css/checkout.css', array(), filemtime(get_stylesheet_directory().'/assets/css/checkout.css'));
+    wp_enqueue_script('houzez-child-checkout', get_stylesheet_directory_uri().'/assets/js/checkout.js', array(), filemtime(get_stylesheet_directory().'/assets/js/checkout.js'), true);
+    wp_enqueue_style('houzez-child-checkout-fonts', 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap', array(), null);
 }
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_checkout_assets', 100 );
 

@@ -1,41 +1,40 @@
-/* Checkout: controle segmentado PF/PJ espelha o select nativo. */
-(function () {
-  'use strict';
-
-  function syncToggle() {
-    var select = document.getElementById('billing_persontype');
-    if (!select) {
-      return;
+/* Fresh checkout — stitch interactivity. Não reutiliza código antigo. */
+(function(){
+  function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+  ready(function(){
+    var pfBtn = document.getElementById('ipc-tab-pf');
+    var pjBtn = document.getElementById('ipc-tab-pj');
+    var sel = document.getElementById('billing_persontype');
+    function sync(v){
+      var isPJ = v==='2';
+      if(pfBtn) {
+        pfBtn.classList.toggle('bg-white', !isPJ);
+        pfBtn.classList.toggle('shadow-sm', !isPJ);
+        pfBtn.classList.toggle('font-bold', !isPJ);
+        pfBtn.classList.toggle('text-slate-900', !isPJ);
+      }
+      if(pjBtn){
+        pjBtn.classList.toggle('bg-white', isPJ);
+        pjBtn.classList.toggle('shadow-sm', isPJ);
+        pjBtn.classList.toggle('font-bold', isPJ);
+        pjBtn.classList.toggle('text-slate-900', isPJ);
+      }
     }
-    var value = select.value === '2' ? '2' : '1';
-    document.querySelectorAll('.ipc-co-persontype__btn').forEach(function (btn) {
-      var active = btn.getAttribute('data-person-type') === value;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-  }
-
-  function bind() {
-    var select = document.getElementById('billing_persontype');
-    if (!select || select.dataset.ipcBound) {
-      syncToggle();
-      return;
+    if(sel){
+      sel.addEventListener('change', function(){ sync(sel.value); });
+      sync(sel.value);
+      if(pfBtn) pfBtn.addEventListener('click', function(){ sel.value='1'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
+      if(pjBtn) pjBtn.addEventListener('click', function(){ sel.value='2'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
     }
-    select.dataset.ipcBound = '1';
-
-    document.querySelectorAll('.ipc-co-persontype__btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        select.value = btn.getAttribute('data-person-type');
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        syncToggle();
+    // Coupon toggle (usa .showcoupon nativo mas também expande container)
+    var couponToggle = document.querySelector('.showcoupon');
+    var couponForm = document.querySelector('form.checkout_coupon');
+    if(couponToggle && couponForm){
+      couponToggle.addEventListener('click', function(e){
+        e.preventDefault();
+        couponForm.classList.toggle('hidden');
+        couponForm.classList.toggle('!block');
       });
-    });
-
-    select.addEventListener('change', syncToggle);
-    syncToggle();
-  }
-
-  document.addEventListener('DOMContentLoaded', bind);
-  document.addEventListener('updated_checkout', bind);
-  bind();
+    }
+  });
 })();
