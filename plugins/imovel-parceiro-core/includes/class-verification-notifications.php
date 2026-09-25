@@ -33,9 +33,7 @@ class Imovel_Parceiro_Verification_Notifications {
 
         // Item 4: CRECI document type + required for corretores.
         add_filter( 'houzez_verification_document_types', array( $this, 'add_creci_document_type' ), 20, 1 );
-        add_filter( 'houzez_verification_document_types', array( $this, 'restrict_document_types_for_brokers' ), 30, 1 );
         add_action( 'houzez_before_verification_request', array( $this, 'require_creci_for_agents' ), 20, 2 );
-        add_action( 'houzez_before_additional_info_submission', array( $this, 'require_creci_for_agents' ), 20, 2 );
     }
 
     /**
@@ -281,125 +279,6 @@ class Imovel_Parceiro_Verification_Notifications {
     }
 
     /**
-     * Mirror a dashboard decision (approve/reject/additional_info/revoke)
-     * into the theme's verification history and agent/agency post flag.
-     *
-     * The dashboard management screen updates verification metas directly,
-     * bypassing the theme flow that normally records these side effects.
-     * Entry format, filters and actions mirror Houzez_User_Verification.
-     *
-     * @param int    $user_id Target user.
-     * @param string $action  approve|reject|additional_info|revoke.
-     * @param string $notes   Justification/details.
-     */
-    public static function record_dashboard_history( $user_id, $action, $notes = '' ) {
-        $user_id = absint( $user_id );
-        if ( ! $user_id ) {
-            return;
-        }
-
-        $notes = is_string( $notes ) ? trim( $notes ) : '';
-
-        switch ( $action ) {
-            case 'approve':
-                $status = 'approved';
-                $note_token = 'verification_approved';
-                $note_args = array();
-                $agent_flag = 1;
-                break;
-            case 'reject':
-                $status = 'rejected';
-                $note_token = '' !== $notes ? 'custom_rejection' : 'verification_rejected';
-                $note_args = '' !== $notes ? array( $notes ) : array();
-                $agent_flag = 0;
-                break;
-            case 'additional_info':
-                $status = 'additional_info_required';
-                $note_token = '' !== $notes ? 'custom_additional_info' : 'additional_info_requested';
-                $note_args = '' !== $notes ? array( $notes ) : array();
-                $agent_flag = null;
-                break;
-            case 'revoke':
-                $status = 'rejected';
-                $note_token = 'verification_revoked';
-                $note_args = array();
-                $agent_flag = 0;
-                break;
-            default:
-                return;
-        }
-
-        do_action( 'houzez_before_add_verification_history', $user_id, $status, $note_token, $note_args );
-
-        $history = get_user_meta( $user_id, 'houzez_verification_history', true );
-        if ( ! is_array( $history ) ) {
-            $history = array();
-        }
-
-        $user = get_userdata( $user_id );
-        $admin_user = wp_get_current_user();
-
-        $context = '';
-        if ( 'pending' === $status ) {
-            $context = sprintf( __( 'Submitted by %s', 'houzez' ), $user ? $user->display_name : '' );
-        } elseif ( current_user_can( 'manage_options' ) && $admin_user && (int) $admin_user->ID !== $user_id ) {
-            $context = sprintf( __( 'Processed by %s', 'houzez' ), $admin_user->display_name );
-        }
-
-        $verification_data = get_user_meta( $user_id, 'houzez_verification_data', true );
-        $document_type = '';
-        if ( ! empty( $verification_data ) && is_array( $verification_data ) ) {
-            $document_type = isset( $verification_data['document_type'] ) ? $verification_data['document_type'] : '';
-        }
-
-        $entry = array(
-            'status' => $status,
-            'date' => current_time( 'mysql' ),
-            'note_token' => $note_token,
-            'args' => $note_args,
-            'context' => $context,
-            'document_type' => $document_type,
-        );
-
-        $entry = apply_filters( 'houzez_verification_history_entry', $entry, $user_id, $status, $verification_data );
-        $history[] = $entry;
-        $history = apply_filters( 'houzez_verification_history_array', $history, $user_id, $entry );
-        update_user_meta( $user_id, 'houzez_verification_history', $history );
-        do_action( 'houzez_after_add_verification_history', $user_id, $status, $entry, $history );
-
-        if ( null !== $agent_flag ) {
-            self::sync_agent_post_verification( $user_id, $agent_flag );
-        }
-    }
-
-    /**
-     * Mirror of the theme's agent/agency post verified flag.
-     *
-     * @param int $user_id Target user.
-     * @param int $status  1 = verified, 0 = not verified.
-     */
-    public static function sync_agent_post_verification( $user_id, $status = 0 ) {
-        $user = get_userdata( absint( $user_id ) );
-        if ( ! $user ) {
-            return;
-        }
-
-        $post_id = false;
-        $prefix = '';
-        if ( array_intersect( array( 'houzez_agent', 'author' ), (array) $user->roles ) ) {
-            $post_id = get_user_meta( $user->ID, 'fave_author_agent_id', true );
-            $prefix = 'fave_agent_';
-        } elseif ( in_array( 'houzez_agency', (array) $user->roles, true ) ) {
-            $post_id = get_user_meta( $user->ID, 'fave_author_agency_id', true );
-            $prefix = 'fave_agency_';
-        }
-
-        if ( $post_id && get_post( $post_id ) ) {
-            update_post_meta( $post_id, $prefix . 'verified', absint( $status ) ? 1 : 0 );
-        }
-    }
-
-    /**
      * Item 4: register the CRECI (carteira) document type.
      */
     public function add_creci_document_type( $document_types ) {
@@ -410,41 +289,19 @@ class Imovel_Parceiro_Verification_Notifications {
         if ( ! isset( $document_types['creci'] ) ) {
             $document_types['creci'] = array(
                 'label'         => __( 'CRECI (Carteira profissional)', 'imovel-parceiro-core' ),
-                'requires_back' => false,
+                'requires_back' => true,
             );
-        } else {
-            $document_types['creci']['requires_back'] = false;
         }
 
         return $document_types;
     }
 
     /**
-     * Corretores e imobiliárias veem somente o CRECI no seletor de documento.
-     */
-    public function restrict_document_types_for_brokers( $document_types ) {
-        if ( ! is_array( $document_types ) || ! isset( $document_types['creci'] ) ) {
-            return $document_types;
-        }
-
-        if ( ! is_user_logged_in() ) {
-            return $document_types;
-        }
-
-        $roles = (array) wp_get_current_user()->roles;
-        if ( array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles ) ) {
-            return array( 'creci' => $document_types['creci'] );
-        }
-
-        return $document_types;
-    }
-
-    /**
-     * Item 4: corretores e imobiliárias must submit the CRECI document type.
+     * Item 4: corretores must submit the CRECI document type.
      */
     public function require_creci_for_agents( $user_id, $post_data = array() ) {
         $user = get_userdata( $user_id );
-        if ( ! $user || ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $user->roles ) ) {
+        if ( ! $user || ! in_array( 'houzez_agent', (array) $user->roles, true ) ) {
             return;
         }
 
@@ -453,7 +310,7 @@ class Imovel_Parceiro_Verification_Notifications {
         if ( 'creci' !== $document_type ) {
             wp_send_json_error(
                 array(
-                    'message' => __( 'Corretores e imobiliárias devem enviar a carteira do CRECI para verificação.', 'imovel-parceiro-core' ),
+                    'message' => __( 'Corretores devem enviar a carteira do CRECI para verificação.', 'imovel-parceiro-core' ),
                 )
             );
         }

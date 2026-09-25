@@ -1128,7 +1128,6 @@ class Imovel_Parceiro_Partnerships {
         $message_note = ! empty( $context['message'] ) ? $context['message'] : '';
         $reason_note = ! empty( $context['reason'] ) ? $context['reason'] : '';
 
-        $email_jobs = array();
         foreach ( $recipients as $recipient_email ) {
             $recipient_role = 'admin';
             $recipient_name = __( 'Administrador', 'imovel-parceiro-core' );
@@ -1189,20 +1188,7 @@ class Imovel_Parceiro_Partnerships {
             $message = implode( "\n", $template );
             $message = apply_filters( 'imovel_parceiro_partnership_email_message', $message, $action, $context, $recipient_email );
 
-            $email_jobs[] = array(
-                'to' => $recipient_email,
-                'subject' => $subject,
-                'body' => $message,
-            );
-        }
-
-        // Emails go out after the HTTP response (SMTP is slow); in-app first.
-        if ( class_exists( 'Imovel_Parceiro_Mailer' ) ) {
-            Imovel_Parceiro_Mailer::defer( $email_jobs, array( 'Imovel_Parceiro_Mailer', 'send_via_houzez' ) );
-        } else {
-            foreach ( $email_jobs as $job ) {
-                $this->send_email_using_houzez_config( $job['to'], $job['subject'], $job['body'] );
-            }
+            $this->send_email_using_houzez_config( $recipient_email, $subject, $message );
         }
 
         $this->send_in_app_notifications( $action, $context );
@@ -1419,14 +1405,6 @@ class Imovel_Parceiro_Partnerships {
         }
 
         $user_id = get_current_user_id();
-        // Cliente nunca vê modal de parceria
-        if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $user_id ) ) {
-            return;
-        }
-        $u = get_userdata( $user_id );
-        if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) && ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
-            return;
-        }
         $owner_id = $this->get_property_owner_user_id( $property_id );
 
         // The property owner (and the responsible broker) cannot request a

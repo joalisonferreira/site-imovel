@@ -17,8 +17,3 @@ Template: houzez
 
 /* Your CSS code goes here
 -------------------------------------- */
-
-/* Oculta o endereço completo nos cards de imóveis (layout v1). */
-.item-listing-wrap.item-wrap-v1.hz-item-gallery-js.hz-map-trigger.houzez-gallery-loaded .item-address.mb-2 {
-    display: none !important;
-}

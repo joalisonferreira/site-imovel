@@ -186,7 +186,7 @@
             html += '<span class="ipcw-btn__icon">' + whatsappIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
             html += '<span class="ipcw-btn__title">' + (IPCW.strings ? IPCW.strings.wa_login : 'Faça login para ver o contato') + '</span>';
-            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Entre na sua conta para falar com o corretor.') + '</span>';
+            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Entre na sua conta Houzez para falar com o corretor.') + '</span>';
             html += '</span></button>';
         } else {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
@@ -197,8 +197,8 @@
             html += '</span></button>';
         }
 
-        // Partnership action. Hidden for the property owner (cannot partner with self) and for clients (houzez_buyer).
-        if (!req.is_owner && !req.is_client) {
+        // Partnership action. Hidden for the property owner (cannot partner with self).
+        if (!req.is_owner) {
             if (ps.exists) {
             var badgeCls = statusBadgeClass(ps.status);
             html += '<div class="ipcw-btn ipcw-btn--partnership">';
@@ -394,9 +394,6 @@
 
     function maybeInjectListingButtons() {
         if (IPCW.is_single || !IPCW.is_listing) {
-            return;
-        }
-        if (IPCW.is_client) {
             return;
         }
         setTimeout(function () {

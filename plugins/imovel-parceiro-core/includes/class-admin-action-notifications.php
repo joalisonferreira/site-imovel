@@ -65,42 +65,18 @@ class Imovel_Parceiro_Admin_Action_Notifications {
 
         $user = get_userdata( $owner_id );
         if ( $user && is_email( $user->user_email ) ) {
-            $mail_args = array(
-                'listing_title' => $property_title,
-                'listing_url'   => $url ? $url : IPC_Notifications::get_dashboard_url(),
-            );
-
-            if ( function_exists( 'houzez_email_type' ) ) {
-                // Usa o mesmo template editável (Houzez → E-mails) do caminho
-                // nativo do tema: uma única fonte de conteúdo para o evento,
-                // em qualquer tela de aprovação. Suspende a notificação in-app
-                // duplicada (a nossa, com CTA, já foi enviada acima).
-                $hook = 'houzez_send_notification';
-                $callback = class_exists( 'IPC_Notifications' )
-                    ? array( IPC_Notifications::instance(), 'notify_houzez_message' )
-                    : null;
-
-                if ( $callback ) {
-                    remove_action( $hook, $callback, 20 );
-                }
-                houzez_email_type( $user->user_email, $approved ? 'listing_approved' : 'listing_disapproved', $mail_args );
-                if ( $callback ) {
-                    add_action( $hook, $callback, 20, 1 );
-                }
-            } else {
-                $subject = '[' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) . '] ' . $title;
-                $args    = array( 'title' => $title );
-                if ( $approved && $url ) {
-                    $args['cta_url']  = $url;
-                    $args['cta_text'] = __( 'Ver imóvel', 'imovel-parceiro-core' );
-                }
-                Imovel_Parceiro_Email_Template::send(
-                    $user->user_email,
-                    $subject,
-                    Imovel_Parceiro_Email_Template::text_to_html( $message ),
-                    $args
-                );
+            $subject = '[' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) . '] ' . $title;
+            $args    = array( 'title' => $title );
+            if ( $approved && $url ) {
+                $args['cta_url']  = $url;
+                $args['cta_text'] = __( 'Ver imóvel', 'imovel-parceiro-core' );
             }
+            Imovel_Parceiro_Email_Template::send(
+                $user->user_email,
+                $subject,
+                Imovel_Parceiro_Email_Template::text_to_html( $message ),
+                $args
+            );
         }
     }
 }

@@ -1,16 +1,4 @@
 jQuery(function($){
-    // Cliente nunca vê botão de parceria (fallback global, além do PHP)
-    if (window.imovelParceiroCore && window.imovelParceiroCore.is_client) {
-        $('.imovel-parceiro-request-partnership, .imovel-parceiro-request-btn, #imovel-parceiro-partnership-modal').remove();
-        // Também esconde via CSS caso injetado depois
-        var style = document.createElement('style');
-        style.textContent = '.imovel-parceiro-request-partnership{display:none !important} #imovel-parceiro-partnership-modal{display:none !important}';
-        document.head.appendChild(style);
-    }
-    // Fallback IPCW is_client (do widget)
-    if (window.ipcwData && window.ipcwData.is_client) {
-        $('.imovel-parceiro-request-partnership').hide();
-    }
     function escapeHtml(value) {
         return $('<div/>').text(value == null ? '' : String(value)).html();
     }
@@ -996,11 +984,6 @@ jQuery(function($){
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        if (window.imovelParceiroCore && window.imovelParceiroCore.is_client) {
-            showFeedback('Parcerias são exclusivas para corretores e imobiliárias.', 'error');
-            return;
-        }
-
         if (partnershipRequestExists()) {
             showFeedback((window.imovelParceiroCore && imovelParceiroCore.messages && imovelParceiroCore.messages.request_exists)
                 ? imovelParceiroCore.messages.request_exists
@@ -1014,7 +997,7 @@ jQuery(function($){
     $(document).on('click', '.imovel-parceiro-view-contact', function(e){
         e.preventDefault();
         var partnershipStatus = $(this).data('partnership-status');
-        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating', 'contact_released', 'opportunity', 'visit', 'proposal']) === -1) {
+        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating']) === -1) {
             showFeedback('O contato ficará disponível após a aprovação da parceria.', 'error');
             return;
         }

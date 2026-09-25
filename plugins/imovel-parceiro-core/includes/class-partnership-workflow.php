@@ -816,28 +816,6 @@ class Imovel_Parceiro_Partnership_Workflow {
         return $label;
     }
 
-    /**
-     * Partnership table columns, cached per request (avoids SHOW COLUMNS
-     * round-trips on every transition).
-     *
-     * @return string[]
-     */
-    private static function partnership_columns() {
-        global $wpdb;
-
-        static $columns = null;
-        if ( null !== $columns ) {
-            return $columns;
-        }
-
-        $columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . self::partnerships_table() );
-        if ( ! is_array( $columns ) ) {
-            $columns = array();
-        }
-
-        return $columns;
-    }
-
     private function apply( $row, $current, $to_status, $user_id, $payload ) {
         global $wpdb;
         $table = self::partnerships_table();
@@ -845,8 +823,7 @@ class Imovel_Parceiro_Partnership_Workflow {
         $update = array( 'status' => $to_status );
         $format = array( '%s' );
 
-        $columns = self::partnership_columns();
-        $has_updated = in_array( 'updated_at', $columns, true );
+        $has_updated = in_array( 'updated_at', $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table ), true );
         $now = current_time( 'mysql' );
 
         if ( $has_updated ) {
@@ -854,12 +831,12 @@ class Imovel_Parceiro_Partnership_Workflow {
             $format[] = '%s';
         }
 
-        if ( self::ACCEPTED === $to_status && in_array( 'responded_at', $columns, true ) ) {
+        if ( self::ACCEPTED === $to_status && in_array( 'responded_at', $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table ), true ) ) {
             $update['responded_at'] = $now;
             $format[] = '%s';
         }
 
-        if ( self::NEGOTIATING === $to_status && in_array( 'negotiation_started_at', $columns, true ) ) {
+        if ( self::NEGOTIATING === $to_status && in_array( 'negotiation_started_at', $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table ), true ) ) {
             $update['negotiation_started_at'] = $now;
             $format[] = '%s';
         }
@@ -1377,25 +1354,11 @@ class Imovel_Parceiro_Partnership_Workflow {
         }
         $recipients = array_values( array_unique( array_filter( $recipients ) ) );
 
-        $email_jobs = array();
         foreach ( $recipients as $recipient ) {
-            $email_jobs[] = array(
-                'to' => $recipient,
-                'subject' => $subject,
-                'body' => $body,
-            );
-        }
-
-        // Funnel emails go out after the HTTP response (SMTP is slow).
-        if ( class_exists( 'Imovel_Parceiro_Mailer' ) ) {
-            Imovel_Parceiro_Mailer::defer( $email_jobs, array( 'Imovel_Parceiro_Mailer', 'send_via_houzez' ) );
-        } else {
-            foreach ( $email_jobs as $job ) {
-                try {
-                    self::send_plain_email( $job['to'], $job['subject'], $job['body'] );
-                } catch ( \Exception $e ) {
-                    // Mail failure must not undo the main operation.
-                }
+            try {
+                self::send_plain_email( $recipient, $subject, $body );
+            } catch ( \Exception $e ) {
+                // Mail failure must not undo the main operation.
             }
         }
     }

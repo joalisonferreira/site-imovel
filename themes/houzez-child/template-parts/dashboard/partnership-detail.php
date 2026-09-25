@@ -270,12 +270,12 @@ if ( $contact_released ) {
                             switch ( $a['kind'] ) {
                                 case 'accept': $btn_cls = 'btn-success'; break;
                                 case 'reject': $btn_cls = 'btn-danger'; break;
-        case 'negotiate': $btn_cls = 'btn-success'; break;
-        case 'release_contact': $btn_cls = 'btn-success'; break;
-        case 'opportunity': $btn_cls = 'btn-success'; break;
-        case 'interaction': $btn_cls = 'btn-outline-primary'; break;
-        case 'visit': $btn_cls = 'btn-success'; break;
-        case 'proposal': $btn_cls = 'btn-success'; break;
+                                case 'negotiate': $btn_cls = 'btn-primary'; break;
+                                case 'release_contact': $btn_cls = 'btn-primary'; break;
+                                case 'opportunity': $btn_cls = 'btn-primary'; break;
+                                case 'interaction': $btn_cls = 'btn-outline-primary'; break;
+                                case 'visit': $btn_cls = 'btn-primary'; break;
+                                case 'proposal': $btn_cls = 'btn-primary'; break;
                                 case 'won': $btn_cls = 'btn-success'; break;
                                 case 'lost': $btn_cls = 'btn-outline-danger'; break;
                             }
@@ -436,9 +436,9 @@ if ( $contact_released ) {
     <!-- Transition modals -->
     <div class="modal fade" id="ipc-funnel-accept" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><?php esc_html_e( 'Aceitar parceria', 'imovel-parceiro-core' ); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><?php esc_html_e( 'Confirmar o aceite desta parceria?', 'imovel-parceiro-core' ); ?></p></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Cancelar', 'imovel-parceiro-core' ); ?></button><button class="btn btn-success ipc-modal-go" data-to="accepted"><?php esc_html_e( 'Confirmar aceite', 'imovel-parceiro-core' ); ?></button></div></div></div></div>
 
-    <div class="modal fade" id="ipc-funnel-negotiate" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><?php esc_html_e( 'Iniciar negociação', 'imovel-parceiro-core' ); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><?php esc_html_e( 'A negociação desta parceria será iniciada. Continuar?', 'imovel-parceiro-core' ); ?></p></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Cancelar', 'imovel-parceiro-core' ); ?></button><button class="btn btn-success ipc-modal-go" data-to="negotiating"><?php esc_html_e( 'Confirmar', 'imovel-parceiro-core' ); ?></button></div></div></div></div>
+    <div class="modal fade" id="ipc-funnel-negotiate" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><?php esc_html_e( 'Iniciar negociação', 'imovel-parceiro-core' ); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><?php esc_html_e( 'A negociação desta parceria será iniciada. Continuar?', 'imovel-parceiro-core' ); ?></p></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Cancelar', 'imovel-parceiro-core' ); ?></button><button class="btn btn-primary ipc-modal-go" data-to="negotiating"><?php esc_html_e( 'Confirmar', 'imovel-parceiro-core' ); ?></button></div></div></div></div>
 
-    <div class="modal fade" id="ipc-funnel-release" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><?php esc_html_e( 'Liberar contato', 'imovel-parceiro-core' ); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><?php esc_html_e( 'Você está prestes a liberar os dados de contato para o corretor parceiro.', 'imovel-parceiro-core' ); ?></p></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Voltar', 'imovel-parceiro-core' ); ?></button><button class="btn btn-success ipc-modal-go" data-to="contact_released"><?php esc_html_e( 'Confirmar liberação', 'imovel-parceiro-core' ); ?></button></div></div></div></div>
+    <div class="modal fade" id="ipc-funnel-release" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><?php esc_html_e( 'Liberar contato', 'imovel-parceiro-core' ); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><?php esc_html_e( 'Você está prestes a liberar os dados de contato para o corretor parceiro.', 'imovel-parceiro-core' ); ?></p></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Voltar', 'imovel-parceiro-core' ); ?></button><button class="btn btn-danger ipc-modal-go" data-to="contact_released"><?php esc_html_e( 'Confirmar liberação', 'imovel-parceiro-core' ); ?></button></div></div></div></div>
 
     <?php ipc_funnel_reason_modal( 'ipc-funnel-reject', __( 'Motivo da recusa', 'imovel-parceiro-core' ), __( 'Selecione/descreva o motivo', 'imovel-parceiro-core' ) ); ?>
 
@@ -663,12 +663,11 @@ window.__ipcFunnel.reasons = window.__ipcFunnel.reasons || <?php echo wp_json_en
                 close: { to:'closed', title:'Encerrar parceria',         hint:'Selecione o motivo do encerramento.' }
             }[kind];
             if (!cfg) { return; }
-            var reasons = (window.__ipcFunnel && window.__ipcFunnel.reasons && window.__ipcFunnel.reasons[kind === 'close' ? 'closed' : kind]) || {};
+            var reasons = (window.__ipcFunnel && window.__ipcFunnel.reasons && window.__ipcFunnel.reasons[kind]) || {};
             var $m = $('#ipc-funnel-outcome');
             $('#ipc-funnel-outcome-to').val(cfg.to);
             $('#ipc-funnel-outcome-title').text(cfg.title);
             $('#ipc-funnel-outcome-hint').text(cfg.hint);
-            $('#ipc-funnel-outcome-confirm').removeClass('btn-success btn-danger').addClass(kind === 'won' ? 'btn-success' : 'btn-danger');
             var $sel = $('#ipc-funnel-outcome-reason').empty();
             $sel.append($('<option>').val('').text('Selecione...'));
             $.each(reasons, function(val, label){ $sel.append($('<option>').val(val).text(label)); });

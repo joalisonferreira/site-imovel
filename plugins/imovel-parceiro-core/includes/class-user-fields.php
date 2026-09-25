@@ -149,38 +149,24 @@ class Imovel_Parceiro_User_Fields {
         <input type="hidden" name="first_name" value="" />
         <input type="hidden" name="last_name" value="" />
         <?php endif; ?>
-        <?php $ipc_show_role_slot = function_exists( 'houzez_option' ) && houzez_option( 'user_show_roles' ) != 0; ?>
-        <style>
-            .ipc-register-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-            .ipc-register-grid .form-group{margin-bottom:0;min-width:0}
-            .ipc-register-grid .form-control{width:100%}
-            @media(max-width:576px){.ipc-register-grid{grid-template-columns:1fr}}
-        </style>
-        <div class="ipc-register-grid">
-            <div class="form-group">
-                <div class="form-group-field">
-                    <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
-                        <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
-                        <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
-                        <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
-                    </select>
-                </div>
+        <div class="form-group">
+            <div class="form-group-field">
+                <select name="person_type" class="form-control ipc-person-type" title="<?php esc_attr_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?>">
+                    <option value=""><?php esc_html_e( 'Tipo de pessoa', 'imovel-parceiro-core' ); ?></option>
+                    <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
+                    <option value="cnpj"><?php esc_html_e( 'CNPJ', 'imovel-parceiro-core' ); ?></option>
+                </select>
             </div>
-            <div class="form-group">
-                <div class="form-group-field">
-                    <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
-                </div>
+        </div>
+        <div class="form-group">
+            <div class="form-group-field">
+                <input type="text" class="form-control ipc-person-document" name="person_document" placeholder="<?php esc_attr_e( 'CPF/CNPJ', 'imovel-parceiro-core' ); ?>" inputmode="numeric" autocomplete="off" />
             </div>
-            <div class="form-group"<?php echo $ipc_show_role_slot ? '' : ' style="grid-column:1/-1"'; ?>>
-                <div class="form-group-field">
-                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
-                </div>
+        </div>
+        <div class="form-group">
+            <div class="form-group-field">
+                <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
             </div>
-            <?php if ( $ipc_show_role_slot ) : ?>
-            <div class="form-group ipc-role-slot" data-ipc-role-slot="1">
-                <!-- O select de tipo de conta (role) é movido para cá via JS -->
-            </div>
-            <?php endif; ?>
         </div>
         <?php
     }
@@ -432,12 +418,6 @@ class Imovel_Parceiro_User_Fields {
             update_user_meta( $user_id, self::LICENSE_META, $creci );
         }
 
-        // Se o número é WhatsApp, preenche também o campo de WhatsApp.
-        $phone = isset( $_POST['phone_number'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['phone_number'] ) ) ) : '';
-        if ( '' !== $phone && ! empty( $_POST['phone_is_whatsapp'] ) ) {
-            update_user_meta( $user_id, 'fave_author_whatsapp', $phone );
-        }
-
         if ( ! empty( $_POST['term_condition'] ) ) {
             $this->insert_terms_audit_log( $user_id, $person_type, $document_store );
         }
@@ -566,41 +546,13 @@ class Imovel_Parceiro_User_Fields {
                 return value;
             }
 
-            function maskPhone(value) {
-                value = digits(value).slice(0, 11);
-                if (value.length > 10) {
-                    return value
-                        .replace(/(\d{2})(\d)/, '($1) $2')
-                        .replace(/(\d{5})(\d)/, '$1-$2');
-                }
-                return value
-                    .replace(/(\d{2})(\d)/, '($1) $2')
-                    .replace(/(\d{4})(\d)/, '$1-$2');
-            }
-
             function formFields(form) {
                 return {
                     type: form.querySelector('select[name="person_type"]'),
                     doc: form.querySelector('input[name="person_document"]'),
                     creci: form.querySelector('input[name="creci"]'),
-                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]'),
-                    roleSlot: form.querySelector('[data-ipc-role-slot]'),
-                    creciWrap: form.querySelector('input[name="creci"]') ? form.querySelector('input[name="creci"]').closest('.form-group') : null
+                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]')
                 };
-            }
-
-            function placeRoleField(form) {
-                var fields = formFields(form);
-                if (!fields.role || !fields.roleSlot) return;
-                var roleGroup = fields.role.closest('.form-group');
-                if (!roleGroup) return;
-                // Evita mover duas vezes
-                if (fields.roleSlot.contains(fields.role)) return;
-                fields.roleSlot.appendChild(fields.role);
-                // O grupo original fica vazio, esconde
-                if (roleGroup !== fields.roleSlot) {
-                    roleGroup.style.display = 'none';
-                }
             }
 
             function syncForm(form) {
@@ -608,10 +560,6 @@ class Imovel_Parceiro_User_Fields {
                 if (!fields.type || !fields.doc) {
                     return;
                 }
-
-                placeRoleField(form);
-                // Re-obtem após mover
-                fields = formFields(form);
 
                 if (fields.role && fields.role.value === 'houzez_agency') {
                     fields.type.value = 'cnpj';
@@ -625,23 +573,11 @@ class Imovel_Parceiro_User_Fields {
                 fields.doc.value = maskFor(type, fields.doc.value);
 
                 if (fields.creci && fields.role) {
-                    var isAgentAgency = fields.role.value === 'houzez_agent' || fields.role.value === 'houzez_agency';
-                    // Cliente, Proprietário e outros não-corretores desabilitam CRECI
-                    if (!isAgentAgency) {
-                        if (fields.role.value) {
-                            fields.creci.value = '';
-                            fields.creci.disabled = true;
-                            fields.creci.removeAttribute('required');
-                            if (fields.creciWrap) fields.creciWrap.style.opacity = '0.5';
-                        } else {
-                            fields.creci.disabled = false;
-                            if (fields.creciWrap) fields.creciWrap.style.opacity = '1';
-                            fields.creci.removeAttribute('required');
-                        }
-                    } else {
-                        fields.creci.disabled = false;
-                        if (fields.creciWrap) fields.creciWrap.style.opacity = '1';
+                    var mandatory = fields.role.value === 'houzez_agent' || fields.role.value === 'houzez_agency';
+                    if (mandatory) {
                         fields.creci.setAttribute('required', 'required');
+                    } else {
+                        fields.creci.removeAttribute('required');
                     }
                 }
             }
@@ -701,12 +637,6 @@ class Imovel_Parceiro_User_Fields {
                         if (masked !== target.value) {
                             target.value = masked;
                         }
-                    }
-                }
-                if (target && target.matches && target.matches('input[name="phone_number"]')) {
-                    var maskedPhone = maskPhone(target.value);
-                    if (maskedPhone !== target.value) {
-                        target.value = maskedPhone;
                     }
                 }
                 if (target && target.matches && target.matches('input[name="ipc_full_name"]')) {

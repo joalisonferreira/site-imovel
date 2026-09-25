@@ -49,10 +49,6 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnership-workflow.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-watermark.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-visibility.php';
-        $media_organizer = IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-media-organizer.php';
-        if ( file_exists( $media_organizer ) ) {
-            require_once $media_organizer;
-        }
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-opportunities.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-deals.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-commissions.php';
@@ -66,19 +62,11 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-extras.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-checkout-cleanup.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-verification-notifications.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-verification-fix.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscription-links.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-purchase-redirect.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-blocking.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-deletion.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-admin-action-notifications.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-profile-guard.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-contact-visibility.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-instant-logout.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-first-login-redirect.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-upload-performance.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-mailer.php';
-        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-password-reset.php';
     }
 
     private function hooks() {
@@ -87,42 +75,6 @@ class Imovel_Parceiro_Core {
         add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_notification_assets' ) );
-        add_filter( 'pre_wp_mail', array( $this, 'maybe_mock_mail_for_client' ), 10, 2 );
-        add_filter( 'gettext', array( $this, 'fix_search_labels' ), 20, 3 );
-    }
-
-    public function fix_search_labels( $translated, $text, $domain ) {
-        // Corrige truncamentos do Houzez pt_BR: Claro -> Limpar, Pesquisa -> Pesquisar
-        if ( $translated === 'Claro' ) {
-            return 'Limpar';
-        }
-        if ( $translated === 'Pesquisa' ) {
-            return 'Pesquisar';
-        }
-        return $translated;
-    }
-
-    public function maybe_mock_mail_for_client( $return, $atts ) {
-        // Em ambiente local sem SMTP, evita "Server Error" infinito para cliente (houzez_buyer)
-        if ( defined( 'DOING_AJAX' ) && DOING_AJAX && is_user_logged_in() ) {
-            $uid = get_current_user_id();
-            $is_client = false;
-            if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $uid ) ) {
-                $is_client = true;
-            } else {
-                $u = get_userdata( $uid );
-                if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) ) {
-                    if ( ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
-                        $is_client = true;
-                    }
-                }
-            }
-            if ( $is_client ) {
-                // Simula sucesso para não deixar o form em loading eterno no localhost
-                return true;
-            }
-        }
-        return $return;
     }
 
     public function load_textdomain() {
@@ -167,19 +119,6 @@ class Imovel_Parceiro_Core {
         $style_version = file_exists( IMOVEL_PARCEIRO_CORE_DIR . 'assets/css/style.css' ) ? (string) filemtime( IMOVEL_PARCEIRO_CORE_DIR . 'assets/css/style.css' ) : IMOVEL_PARCEIRO_CORE_VERSION;
         $script_version = file_exists( IMOVEL_PARCEIRO_CORE_DIR . 'assets/js/app.js' ) ? (string) filemtime( IMOVEL_PARCEIRO_CORE_DIR . 'assets/js/app.js' ) : IMOVEL_PARCEIRO_CORE_VERSION;
 
-        $is_client = false;
-        if ( is_user_logged_in() ) {
-            $uid = get_current_user_id();
-            if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $uid ) ) {
-                $is_client = true;
-            } else {
-                $u = get_userdata( $uid );
-                if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) && ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
-                    $is_client = true;
-                }
-            }
-        }
-
         wp_enqueue_style( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/css/style.css', array(), $style_version );
         wp_enqueue_script( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/js/app.js', array( 'jquery' ), $script_version, true );
         wp_localize_script( 'imovel-parceiro-core', 'imovelParceiroCore', array(
@@ -189,7 +128,6 @@ class Imovel_Parceiro_Core {
             'request_exists' => $request_exists,
             'request_status' => $request_status,
             'is_rental_property' => false,
-            'is_client' => $is_client,
             'partnerships_url' => class_exists( 'Imovel_Parceiro_Partnerships' ) ? Imovel_Parceiro_Partnerships::dashboard_partnerships_url() : '',
             'messages' => array(
                 'acceptances_required' => __( 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.', 'imovel-parceiro-core' ),
@@ -456,4 +394,3 @@ class Imovel_Parceiro_Core {
 }
 
 Imovel_Parceiro_Core::instance();
-

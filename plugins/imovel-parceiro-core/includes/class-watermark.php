@@ -5,9 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Imovel_Parceiro_Watermark {
     const OPTION_KEY = 'imovel_parceiro_watermark_settings';
-    const OPTION_STATUS = 'imovel_parceiro_watermark_last_status';
     const META_PROCESSED = '_imovel_parceiro_watermark_processed';
-    const META_SCALED = '_imovel_parceiro_watermark_scaled';
     const META_HASH = '_imovel_parceiro_watermark_hash';
 
     private static $instance = null;
@@ -20,14 +18,11 @@ class Imovel_Parceiro_Watermark {
         return self::$instance;
     }
 
-    const BULK_BATCH = 5;
-
     private function __construct() {
         add_action( 'init', array( $this, 'handle_dashboard_request' ) );
         add_filter( 'wp_generate_attachment_metadata', array( $this, 'maybe_process_on_metadata' ), 50, 2 );
         add_action( 'added_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
         add_action( 'updated_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
-        add_action( 'wp_ajax_imovel_parceiro_watermark_bulk', array( $this, 'ajax_bulk_apply' ) );
     }
 
     public static function get_settings() {
@@ -242,10 +237,7 @@ class Imovel_Parceiro_Watermark {
             return $metadata;
         }
 
-        // Gallery uploads arrive with post_parent = 0 (the property link is
-        // created later via fave_property_images), so also accept uploads
-        // coming from the Houzez property image endpoint.
-        if ( ! $this->is_property_image_attachment( $attachment_id ) && ! $this->is_property_gallery_upload_request() ) {
+        if ( ! $this->is_property_image_attachment( $attachment_id ) ) {
             return $metadata;
         }
 
@@ -254,27 +246,8 @@ class Imovel_Parceiro_Watermark {
         return $metadata;
     }
 
-    /**
-     * Whether the current request is the Houzez property gallery upload.
-     *
-     * @return bool
-     */
-    private function is_property_gallery_upload_request() {
-        if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
-            return false;
-        }
-
-        if ( ! isset( $_REQUEST['action'] ) ) {
-            return false;
-        }
-
-        $action = sanitize_key( wp_unslash( $_REQUEST['action'] ) );
-
-        return 'houzez_property_img_upload' === $action;
-    }
-
     public function maybe_process_on_property_gallery_meta( $meta_id, $object_id, $meta_key, $meta_value ) {
-        if ( 'fave_property_images' !== $meta_key && '_thumbnail_id' !== $meta_key ) {
+        if ( 'fave_property_images' !== $meta_key ) {
             return;
         }
 
@@ -287,7 +260,7 @@ class Imovel_Parceiro_Watermark {
             return;
         }
 
-        $attachment_id = is_scalar( $meta_value ) ? absint( $meta_value ) : 0;
+        $attachment_id = absint( $meta_value );
         if ( ! $attachment_id ) {
             return;
         }
@@ -322,9 +295,9 @@ class Imovel_Parceiro_Watermark {
         return false;
     }
 
-    private function process_attachment_watermark( $attachment_id, $metadata, $scaled_only = false ) {
+    private function process_attachment_watermark( $attachment_id, $metadata ) {
         $processed = (int) get_post_meta( $attachment_id, self::META_PROCESSED, true );
-        if ( 1 === $processed && ! $scaled_only ) {
+        if ( 1 === $processed ) {
             return;
         }
 
@@ -344,18 +317,7 @@ class Imovel_Parceiro_Watermark {
             return;
         }
 
-        $scaled_path = self::scaled_file_path( $original_path, $metadata );
-
-        if ( $scaled_only ) {
-            // Repair mode: only the full-size file (originals/sizes of
-            // flagged images were already marked by earlier runs).
-            $target_files = $scaled_path ? array( $scaled_path ) : array();
-        } else {
-            $target_files = array( $original_path );
-            if ( $scaled_path ) {
-                $target_files[] = $scaled_path;
-            }
-        }
+        $target_files = array( $original_path );
 
         if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
             $dir = trailingslashit( dirname( $original_path ) );
@@ -363,8 +325,6 @@ class Imovel_Parceiro_Watermark {
                 if ( empty( $size_data['file'] ) ) {
                     continue;
                 }
-                // All derived sizes are marked (cards, widgets and archives
-                // must show the mark too, not only the full image).
                 $size_path = $dir . $size_data['file'];
                 if ( file_exists( $size_path ) ) {
                     $target_files[] = $size_path;
@@ -373,17 +333,10 @@ class Imovel_Parceiro_Watermark {
         }
 
         $target_files = array_values( array_unique( $target_files ) );
-        if ( empty( $target_files ) ) {
-            return;
-        }
         $any_processed = false;
         foreach ( $target_files as $target_file ) {
             if ( $this->apply_watermark_to_file( $target_file, $watermark_path, $settings ) ) {
                 $any_processed = true;
-                // WebP Express converts at upload (pre-mark) and serves the
-                // cached .webp instead of this file. Drop the stale variants
-                // so they are regenerated from the marked source on demand.
-                self::purge_webp_variants( $target_file );
             } else {
                 error_log( sprintf( 'Imovel Parceiro watermark: failed to process attachment %d (%s).', $attachment_id, $target_file ) );
             }
@@ -391,93 +344,30 @@ class Imovel_Parceiro_Watermark {
 
         if ( $any_processed ) {
             update_post_meta( $attachment_id, self::META_PROCESSED, 1 );
-            if ( $scaled_path ) {
-                update_post_meta( $attachment_id, self::META_SCALED, 1 );
-            }
             $hash = @md5_file( $original_path );
             if ( $hash ) {
                 update_post_meta( $attachment_id, self::META_HASH, $hash );
             }
-            self::record_status( true, $attachment_id, '' );
-        } else {
-            self::record_status( false, $attachment_id, __( 'Falha ao aplicar a marca d\'água. Verifique se o PHP tem GD ou Imagick e se a pasta de uploads permite escrita.', 'imovel-parceiro-core' ) );
         }
     }
 
-    /**
-     * Delete stale WebP Express variants of a freshly marked file so the
-     * next request regenerates them from the marked source (on demand).
-     *
-     * Covers the separate-folder layout (webp-images/uploads/…) used here
-     * plus mingled fallbacks. Missing files are simply skipped.
-     *
-     * @param string $target_file Marked image absolute path.
-     */
-    public static function purge_webp_variants( $target_file ) {
-        $target_file = wp_normalize_path( (string) $target_file );
-        if ( '' === $target_file || ! preg_match( '/\.(jpe?g|png)$/i', $target_file ) ) {
-            return;
+    private function apply_watermark_to_file( $target_file, $watermark_file, $settings ) {
+        if ( ! file_exists( $target_file ) || ! file_exists( $watermark_file ) ) {
+            return false;
         }
 
-        $candidates = array(
-            $target_file . '.webp',
-            (string) preg_replace( '/\.(jpe?g|png)$/i', '.webp', $target_file ),
-        );
-
-        if ( function_exists( 'wp_upload_dir' ) ) {
-            $uploads = wp_upload_dir();
-            $basedir = isset( $uploads['basedir'] ) ? wp_normalize_path( $uploads['basedir'] ) : '';
-            if ( '' !== $basedir && 0 === strpos( $target_file, trailingslashit( $basedir ) ) ) {
-                $rel = substr( $target_file, strlen( trailingslashit( $basedir ) ) );
-                $candidates[] = wp_normalize_path( WP_CONTENT_DIR . '/webp-express/webp-images/uploads/' . $rel . '.webp' );
-            }
+        if ( class_exists( 'Imagick' ) ) {
+            return $this->apply_with_imagick( $target_file, $watermark_file, $settings );
         }
 
-        foreach ( array_unique( $candidates ) as $candidate ) {
-            if ( $candidate !== $target_file && file_exists( $candidate ) ) {
-                @unlink( $candidate );
-            }
+        if ( ! $this->can_use_gd() ) {
+            return false;
         }
+
+        return $this->apply_with_gd( $target_file, $watermark_file, $settings );
     }
 
-    /**
-     * Drop every WebP Express variant of an attachment's files so they are
-     * regenerated from the current (marked) sources on demand.
-     *
-     * @param int    $attachment_id Attachment ID.
-     * @param array  $metadata      Attachment metadata.
-     * @param string $original_path Original file path.
-     */
-    public static function purge_attachment_webp_variants( $attachment_id, $metadata, $original_path ) {
-        $files = array( $original_path );
-
-        $scaled = self::scaled_file_path( (string) $original_path, (array) $metadata );
-        if ( '' !== $scaled ) {
-            $files[] = $scaled;
-        }
-
-        if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
-            $dir = trailingslashit( dirname( (string) $original_path ) );
-            foreach ( (array) $metadata['sizes'] as $size_data ) {
-                if ( ! empty( $size_data['file'] ) ) {
-                    $files[] = $dir . $size_data['file'];
-                }
-            }
-        }
-
-        foreach ( array_unique( $files ) as $file ) {
-            if ( $file && file_exists( $file ) ) {
-                self::purge_webp_variants( $file );
-            }
-        }
-    }
-
-    /**
-     * Static version of the GD capability check.
-     *
-     * @return bool
-     */
-    private static function can_use_gd_static() {
+    private function can_use_gd() {
         $required_functions = array(
             'imagecreatefromstring',
             'imagesx',
@@ -502,57 +392,6 @@ class Imovel_Parceiro_Watermark {
         }
 
         return true;
-    }
-
-    /**
-     * Last processing status (shown in the dashboard section).
-     *
-     * @return array
-     */
-    public static function get_last_status() {
-        $status = get_option( self::OPTION_STATUS, array() );
-
-        return is_array( $status ) ? $status : array();
-    }
-
-    /**
-     * Persist the last processing outcome for dashboard diagnosis.
-     *
-     * @param bool $ok            Whether at least one file was processed.
-     * @param int  $attachment_id Attachment involved.
-     * @param string $message     Error message (empty on success).
-     */
-    private static function record_status( $ok, $attachment_id, $message ) {
-        update_option(
-            self::OPTION_STATUS,
-            array(
-                'ok' => $ok ? 1 : 0,
-                'attachment_id' => absint( $attachment_id ),
-                'message' => (string) $message,
-                'time' => current_time( 'mysql' ),
-            ),
-            false
-        );
-    }
-
-    private function apply_watermark_to_file( $target_file, $watermark_file, $settings ) {
-        if ( ! file_exists( $target_file ) || ! file_exists( $watermark_file ) ) {
-            return false;
-        }
-
-        if ( class_exists( 'Imagick' ) && $this->apply_with_imagick( $target_file, $watermark_file, $settings ) ) {
-            return true;
-        }
-
-        if ( ! $this->can_use_gd() ) {
-            return false;
-        }
-
-        return $this->apply_with_gd( $target_file, $watermark_file, $settings );
-    }
-
-    private function can_use_gd() {
-        return self::can_use_gd_static();
     }
 
     private function apply_with_imagick( $target_file, $watermark_file, $settings ) {
@@ -617,13 +456,6 @@ class Imovel_Parceiro_Watermark {
         $target_w = max( 1, (int) round( $base_w * ( (int) $settings['size_percent'] / 100 ) ) );
         $target_h = max( 1, (int) round( ( $target_w / $wm_w ) * $wm_h ) );
 
-        // Never overflow tiny base images.
-        if ( $target_w > $base_w || $target_h > $base_h ) {
-            $fit = min( $base_w / $target_w, $base_h / $target_h );
-            $target_w = max( 1, (int) floor( $target_w * $fit ) );
-            $target_h = max( 1, (int) floor( $target_h * $fit ) );
-        }
-
         $scaled = imagecreatetruecolor( $target_w, $target_h );
         imagealphablending( $scaled, false );
         imagesavealpha( $scaled, true );
@@ -632,21 +464,11 @@ class Imovel_Parceiro_Watermark {
         imagecopyresampled( $scaled, $wm, 0, 0, 0, 0, $target_w, $target_h, $wm_w, $wm_h );
 
         $coords = $this->get_overlay_coordinates( $base_w, $base_h, $target_w, $target_h, $settings['position'] );
-
-        // imagecopymerge() ignores PNG alpha (transparent areas turn black),
-        // so composite in two steps: overlay with alpha onto a background
-        // cutout, then merge the cutout honoring the opacity setting.
-        $cut = imagecreatetruecolor( $target_w, $target_h );
-        imagecopy( $cut, $base, 0, 0, $coords['x'], $coords['y'], $target_w, $target_h );
-        imagealphablending( $cut, true );
-        imagesavealpha( $cut, true );
-        imagecopy( $cut, $scaled, 0, 0, 0, 0, $target_w, $target_h );
         imagealphablending( $base, true );
-        imagecopymerge( $base, $cut, $coords['x'], $coords['y'], 0, 0, $target_w, $target_h, (int) $settings['opacity'] );
+        imagecopymerge( $base, $scaled, $coords['x'], $coords['y'], 0, 0, $target_w, $target_h, (int) $settings['opacity'] );
 
         $saved = $this->save_gd_image( $base, $target_file );
 
-        imagedestroy( $cut );
         imagedestroy( $scaled );
         imagedestroy( $wm );
         imagedestroy( $base );
@@ -677,7 +499,25 @@ class Imovel_Parceiro_Watermark {
     }
 
     private function get_overlay_coordinates( $img_w, $img_h, $wm_w, $wm_h, $position ) {
-        return self::overlay_coordinates( $img_w, $img_h, $wm_w, $wm_h, $position );
+        $margin = 20;
+
+        switch ( $position ) {
+            case 'top-left':
+                return array( 'x' => $margin, 'y' => $margin );
+            case 'top-center':
+                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => $margin );
+            case 'top-right':
+                return array( 'x' => max( 0, $img_w - $wm_w - $margin ), 'y' => $margin );
+            case 'center':
+                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => (int) round( ( $img_h - $wm_h ) / 2 ) );
+            case 'bottom-left':
+                return array( 'x' => $margin, 'y' => max( 0, $img_h - $wm_h - $margin ) );
+            case 'bottom-center':
+                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => max( 0, $img_h - $wm_h - $margin ) );
+            case 'bottom-right':
+            default:
+                return array( 'x' => max( 0, $img_w - $wm_w - $margin ), 'y' => max( 0, $img_h - $wm_h - $margin ) );
+        }
     }
 
     private static function sanitize_position( $position ) {
@@ -758,347 +598,6 @@ class Imovel_Parceiro_Watermark {
         }
 
         return absint( $attachment_id );
-    }
-
-    /**
-     * All property photo attachment IDs (gallery + property-parented).
-     *
-     * @return int[]
-     */
-    private static function get_property_image_ids() {
-        global $wpdb;
-
-        $settings = self::get_settings();
-        $exclude_wm = absint( $settings['attachment_id'] );
-
-        $gallery_ids = $wpdb->get_col(
-            "SELECT DISTINCT m.meta_value FROM {$wpdb->postmeta} m"
-            . " INNER JOIN {$wpdb->posts} p ON p.ID = m.meta_value AND p.post_type = 'attachment'"
-            . " WHERE m.meta_key = 'fave_property_images'"
-        );
-        $parented_ids = $wpdb->get_col(
-            "SELECT a.ID FROM {$wpdb->posts} a"
-            . " INNER JOIN {$wpdb->posts} p ON p.ID = a.post_parent AND p.post_type = 'property'"
-            . " WHERE a.post_type = 'attachment' AND a.post_mime_type LIKE 'image/%'"
-        );
-        // Featured images set outside the gallery flow (Media Library etc.).
-        $thumb_ids = $wpdb->get_col(
-            "SELECT DISTINCT m.meta_value FROM {$wpdb->postmeta} m"
-            . " INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id AND p.post_type = 'property'"
-            . " INNER JOIN {$wpdb->posts} a ON a.ID = m.meta_value AND a.post_type = 'attachment'"
-            . " WHERE m.meta_key = '_thumbnail_id'"
-        );
-
-        $ids = array();
-        foreach ( array_merge( (array) $gallery_ids, (array) $parented_ids, (array) $thumb_ids ) as $id ) {
-            $id = absint( $id );
-            if ( ! $id || $id === $exclude_wm || isset( $ids[ $id ] ) ) {
-                continue;
-            }
-            if ( ! wp_attachment_is_image( $id ) ) {
-                continue;
-            }
-            $ids[ $id ] = $id;
-        }
-
-        return array_values( $ids );
-    }
-
-    /**
-     * Attachment IDs of property photos still without watermark.
-     *
-     * @param int $limit Max IDs to return (0 = all).
-     * @return int[]
-     */
-    public static function get_pending_ids( $limit = 0 ) {
-        $ids = array();
-        foreach ( self::get_property_image_ids() as $id ) {
-            if ( 1 === (int) get_post_meta( $id, self::META_PROCESSED, true ) ) {
-                continue;
-            }
-            $ids[] = $id;
-        }
-
-        if ( $limit > 0 ) {
-            $ids = array_slice( $ids, 0, $limit );
-        }
-
-        return $ids;
-    }
-
-    /**
-     * Count property photos still without watermark.
-     *
-     * @return int
-     */
-    public static function count_pending() {
-        return count( self::get_pending_ids( 0 ) );
-    }
-
-    /**
-     * Resolve the "-scaled" full-size file path for an attachment.
-     *
-     * @param string $original_path Original file path.
-     * @param array  $metadata      Attachment metadata.
-     * @return string Empty when there is no separate scaled file.
-     */
-    public static function scaled_file_path( $original_path, $metadata ) {
-        if ( empty( $metadata['file'] ) || empty( $original_path ) ) {
-            return '';
-        }
-
-        $scaled_path = trailingslashit( dirname( $original_path ) ) . basename( $metadata['file'] );
-        if ( $scaled_path === $original_path || ! file_exists( $scaled_path ) ) {
-            return '';
-        }
-
-        return $scaled_path;
-    }
-
-    /**
-     * Attachment IDs whose full-size (-scaled) file still needs the mark.
-     * Images already repaired (META_SCALED) or without a scaled file are out.
-     *
-     * @param int $limit Max IDs to return (0 = all).
-     * @return int[]
-     */
-    public static function get_repair_ids( $limit = 0 ) {
-        $ids = array();
-        foreach ( self::get_property_image_ids() as $id ) {
-            if ( 1 === (int) get_post_meta( $id, self::META_SCALED, true ) ) {
-                continue;
-            }
-            $metadata = wp_get_attachment_metadata( $id );
-            if ( ! is_array( $metadata ) ) {
-                continue;
-            }
-            if ( '' === self::scaled_file_path( (string) get_attached_file( $id ), $metadata ) ) {
-                continue;
-            }
-            $ids[] = $id;
-        }
-
-        if ( $limit > 0 ) {
-            $ids = array_slice( $ids, 0, $limit );
-        }
-
-        return $ids;
-    }
-
-    /**
-     * Count full-size files still needing the repair pass.
-     *
-     * @return int
-     */
-    public static function count_repair() {
-        return count( self::get_repair_ids( 0 ) );
-    }
-
-    /**
-     * Heuristic: does the file already show the watermark?
-     *
-     * Scans the expected mark zone for pixels close to the watermark's own
-     * average opaque color. Guards the repair pass against double-stamping.
-     *
-     * @param string $target_path    Image file to inspect.
-     * @param string $watermark_path Watermark image file.
-     * @param array  $settings       Watermark settings.
-     * @return bool
-     */
-    public static function mark_present_in_file( $target_path, $watermark_path, $settings ) {
-        if ( ! function_exists( 'imagecreatefromstring' ) || ! file_exists( $target_path ) || ! file_exists( $watermark_path ) ) {
-            return false;
-        }
-
-        $target = @imagecreatefromstring( @file_get_contents( $target_path ) );
-        $wm = @imagecreatefromstring( @file_get_contents( $watermark_path ) );
-        if ( ! $target || ! $wm ) {
-            if ( $target ) {
-                imagedestroy( $target );
-            }
-            if ( $wm ) {
-                imagedestroy( $wm );
-            }
-            return false;
-        }
-
-        $base_w = imagesx( $target );
-        $base_h = imagesy( $target );
-        $wm_w = imagesx( $wm );
-        $wm_h = imagesy( $wm );
-
-        // Average opaque color of the watermark.
-        $r_tot = $g_tot = $b_tot = $opaque = 0;
-        for ( $y = 0; $y < $wm_h; $y += 2 ) {
-            for ( $x = 0; $x < $wm_w; $x += 2 ) {
-                $rgba = imagecolorat( $wm, $x, $y );
-                if ( ( ( $rgba >> 24 ) & 127 ) < 64 ) {
-                    $opaque++;
-                    $r_tot += ( $rgba >> 16 ) & 255;
-                    $g_tot += ( $rgba >> 8 ) & 255;
-                    $b_tot += $rgba & 255;
-                }
-            }
-        }
-        if ( ! $opaque ) {
-            imagedestroy( $target );
-            imagedestroy( $wm );
-            return false;
-        }
-        $wr = $r_tot / $opaque;
-        $wg = $g_tot / $opaque;
-        $wb = $b_tot / $opaque;
-
-        $target_w = max( 1, (int) round( $base_w * ( (int) $settings['size_percent'] / 100 ) ) );
-        $target_h = max( 1, (int) round( ( $target_w / max( 1, $wm_w ) ) * $wm_h ) );
-        $coords = self::overlay_coordinates( $base_w, $base_h, $target_w, $target_h, $settings['position'] );
-
-        $hits = 0;
-        $samples = 0;
-        for ( $y = $coords['y']; $y < min( $base_h, $coords['y'] + $target_h ); $y += 3 ) {
-            for ( $x = $coords['x']; $x < min( $base_w, $coords['x'] + $target_w ); $x += 3 ) {
-                $samples++;
-                $c = imagecolorat( $target, $x, $y );
-                $dr = ( ( $c >> 16 ) & 255 ) - $wr;
-                $dg = ( ( $c >> 8 ) & 255 ) - $wg;
-                $db = ( $c & 255 ) - $wb;
-                if ( sqrt( $dr * $dr + $dg * $dg + $db * $db ) < 110 ) {
-                    $hits++;
-                }
-            }
-        }
-
-        imagedestroy( $target );
-        imagedestroy( $wm );
-
-        return $samples > 0 && ( $hits / $samples ) > 0.04;
-    }
-
-    /**
-     * Overlay coordinates shared by the GD renderer and the repair guard.
-     *
-     * @return array
-     */
-    private static function overlay_coordinates( $img_w, $img_h, $wm_w, $wm_h, $position ) {
-        $margin = 20;
-
-        switch ( $position ) {
-            case 'top-left':
-                return array( 'x' => $margin, 'y' => $margin );
-            case 'top-center':
-                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => $margin );
-            case 'top-right':
-                return array( 'x' => max( 0, $img_w - $wm_w - $margin ), 'y' => $margin );
-            case 'center':
-                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => (int) round( ( $img_h - $wm_h ) / 2 ) );
-            case 'bottom-left':
-                return array( 'x' => $margin, 'y' => max( 0, $img_h - $wm_h - $margin ) );
-            case 'bottom-center':
-                return array( 'x' => (int) round( ( $img_w - $wm_w ) / 2 ), 'y' => max( 0, $img_h - $wm_h - $margin ) );
-            case 'bottom-right':
-            default:
-                return array( 'x' => max( 0, $img_w - $wm_w - $margin ), 'y' => max( 0, $img_h - $wm_h - $margin ) );
-        }
-    }
-
-    /**
-     * AJAX: watermark the next batch of existing property photos.
-     *
-     * Modes: "new" (never processed) and "repair" (full-size -scaled file of
-     * already processed photos, e.g. marked before the scaled support).
-     */
-    public function ajax_bulk_apply() {
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array( 'message' => __( 'Permissão insuficiente.', 'imovel-parceiro-core' ) ) );
-        }
-
-        check_ajax_referer( 'imovel_watermark_bulk', 'nonce' );
-
-        if ( ! $this->is_watermark_enabled() ) {
-            wp_send_json_error( array( 'message' => __( 'Ative a função e envie a imagem da marca d\'água antes de aplicar.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $mode = isset( $_POST['mode'] ) ? sanitize_key( wp_unslash( $_POST['mode'] ) ) : 'new';
-        if ( 'repair' !== $mode ) {
-            $mode = 'new';
-        }
-
-        $settings = self::get_settings();
-        $watermark_path = get_attached_file( absint( $settings['attachment_id'] ) );
-
-        $ids = 'repair' === $mode ? self::get_repair_ids( self::BULK_BATCH ) : self::get_pending_ids( self::BULK_BATCH );
-        $ok = 0;
-        $failed = 0;
-        $skipped = 0;
-        $last_error = '';
-
-        foreach ( $ids as $attachment_id ) {
-            $metadata = wp_get_attachment_metadata( $attachment_id );
-            $file = get_attached_file( $attachment_id );
-            if ( ! is_array( $metadata ) || empty( $file ) || ! file_exists( $file ) ) {
-                // Flagged so the batch loop always terminates.
-                $skipped++;
-                update_post_meta( $attachment_id, self::META_PROCESSED, 1 );
-                update_post_meta( $attachment_id, self::META_SCALED, 1 );
-                continue;
-            }
-
-            if ( 'repair' === $mode ) {
-                // Refresh every WebP variant from the (marked) sources even
-                // when nothing needs re-marking.
-                self::purge_attachment_webp_variants( $attachment_id, $metadata, $file );
-                $scaled_path = self::scaled_file_path( $file, $metadata );
-                if ( '' === $scaled_path ) {
-                    $skipped++;
-                    update_post_meta( $attachment_id, self::META_SCALED, 1 );
-                    continue;
-                }
-                // Guard against double-stamping an already marked file.
-                if ( $watermark_path && self::mark_present_in_file( $scaled_path, $watermark_path, $settings ) ) {
-                    $skipped++;
-                    update_post_meta( $attachment_id, self::META_SCALED, 1 );
-                    continue;
-                }
-                $this->process_attachment_watermark( $attachment_id, $metadata, true );
-                if ( 1 === (int) get_post_meta( $attachment_id, self::META_SCALED, true ) ) {
-                    $ok++;
-                } else {
-                    $failed++;
-                    $status = self::get_last_status();
-                    if ( ! empty( $status['message'] ) ) {
-                        $last_error = $status['message'];
-                    }
-                }
-                continue;
-            }
-
-            $before = (int) get_post_meta( $attachment_id, self::META_PROCESSED, true );
-            $this->process_attachment_watermark( $attachment_id, $metadata );
-            $after = (int) get_post_meta( $attachment_id, self::META_PROCESSED, true );
-
-            if ( 1 === $after ) {
-                $ok++;
-            } elseif ( 1 === $before ) {
-                $skipped++;
-            } else {
-                $failed++;
-                $status = self::get_last_status();
-                if ( ! empty( $status['message'] ) ) {
-                    $last_error = $status['message'];
-                }
-            }
-        }
-
-        wp_send_json_success(
-            array(
-                'batch' => count( $ids ),
-                'ok' => $ok,
-                'failed' => $failed,
-                'skipped' => $skipped,
-                'remaining' => 'repair' === $mode ? self::count_repair() : self::count_pending(),
-                'message' => $last_error,
-            )
-        );
     }
 
     private function redirect_with_notice( $type, $message ) {

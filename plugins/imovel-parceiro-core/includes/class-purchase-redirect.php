@@ -39,28 +39,13 @@ class Imovel_Parceiro_Purchase_Redirect {
             return;
         }
 
-        $target = self::thankyou_url();
-        if ( ! $target ) {
-            $target = self::dashboard_url();
-        }
+        $target = self::dashboard_url();
         if ( ! $target ) {
             return;
         }
 
-        // Preserva o ID do pedido para a página de agradecimento, se necessário
-        $target = add_query_arg( 'order_id', $order_id, $target );
-
         wp_safe_redirect( $target );
         exit;
-    }
-
-    public static function thankyou_url() {
-        $page = get_page_by_path( 'obrigado-pela-assinatura' );
-        if ( $page && 'publish' === $page->post_status ) {
-            return get_permalink( $page->ID );
-        }
-
-        return '';
     }
 
     public static function dashboard_url() {

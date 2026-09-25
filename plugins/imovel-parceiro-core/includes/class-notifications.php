@@ -556,42 +556,6 @@ class IPC_Notifications {
             }
         }
 
-        // Templates de email do Houzez usam %key SEM % final (ex.: %website_name!,
-        // %user_login_register). Substitui essas formas por último, da chave mais
-        // longa para a mais curta, para %user_email não comer %user_email_register.
-        $bare_map = array(
-            'user_login_register' => $user->user_login,
-            'user_pass_register'  => '',
-            'user_email_register' => $user->user_email,
-            'user_phone_register' => isset( $args['user_phone_register'] ) ? $args['user_phone_register'] : '',
-            'website_url'         => get_option( 'siteurl' ),
-            'website_name'        => get_option( 'blogname' ),
-            'user_email'          => $user->user_email,
-            'username'            => $user->user_login,
-        );
-        if ( ! empty( $args ) && is_array( $args ) ) {
-            $skip = array( 'to', 'type', 'title', 'message' );
-            foreach ( $args as $key => $val ) {
-                if ( is_scalar( $val ) && '' !== $val && ! in_array( $key, $skip, true ) && ! isset( $bare_map[ $key ] ) ) {
-                    $bare_map[ $key ] = (string) $val;
-                }
-            }
-        }
-        uksort(
-            $bare_map,
-            function ( $a, $b ) {
-                return strlen( (string) $b ) - strlen( (string) $a );
-            }
-        );
-        $bare_keys   = array();
-        $bare_values = array();
-        foreach ( $bare_map as $key => $val ) {
-            $bare_keys[]   = '%' . $key;
-            $bare_values[] = (string) $val;
-        }
-        $title   = str_replace( $bare_keys, $bare_values, $title );
-        $message = str_replace( $bare_keys, $bare_values, $message );
-
         self::send(
             array(
                 'user_id' => (int) $user->ID,
