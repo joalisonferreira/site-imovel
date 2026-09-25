@@ -88,20 +88,22 @@ class Imovel_Parceiro_Pix_Payment_Page {
     }
 
     /**
-     * Extrai payload/QR/expiração do meta __ASAAS_ORDER do pedido.
+     * Extrai payload/QR do meta __ASAAS_ORDER do pedido.
      *
      * @param WC_Order $order
-     * @return array{payload:string,image_src:string,expires:string}
+     * @return array{payload:string,image_src:string}
      */
     public static function extract_pix( $order ) {
-        $out  = array( 'payload' => '', 'image_src' => '', 'expires' => '' );
+        $out  = array( 'payload' => '', 'image_src' => '' );
         if ( ! is_object( $order ) || ! method_exists( $order, 'get_meta' ) ) {
             return $out;
         }
         // O meta __ASAAS_ORDER do woo-asaas é uma string JSON que decodifica
-        // para objeto com payload (copia-e-cola), encodedImage (QR em base64)
-        // e expirationDate — mesmos campos lidos pelo painel do dashboard
-        // (extract_asaas_meta). Mantém os nomes legados qrcode* como fallback.
+        // para objeto com payload (copia-e-cola) e encodedImage (QR em base64)
+        // — mesmos campos lidos pelo painel do dashboard (extract_asaas_meta).
+        // Mantém os nomes legados qrcode* como fallback. A data de expiracao
+        // do Asaas (expirationDate, ~12 meses apos o vencimento) nao e usada:
+        // sem contador na pagina.
         $raw = $order->get_meta( '__ASAAS_ORDER' );
         if ( '' === (string) $raw ) {
             return $out;
@@ -134,11 +136,6 @@ class Imovel_Parceiro_Pix_Payment_Page {
             } else {
                 $out['image_src'] = 'data:image/png;base64,' . preg_replace( '/\s+/', '', $qr_raw );
             }
-        }
-        if ( ! empty( $data->expirationDate ) ) {
-            $out['expires'] = (string) $data->expirationDate; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-        } elseif ( ! empty( $data->qrcode_expiration_date ) ) {
-            $out['expires'] = (string) $data->qrcode_expiration_date;
         }
         return $out;
     }
@@ -260,15 +257,8 @@ class Imovel_Parceiro_Pix_Payment_Page {
      */
     private function render_page( $order, $pix, $is_paid, $plan_name ) {
         $amount       = $order->get_formatted_order_total();
-        // Timestamp real da expiração; se inválido ou já passado, esconde o
-        // contador (antes, um strtotime(false) gerava data de 1970 e o
-        // contador nascia "expirado").
-        $expires_ts   = $pix['expires'] ? (int) strtotime( $pix['expires'] ) : 0;
-        if ( $expires_ts <= time() ) {
-            $expires_ts = 0;
-        }
-        $expires_iso  = $expires_ts ? gmdate( 'c', $expires_ts ) : '';
-        $expires_br   = $expires_ts ? date_i18n( 'd/m/Y H:i', $expires_ts ) : '';
+        // Sem contador de expiracao: o QR dinamico do Asaas vale ate 12 meses
+        // apos o vencimento, entao contagem regressiva nao faz sentido aqui.
         $dashboard    = self::get_dashboard_url();
         $ajax_url     = admin_url( 'admin-ajax.php' );
         $nonce        = wp_create_nonce( self::NONCE_ACTION );
@@ -279,19 +269,12 @@ class Imovel_Parceiro_Pix_Payment_Page {
             'orderId'   => $order->get_id(),
             'orderKey'  => $order->get_order_key(),
             'pollMs'    => self::POLL_MS,
-            'expires'   => $expires_iso,
-            'expiresBr' => $expires_br,
             'redirect'  => $dashboard,
             'i18n'      => array(
                 'waiting'   => __( 'Aguardando pagamento…', 'imovel-parceiro-core' ),
                 'confirmed' => __( 'Pagamento confirmado!', 'imovel-parceiro-core' ),
-                'expired'   => __( 'QR Code expirado. Gere uma nova cobrança no dashboard.', 'imovel-parceiro-core' ),
                 'copy'      => __( 'Copiar código', 'imovel-parceiro-core' ),
                 'copied'    => __( 'Código copiado!', 'imovel-parceiro-core' ),
-                'expiresIn' => __( 'O código expira em', 'imovel-parceiro-core' ),
-                'validUntil'=> __( 'Válido até', 'imovel-parceiro-core' ),
-                'days'      => __( 'dias', 'imovel-parceiro-core' ),
-                'day'       => __( 'dia', 'imovel-parceiro-core' ),
             ),
         );
         ?>
@@ -308,7 +291,6 @@ class Imovel_Parceiro_Pix_Payment_Page {
                 .imovel-pix-status{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 18px;font-weight:700;font-size:14px;margin-bottom:18px;}
                 .imovel-pix-status.waiting{background:#fef9c3;color:#854d0e;}
                 .imovel-pix-status.paid{background:#dcfce7;color:#166534;}
-                .imovel-pix-status.expired{background:#fee2e2;color:#991b1b;}
                 .imovel-pix-dot{width:10px;height:10px;border-radius:50%;background:currentColor;}
                 .imovel-pix-status.waiting .imovel-pix-dot{animation:imovel-pix-pulse 1.2s infinite;}
                 @keyframes imovel-pix-pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -318,9 +300,6 @@ class Imovel_Parceiro_Pix_Payment_Page {
                 .imovel-pix-payload input{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;color:#334155;background:#f8fafc;min-width:0;}
                 .imovel-pix-copy{white-space:nowrap;background:#6366f1;color:#fff;border:0;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer;}
                 .imovel-pix-meta{color:#64748b;font-size:14px;margin:6px 0;}
-                .imovel-pix-count{font-weight:700;color:#dc2626;}
-                .imovel-pix-count.urgent{animation:imovel-pix-urgent 1s infinite;}
-                @keyframes imovel-pix-urgent{0%,100%{opacity:1}50%{opacity:.45}}
                 .imovel-pix-actions{margin-top:20px;display:flex;flex-direction:column;gap:10px;}
                 .imovel-pix-btn{display:block;border-radius:10px;padding:13px;font-weight:700;text-decoration:none;cursor:pointer;border:0;font-size:15px;}
                 .imovel-pix-btn.primary{background:#6366f1;color:#fff;}
@@ -351,7 +330,6 @@ class Imovel_Parceiro_Pix_Payment_Page {
                                 <button type="button" class="imovel-pix-copy" id="imovel-pix-copy"><?php esc_html_e( 'Copiar código', 'imovel-parceiro-core' ); ?></button>
                             </div>
                         <?php endif; ?>
-                        <p class="imovel-pix-meta" id="imovel-pix-countdown-wrap" style="<?php echo $expires_iso ? '' : 'display:none;'; ?>"><?php esc_html_e( 'O código expira em', 'imovel-parceiro-core' ); ?> <span class="imovel-pix-count" id="imovel-pix-countdown">--:--</span></p>
                         <div class="imovel-pix-actions">
                             <button type="button" class="imovel-pix-btn ghost" id="imovel-pix-refresh"><?php esc_html_e( 'Já paguei, verificar agora', 'imovel-parceiro-core' ); ?></button>
                             <a class="imovel-pix-btn ghost" href="<?php echo esc_url( $dashboard ); ?>"><?php esc_html_e( 'Voltar ao dashboard', 'imovel-parceiro-core' ); ?></a>
@@ -403,47 +381,11 @@ class Imovel_Parceiro_Pix_Payment_Page {
                     });
                 }
 
-                // Contagem regressiva da expiração.
-                // Formatos: >= 2 dias mostra "Válido até dd/mm/aaaa HH:mm (N dias)";
-                // abaixo disso, relógio HH:MM:SS (ou MM:SS na última hora, com
-                // destaque pulsante nos últimos 15 minutos).
-                var expiresAt = cfg.expires ? new Date(cfg.expires).getTime() : 0;
-                var cdWrap = document.getElementById('imovel-pix-countdown-wrap');
-                var cdEl = document.getElementById('imovel-pix-countdown');
-                var expired = false;
-                function pad(n){ return ('0' + n).slice(-2); }
-                function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-                function tick(){
-                    if (!expiresAt || expired) return;
-                    var diff = expiresAt - Date.now();
-                    if (diff <= 0) {
-                        expired = true;
-                        if (statusPill) { statusPill.className = 'imovel-pix-status expired'; }
-                        if (statusText) { statusText.textContent = cfg.i18n.expired; }
-                        if (cdWrap) cdWrap.style.display = 'none';
-                        stop();
-                        return;
-                    }
-                    var totalS = Math.floor(diff / 1000);
-                    var d = Math.floor(totalS / 86400),
-                        h = Math.floor(totalS % 86400 / 3600),
-                        m = Math.floor(totalS % 3600 / 60),
-                        s = totalS % 60;
-                    if (!cdWrap) return;
-                    if (d >= 2) {
-                        cdWrap.innerHTML = esc(cfg.i18n.validUntil) + ' <strong>' + esc(cfg.expiresBr || '') + '</strong> (' + d + ' ' + esc(cfg.i18n.days) + ')';
-                    } else {
-                        var clock = (d > 0 ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
-                        cdWrap.innerHTML = esc(cfg.i18n.expiresIn) + ' <span class="imovel-pix-count' + (totalS < 900 ? ' urgent' : '') + '">' + esc(clock) + '</span>';
-                    }
-                }
-                if (expiresAt) { tick(); setInterval(tick, 1000); } else if (cdWrap) { cdWrap.style.display = 'none'; }
-
                 // Polling do status (webhook do Asaas atualiza o pedido).
                 var timer = null, maxPolls = 720, polls = 0; // ~60 min
                 function check(){
                     polls++;
-                    if (polls > maxPolls || expired) { stop(); return; }
+                    if (polls > maxPolls) { stop(); return; }
                     var data = new FormData();
                     data.append('action', cfg.action);
                     data.append('nonce', cfg.nonce);

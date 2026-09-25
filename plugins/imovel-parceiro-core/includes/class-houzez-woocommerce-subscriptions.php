@@ -636,7 +636,7 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
      *
      * @param object $subscription WC_Subscription.
      * @return array Com chaves is_boleto, is_pix, pay_url, ticket_url,
-     *               due_date, pix_qr, pix_payload e pix_expires.
+     *               due_date, pix_qr e pix_payload.
      */
     public static function pending_payment_info( $subscription ) {
         $info = array(
@@ -647,7 +647,6 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
             'due_date'    => '',
             'pix_qr'      => '',
             'pix_payload' => '',
-            'pix_expires' => '',
         );
         if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'get_payment_method' ) ) {
             return $info;
@@ -743,9 +742,8 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         if ( isset( $data->encodedImage ) && '' !== (string) $data->encodedImage ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
             $info['pix_qr'] = 'data:image/jpeg;base64,' . (string) $data->encodedImage; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
         }
-        if ( isset( $data->expirationDate ) && '' !== (string) $data->expirationDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-            $info['pix_expires'] = sanitize_text_field( (string) $data->expirationDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-        }
+        // Sem pix_expires: o QR dinamico do Asaas vale ate 12 meses apos o
+        // vencimento, entao exibir a data confundia (parecia "contador").
     }
 
     /**
@@ -794,9 +792,6 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
                             <?php if ( ! empty( $payment['pix_payload'] ) ) : ?>
                                 <input type="text" readonly value="<?php echo esc_attr( $payment['pix_payload'] ); ?>" onclick="this.select();" style="width:100%;font-size:12px;" />
                                 <button type="button" class="btn btn-primary-outlined" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);this.textContent='<?php echo esc_js( __( 'Código copiado!', 'imovel-parceiro-core' ) ); ?>';"><?php esc_html_e( 'Copiar código Pix', 'imovel-parceiro-core' ); ?></button>
-                            <?php endif; ?>
-                            <?php if ( ! empty( $payment['pix_expires'] ) ) : ?>
-                                <p class="mb-0 text-muted" style="font-size:13px;"><?php esc_html_e( 'QR válido até:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $payment['pix_expires'] ) ) ); ?></p>
                             <?php endif; ?>
                         </div>
                     <?php elseif ( ! empty( $payment['is_boleto'] ) && ! empty( $payment['ticket_url'] ) ) : ?>
