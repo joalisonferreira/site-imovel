@@ -6,14 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Imovel_Parceiro_Checkout_Cleanup {
 
 	public function __construct() {
-		add_filter( 'woocommerce_subscriptions_display_recurring_totals', array( $this, 'hide_recurring_totals' ) );
-		add_action( 'wp_head', array( $this, 'print_styles' ), 100 );
-		add_filter( 'woocommerce_billing_fields', array( $this, 'restore_company_field' ), 9, 2 );
-		add_filter( 'woocommerce_checkout_fields', array( $this, 'layout_field_sizes' ), 9999 );
-		add_action( 'woocommerce_before_checkout_form', array( $this, 'render_checkout_header' ), 5 );
-		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'render_person_type_toggle' ), 5 );
-		add_action( 'woocommerce_review_order_after_payment', array( $this, 'render_support_card' ), 20 );
-		add_filter( 'woocommerce_checkout_fields', array( $this, 'restore_company_field_late' ), 999999 );
+		// DESATIVADO 2026-09-25: checkout voltou ao padrão WooCommerce.
+		// Mantém apenas correções críticas de sessão/segurança.
 		add_filter( 'woocommerce_restored_session_data', array( $this, 'sanitize_restored_session' ) );
 		add_action( 'woocommerce_loaded', array( $this, 'load_safe_session_handler' ) );
 	}
