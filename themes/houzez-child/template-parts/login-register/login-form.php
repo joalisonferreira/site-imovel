@@ -39,7 +39,12 @@
             <input type="checkbox" name="remember"><?php esc_html_e( 'Remember me', 'houzez' ); ?>
             <span class="control__indicator"></span>
         </label>
+        <?php $ipc_reset_url = class_exists( 'Imovel_Parceiro_Password_Reset' ) ? Imovel_Parceiro_Password_Reset::url() : ''; ?>
+        <?php if ( $ipc_reset_url ) : ?>
+        <a href="<?php echo esc_url( $ipc_reset_url ); ?>"><?php esc_html_e( 'Lost your password?', 'houzez' ); ?></a>
+        <?php else : ?>
         <a href="#" data-bs-toggle="modal" data-bs-target="#reset-password-form" data-bs-dismiss="modal"><?php esc_html_e( 'Lost your password?', 'houzez' ); ?></a>
+        <?php endif; ?>
     </div><!-- d-flex -->
 </div><!-- form-tools -->
 

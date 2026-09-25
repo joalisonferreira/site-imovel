@@ -6,12 +6,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Imovel_Parceiro_Price_Formatting {
     private $rent_status_terms = array( 'rent', 'rental', 'aluguel', 'locacao', 'locação', 'arrendamento', 'lease' );
 
+    /**
+     * Optional price metas hidden from the layout when zero.
+     *
+     * @var string[]
+     */
+    private static $zero_hidden_metas = array(
+        'fave_property_sec_price',
+        'fave_valor-do-condominio',
+        'fave_valor-do-iptu',
+    );
+
     public function __construct() {
         add_filter( 'houzez_before_submit_property', array( $this, 'sanitize_price_fields' ) );
         add_filter( 'houzez_before_update_property', array( $this, 'sanitize_price_fields' ) );
         add_action( 'houzez_after_property_submit', array( $this, 'save_additional_price_meta' ), 20, 1 );
         add_action( 'houzez_after_property_update', array( $this, 'save_additional_price_meta' ), 20, 1 );
         add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue_inline_styles' ), 20 );
+        add_filter( 'get_post_metadata', array( $this, 'filter_zero_price_meta' ), 10, 4 );
     }
 
     public static function is_rental_property( $property_id ) {
@@ -140,7 +152,56 @@ class Imovel_Parceiro_Price_Formatting {
             wp_die( esc_html( $invalid_message ) );
         }
 
+        // Optional price of zero behaves as empty so the layout hides it.
+        if ( '' !== $value && is_numeric( $value ) && 0 == (float) $value ) {
+            $value = '';
+        }
+
         $_POST[ $key ] = $value;
+        return $value;
+    }
+
+    /**
+     * Hide legacy zero values (0, 0.00) of optional price metas from every
+     * layout check. Theme templates use !empty(), which '0.00' passes.
+     *
+     * @param mixed  $null      Filter short-circuit value.
+     * @param int    $object_id Post ID.
+     * @param string $meta_key  Meta key.
+     * @param bool   $single    Whether a single value was requested.
+     * @return mixed
+     */
+    public function filter_zero_price_meta( $null, $object_id, $meta_key, $single ) {
+        if ( ! in_array( $meta_key, self::$zero_hidden_metas, true ) ) {
+            return $null;
+        }
+
+        remove_filter( 'get_post_metadata', array( $this, 'filter_zero_price_meta' ), 10 );
+
+        if ( $single ) {
+            $value = get_post_meta( $object_id, $meta_key, true );
+            $value = self::zero_to_empty( $value );
+        } else {
+            $values = get_post_meta( $object_id, $meta_key, false );
+            $value = array_map( array( __CLASS__, 'zero_to_empty' ), (array) $values );
+        }
+
+        add_filter( 'get_post_metadata', array( $this, 'filter_zero_price_meta' ), 10, 4 );
+
+        return $value;
+    }
+
+    /**
+     * Map zero-like scalars ('0', '0.00', 0) to empty string.
+     *
+     * @param mixed $value Raw meta value.
+     * @return mixed
+     */
+    private static function zero_to_empty( $value ) {
+        if ( is_scalar( $value ) && '' !== $value && is_numeric( $value ) && 0 == (float) $value ) {
+            return '';
+        }
+
         return $value;
     }
 

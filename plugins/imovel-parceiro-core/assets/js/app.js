@@ -1,41 +1,72 @@
 jQuery(function($){
+    // Cliente nunca vê botão de parceria (fallback global, além do PHP)
+    if (window.imovelParceiroCore && window.imovelParceiroCore.is_client) {
+        $('.imovel-parceiro-request-partnership, .imovel-parceiro-request-btn, #imovel-parceiro-partnership-modal').remove();
+        // Também esconde via CSS caso injetado depois
+        var style = document.createElement('style');
+        style.textContent = '.imovel-parceiro-request-partnership{display:none !important} #imovel-parceiro-partnership-modal{display:none !important}';
+        document.head.appendChild(style);
+    }
+    // Fallback IPCW is_client (do widget)
+    if (window.ipcwData && window.ipcwData.is_client) {
+        $('.imovel-parceiro-request-partnership').hide();
+    }
     function escapeHtml(value) {
         return $('<div/>').text(value == null ? '' : String(value)).html();
     }
 
+    function acceptanceItems() {
+        var fallback = [
+            { key: 'authorization', short: 'Autorizo a divulgação', full: 'Declaro que sou proprietário ou representante legal do imóvel e autorizo a plataforma e seus corretores parceiros a divulgar e intermediar oportunidades relacionadas a este imóvel, conforme os termos da plataforma.' },
+            { key: 'partnership', short: 'Aberto a parcerias', full: 'Autorizo que este imóvel seja disponibilizado para parceria com outros corretores cadastrados na plataforma.' },
+            { key: 'commission', short: 'Comissão 50/50 em parceria', full: 'Aceito a divisão de comissão de 50% | 50% em parceria direta.' },
+            { key: 'terms', short: 'Aceito os Termos de Uso', full: 'Aceito os Termos de Uso e as regras da plataforma.' }
+        ];
+        if (window.imovelParceiroCore && Array.isArray(imovelParceiroCore.acceptance_items) && imovelParceiroCore.acceptance_items.length) {
+            return imovelParceiroCore.acceptance_items;
+        }
+        return fallback;
+    }
+
+    function acceptanceMsg(key, fallback, replacements) {
+        var text = (window.imovelParceiroCore && imovelParceiroCore.messages && imovelParceiroCore.messages[key])
+            ? imovelParceiroCore.messages[key]
+            : fallback;
+        if (replacements) {
+            Object.keys(replacements).forEach(function (k) {
+                text = String(text).split('{' + k + '}').join(replacements[k]);
+            });
+        }
+        return text;
+    }
+
     function acceptanceSectionHtml() {
-        return '' +
+        var items = acceptanceItems();
+        var title = acceptanceMsg('acceptance_title', 'Declarações para publicar');
+        var detailsLabel = acceptanceMsg('acceptance_details', 'detalhes');
+
+        var html = '' +
             '<div class="imovel-parceiro-acceptance-block block-wrap">' +
                 '<div class="block-title-wrap d-flex justify-content-between align-items-center">' +
-                    '<h2>Declaracoes e Termos para Publicacao do Imovel *</h2>' +
+                    '<h2>' + escapeHtml(title) + ' *</h2>' +
+                    '<span class="ipc-acceptance-progress" aria-live="polite"></span>' +
                 '</div>' +
-                '<div class="block-content-wrap">' +
-                    '<div class="form-group mb-2">' +
-                        '<label class="control control--checkbox" style="font-weight:400;">' +
-                            '<input type="checkbox" name="imovel_parceiro_acceptance[authorization]" value="1" class="imovel-parceiro-acceptance-checkbox" required> Declaro que sou proprietário ou representante legal do imóvel e autorizo a plataforma e seus corretores parceiros a divulgar e intermediar oportunidades relacionadas a este imóvel, conforme os termos da plataforma.' +
-                            '<span class="control__indicator"></span>' +
-                        '</label>' +
-                    '</div>' +
-                    '<div class="form-group mb-2">' +
-                        '<label class="control control--checkbox" style="font-weight:400;">' +
-                            '<input type="checkbox" name="imovel_parceiro_acceptance[partnership]" value="1" class="imovel-parceiro-acceptance-checkbox" required> Autorizo que este imóvel seja disponibilizado para parceria com outros corretores cadastrados na plataforma.' +
-                            '<span class="control__indicator"></span>' +
-                        '</label>' +
-                    '</div>' +
-                    '<div class="form-group mb-2">' +
-                        '<label class="control control--checkbox" style="font-weight:400;">' +
-                            '<input type="checkbox" name="imovel_parceiro_acceptance[commission]" value="1" class="imovel-parceiro-acceptance-checkbox" required> Aceito a divisão de comissão de 50% | 50% em parceria direta.' +
-                            '<span class="control__indicator"></span>' +
-                        '</label>' +
-                    '</div>' +
-                    '<div class="form-group mb-1">' +
-                        '<label class="control control--checkbox" style="font-weight:400;">' +
-                            '<input type="checkbox" name="imovel_parceiro_acceptance[terms]" value="1" class="imovel-parceiro-acceptance-checkbox" required> Aceito os Termos de Uso e as regras da plataforma.' +
-                            '<span class="control__indicator"></span>' +
-                        '</label>' +
-                    '</div>' +
+                '<div class="block-content-wrap">';
+        items.forEach(function (item) {
+            html += '' +
+                '<div class="form-group mb-2 ipc-acceptance-item" data-acceptance-key="' + escapeHtml(item.key) + '">' +
+                    '<label class="control control--checkbox ipc-acceptance-label" style="font-weight:400;">' +
+                        '<input type="checkbox" name="imovel_parceiro_acceptance[' + escapeHtml(item.key) + ']" value="1" class="imovel-parceiro-acceptance-checkbox" data-short="' + escapeHtml(item.short) + '" required> ' +
+                        '<span class="ipc-acceptance-short">' + escapeHtml(item.short) + '</span>' +
+                        '<span class="control__indicator"></span>' +
+                    '</label>' +
+                    '<details class="ipc-acceptance-details"><summary>' + escapeHtml(detailsLabel) + '</summary><p>' + escapeHtml(item.full) + '</p></details>' +
+                '</div>';
+        });
+        html += '' +
                 '</div>' +
             '</div>';
+        return html;
     }
 
     function ensureAcceptanceFields() {
@@ -119,17 +150,120 @@ jQuery(function($){
         });
     }
 
-    function syncAcceptanceSubmitState() {
+    function acceptanceCounts($scope) {
+        var $boxes = $scope.find('.imovel-parceiro-acceptance-checkbox');
+        var total = $boxes.length;
+        var done = $boxes.filter(':checked').length;
+        return { done: done, total: total };
+    }
+
+    function updateAcceptanceProgress() {
         var $form = $('#submit_property_form');
         if (!$form.length) {
             return;
         }
+        var counts = acceptanceCounts($form);
+        var $progress = $form.find('.ipc-acceptance-progress');
+        if ($progress.length && counts.total) {
+            $progress.text(acceptanceMsg('acceptance_progress', '{done} de {total}', { done: counts.done, total: counts.total }));
+            $progress.toggleClass('is-complete', counts.done === counts.total);
+        }
+    }
 
-        var allAccepted = hasAllAcceptances($form);
-        var $submit = $form.find('.btn-step-submit .houzez-submit-js');
+    function syncAcceptanceSubmitState() {
+        // O submit nunca é desabilitado: a validação acontece no envio,
+        // apontando exatamente o item faltante (sem "botão morto").
+        updateAcceptanceProgress();
+    }
 
-        $submit.prop('disabled', !allAccepted);
-        $submit.toggleClass('is-disabled', !allAccepted);
+    function firstMissingAcceptance($scope) {
+        var $missing = $scope.find('.imovel-parceiro-acceptance-checkbox').filter(function () {
+            return !$(this).is(':checked');
+        }).first();
+        return $missing.length ? $missing : null;
+    }
+
+    function galleryCounts() {
+        var $counter = $('.upload-image-counter').first();
+        var uploaded = $('.property-thumb').length;
+        var max = 0;
+        if ($counter.length) {
+            var parts = $counter.text().split('/');
+            if (parts.length > 1) {
+                max = parseInt(parts[1].replace(/\D+/g, ''), 10) || 0;
+            }
+            var current = parseInt($counter.find('.uploaded').text(), 10);
+            if (!isNaN(current)) {
+                uploaded = current;
+            }
+        }
+        return { uploaded: uploaded, max: max };
+    }
+
+    function updateGalleryCounter() {
+        var counts = galleryCounts();
+        var $head = $('#media .block-title-wrap h2').first();
+        if (!$head.length) {
+            return;
+        }
+        var $badge = $head.find('.ipc-gallery-count');
+        if (!$badge.length) {
+            $badge = $('<span class="ipc-gallery-count" aria-live="polite"></span>');
+            $head.append($badge);
+        }
+        if (counts.max > 0) {
+            $badge.text(acceptanceMsg('gallery_counter', 'Fotos {n} de {max}', { n: counts.uploaded, max: counts.max }));
+            $badge.toggleClass('is-warning', counts.uploaded >= Math.ceil(counts.max * 0.8) && counts.uploaded < counts.max);
+            $badge.toggleClass('is-limit', counts.uploaded >= counts.max);
+        } else {
+            $badge.text('');
+        }
+    }
+
+    function bindGalleryCounter() {
+        if (!$('#houzez_property_gallery_container').length) {
+            return;
+        }
+        updateGalleryCounter();
+        if (window.MutationObserver) {
+            var obs = new MutationObserver(function () { updateGalleryCounter(); });
+            obs.observe(document.getElementById('houzez_property_gallery_container'), { childList: true, subtree: true });
+            var counterEl = document.querySelector('.upload-image-counter');
+            if (counterEl) {
+                var obs2 = new MutationObserver(function () { updateGalleryCounter(); });
+                obs2.observe(counterEl, { childList: true, subtree: true, characterData: true });
+            }
+        }
+    }
+
+    function ensureDraftStamp() {
+        var $nav = $('#submit_property_form .add-new-listing-bottom-nav-wrap').first();
+        if (!$nav.length || $nav.find('.ipc-draft-stamp').length) {
+            return;
+        }
+        $nav.append('<span class="ipc-draft-stamp" aria-live="polite"></span>');
+    }
+
+    function bindDraftStamp() {
+        var $form = $('#submit_property_form');
+        if (!$form.length) {
+            return;
+        }
+        ensureDraftStamp();
+        $(document).on('click', '#save_as_draft', function () {
+            var $stamp = $('.ipc-draft-stamp');
+            if ($stamp.length) {
+                $stamp.text(acceptanceMsg('acceptance_draft_saving', 'Salvando rascunho…'));
+            }
+        });
+        $(document).on('shown.bs.modal', '#modal-save-draft', function () {
+            var $stamp = $('.ipc-draft-stamp');
+            if ($stamp.length) {
+                var now = new Date();
+                var time = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+                $stamp.text(acceptanceMsg('acceptance_draft_saved', 'Rascunho salvo às {hora}', { hora: time }));
+            }
+        });
     }
 
     function getPriceFieldSelectors() {
@@ -425,18 +559,28 @@ jQuery(function($){
 
             if (!hasAllAcceptances($form)) {
                 e.preventDefault();
-                var msg = (window.imovelParceiroCore && imovelParceiroCore.messages && imovelParceiroCore.messages.acceptances_required)
-                    ? imovelParceiroCore.messages.acceptances_required
-                    : 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.';
+                var $missing = firstMissingAcceptance($form);
+                var shortLabel = $missing ? ($missing.data('short') || '') : '';
+                var remaining = $missing ? $form.find('.imovel-parceiro-acceptance-checkbox:not(:checked)').length : 0;
+                var msg = acceptanceMsg('acceptance_missing', 'Falta {n}: {item}. Toque para concluir.', { n: remaining, item: shortLabel });
                 showFeedback(msg, 'error');
                 var $errorBox = $form.find('.validate-errors').first();
                 if ($errorBox.length) {
                     $errorBox.removeClass('houzez-hidden').show();
                 }
+                if ($missing) {
+                    var $item = $missing.closest('.ipc-acceptance-item');
+                    $form.find('.ipc-acceptance-item.is-missing').removeClass('is-missing');
+                    $item.addClass('is-missing');
+                    if ($item.length && $item[0].scrollIntoView) {
+                        $item[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
             }
         });
 
         $(document).on('change', '#submit_property_form .imovel-parceiro-acceptance-checkbox', function(){
+            $(this).closest('.ipc-acceptance-item').removeClass('is-missing');
             syncAcceptanceSubmitState();
         });
     }
@@ -984,6 +1128,11 @@ jQuery(function($){
         e.preventDefault();
         e.stopImmediatePropagation();
 
+        if (window.imovelParceiroCore && window.imovelParceiroCore.is_client) {
+            showFeedback('Parcerias são exclusivas para corretores e imobiliárias.', 'error');
+            return;
+        }
+
         if (partnershipRequestExists()) {
             showFeedback((window.imovelParceiroCore && imovelParceiroCore.messages && imovelParceiroCore.messages.request_exists)
                 ? imovelParceiroCore.messages.request_exists
@@ -997,7 +1146,7 @@ jQuery(function($){
     $(document).on('click', '.imovel-parceiro-view-contact', function(e){
         e.preventDefault();
         var partnershipStatus = $(this).data('partnership-status');
-        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating']) === -1) {
+        if ($.inArray(partnershipStatus, ['accepted', 'active', 'negotiating', 'contact_released', 'opportunity', 'visit', 'proposal']) === -1) {
             showFeedback('O contato ficará disponível após a aprovação da parceria.', 'error');
             return;
         }
@@ -1596,12 +1745,16 @@ jQuery(function($){
     syncAcceptanceSubmitState();
     initPriceUi();
     validateAcceptanceBeforeSubmit();
+    bindGalleryCounter();
+    bindDraftStamp();
     $(window).on('load', function(){
         ensureAcceptanceFields();
         precheckAcceptanceOnEdit();
         bindAcceptanceValidation();
         syncAcceptanceSubmitState();
         initPriceUi();
+        bindGalleryCounter();
+        bindDraftStamp();
     });
     syncPartnershipButtonState();
 });

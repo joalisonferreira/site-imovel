@@ -1216,6 +1216,29 @@ class Imovel_Parceiro_Owner_Workflow {
         return apply_filters( 'imovel_parceiro_owner_allowed_document_types', $default );
     }
 
+    private function validate_uploaded_document( $file ) {
+        if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
+            return new WP_Error( 'invalid_file', __( 'Arquivo inválido.', 'imovel-parceiro-core' ) );
+        }
+        $max_size = 10 * 1024 * 1024;
+        if ( isset( $file['size'] ) && $file['size'] > $max_size ) {
+            return new WP_Error( 'file_too_large', __( 'O arquivo deve ter no máximo 10MB.', 'imovel-parceiro-core' ) );
+        }
+        if ( function_exists( 'finfo_open' ) ) {
+            $finfo = finfo_open( FILEINFO_MIME_TYPE );
+            $mime = $finfo ? finfo_file( $finfo, $file['tmp_name'] ) : '';
+            if ( $finfo ) {
+                finfo_close( $finfo );
+            }
+            $allowed_mimes = array( 'image/jpeg', 'image/png', 'application/pdf' );
+            $allowed_mimes = apply_filters( 'imovel_parceiro_owner_allowed_mimes', $allowed_mimes );
+            if ( ! in_array( $mime, $allowed_mimes, true ) ) {
+                return new WP_Error( 'invalid_mime', __( 'Apenas JPG, PNG e PDF são permitidos.', 'imovel-parceiro-core' ) );
+            }
+        }
+        return true;
+    }
+
     private function get_document_status_labels() {
         return array(
             'enviado' => __( 'Pendente', 'imovel-parceiro-core' ),
@@ -1412,6 +1435,11 @@ class Imovel_Parceiro_Owner_Workflow {
             wp_send_json_error( array( 'message' => __( 'Tipo de documento nao permitido.', 'imovel-parceiro-core' ) ) );
         }
 
+        $validation = $this->validate_uploaded_document( $_FILES['document_file'] );
+        if ( is_wp_error( $validation ) ) {
+            wp_send_json_error( array( 'message' => $validation->get_error_message() ) );
+        }
+
         add_filter( 'upload_dir', array( $this, 'filter_private_document_upload_dir' ) );
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/media.php';
@@ -1521,6 +1549,11 @@ class Imovel_Parceiro_Owner_Workflow {
         $allowed_types = $this->get_allowed_document_types();
         if ( ! isset( $allowed_types[ $doc_type ] ) ) {
             wp_send_json_error( array( 'message' => __( 'Tipo de documento nao permitido.', 'imovel-parceiro-core' ) ) );
+        }
+
+        $validation = $this->validate_uploaded_document( $_FILES['document_file'] );
+        if ( is_wp_error( $validation ) ) {
+            wp_send_json_error( array( 'message' => $validation->get_error_message() ) );
         }
 
         add_filter( 'upload_dir', array( $this, 'filter_private_document_upload_dir' ) );

@@ -75,3 +75,35 @@
 .ipc-ev-title{font-size:14px;color:#334155}
 .ipc-funnel-note{margin-top:22px;text-align:right;font-size:12px;color:#94a3b8}
 @media (max-width:768px){.ipc-funnel-grid{grid-template-columns:1fr}.ipc-funnel-timeline li{align-items:flex-start}.ipc-funnel-statusbar{gap:10px}}
+/* F2 — Declarações: progresso, detalhes colapsáveis, destaque de pendência */
+.ipc-acceptance-progress{font-size:12px;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:4px 12px;white-space:nowrap}
+.ipc-acceptance-progress.is-complete{background:#dcfce7;color:#15803d}
+.ipc-acceptance-label{display:flex !important;align-items:center;gap:10px;min-height:48px;cursor:pointer}
+.ipc-acceptance-short{flex:1}
+.ipc-acceptance-details{margin:2px 0 0 34px;font-size:12px;color:#64748b}
+.ipc-acceptance-details summary{cursor:pointer;color:#7a1e2b;font-weight:600;min-height:32px;display:inline-flex;align-items:center}
+.ipc-acceptance-details p{margin:6px 0 2px;line-height:1.55}
+.ipc-acceptance-item{border-radius:10px;padding:6px 8px;transition:background .2s ease,box-shadow .2s ease}
+.ipc-acceptance-item.is-missing{background:#fffbeb;box-shadow:0 0 0 2px #f59e0b}
+/* F2 — Contador da galeria sempre visível */
+.ipc-gallery-count{font-size:12px;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:4px 12px;margin-left:10px;white-space:nowrap}
+.ipc-gallery-count.is-warning{background:#fef3c7;color:#b45309}
+.ipc-gallery-count.is-limit{background:#fee2e2;color:#b91c1c}
+/* F2 — Selo de rascunho */
+.ipc-draft-stamp{font-size:12px;color:#64748b;margin-left:12px}
+@media (max-width:576px){.ipc-acceptance-details{margin-left:0}.ipc-draft-stamp{display:block;margin:8px 0 0}}
+
+
+/* F4 — Resumo do plano no checkout */
+.ipc-checkout-plan{border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:20px;background:#f8fafc}
+.ipc-checkout-plan__head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ipc-checkout-plan__badge{font-size:11px;font-weight:700;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.ipc-checkout-plan__name{font-size:15px;color:#0f172a}
+.ipc-checkout-plan__meta{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ipc-checkout-plan__meta li{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#475569}
+.ipc-checkout-plan__meta li strong{color:#0f172a;font-weight:700;text-align:right}
+/* F4 — Próximos passos no obrigado */
+.ipc-thankyou-steps{border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin:24px 0;background:#fff}
+.ipc-thankyou-steps__title{font-size:16px;font-weight:700;color:#0f172a;margin:0 0 12px}
+.ipc-thankyou-steps__actions{display:flex;flex-wrap:wrap;gap:10px}
+

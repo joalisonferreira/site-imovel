@@ -834,6 +834,25 @@ class Imovel_Parceiro_Partnerships {
         return add_query_arg( 'imovel-parceiro', 'dashboard', $dashboard_url );
     }
 
+    /**
+     * URL de detalhe de uma parceria (mesmo formato do widget flutuante).
+     */
+    public static function dashboard_partnership_detail_url( $partnership_id ) {
+        $partnership_id = absint( $partnership_id );
+        if ( ! $partnership_id ) {
+            return '';
+        }
+        $dashboard_url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard.php' ) : home_url( '/dashboard/' );
+
+        return add_query_arg(
+            array(
+                'imovel-parceiro' => 'dashboard',
+                'imovel_parceiro_parceria' => $partnership_id,
+            ),
+            $dashboard_url
+        );
+    }
+
     private function user_display_name( $user_id ) {
         $user = get_userdata( absint( $user_id ) );
         if ( ! $user ) {
@@ -1128,6 +1147,7 @@ class Imovel_Parceiro_Partnerships {
         $message_note = ! empty( $context['message'] ) ? $context['message'] : '';
         $reason_note = ! empty( $context['reason'] ) ? $context['reason'] : '';
 
+        $email_jobs = array();
         foreach ( $recipients as $recipient_email ) {
             $recipient_role = 'admin';
             $recipient_name = __( 'Administrador', 'imovel-parceiro-core' );
@@ -1188,7 +1208,20 @@ class Imovel_Parceiro_Partnerships {
             $message = implode( "\n", $template );
             $message = apply_filters( 'imovel_parceiro_partnership_email_message', $message, $action, $context, $recipient_email );
 
-            $this->send_email_using_houzez_config( $recipient_email, $subject, $message );
+            $email_jobs[] = array(
+                'to' => $recipient_email,
+                'subject' => $subject,
+                'body' => $message,
+            );
+        }
+
+        // Emails go out after the HTTP response (SMTP is slow); in-app first.
+        if ( class_exists( 'Imovel_Parceiro_Mailer' ) ) {
+            Imovel_Parceiro_Mailer::defer( $email_jobs, array( 'Imovel_Parceiro_Mailer', 'send_via_houzez' ) );
+        } else {
+            foreach ( $email_jobs as $job ) {
+                $this->send_email_using_houzez_config( $job['to'], $job['subject'], $job['body'] );
+            }
         }
 
         $this->send_in_app_notifications( $action, $context );
@@ -1405,6 +1438,14 @@ class Imovel_Parceiro_Partnerships {
         }
 
         $user_id = get_current_user_id();
+        // Cliente nunca vê modal de parceria
+        if ( class_exists( 'Imovel_Parceiro_First_Login_Redirect' ) && Imovel_Parceiro_First_Login_Redirect::is_client( $user_id ) ) {
+            return;
+        }
+        $u = get_userdata( $user_id );
+        if ( $u && ! array_intersect( array( 'houzez_agent', 'houzez_agency', 'administrator' ), (array) $u->roles ) && ! current_user_can( 'imovel_parceiro_manage_commercial' ) ) {
+            return;
+        }
         $owner_id = $this->get_property_owner_user_id( $property_id );
 
         // The property owner (and the responsible broker) cannot request a
@@ -1646,7 +1687,178 @@ class Imovel_Parceiro_Partnerships {
             )
         );
 
-        wp_send_json_success( array( 'message' => __( 'Solicitação enviada.', 'imovel-parceiro-core' ) ) );
+        $new_partnership_id = (int) $wpdb->insert_id;
+
+        wp_send_json_success(
+            array(
+                'message' => __( 'Solicitação enviada.', 'imovel-parceiro-core' ),
+                'partnership_id' => $new_partnership_id,
+                'detail_url' => self::dashboard_partnership_detail_url( $new_partnership_id ),
+            )
+        );
+    }
+
+    /**
+     * E-mail do usuário plataforma que intermedia leads de clientes.
+     * Filtrável via 'imovel_parceiro_platform_admin_email'.
+     */
+    public static function platform_admin_email() {
+        return apply_filters( 'imovel_parceiro_platform_admin_email', 'contato@imovelparceiro.com.br' );
+    }
+
+    public static function platform_admin_id() {
+        $email = sanitize_email( self::platform_admin_email() );
+        if ( ! is_email( $email ) ) {
+            return 0;
+        }
+        $user = get_user_by( 'email', $email );
+        return $user ? absint( $user->ID ) : 0;
+    }
+
+    /**
+     * Parceria iniciada pela plataforma quando um cliente manifesta interesse
+     * num imóvel: o admin solicita parceria ao corretor dono, informando o
+     * cliente em potencial. Nunca quebra o chamador (retorna 0 em falha).
+     *
+     * Dedupe: uma parceria não-terminal admin→corretor por imóvel. Novos
+     * interesses apenas reutilizam a existente.
+     *
+     * @param int   $property_id ID do imóvel.
+     * @param int   $broker_id   ID do corretor dono.
+     * @param array $ctx         client_name, lead_id, enquiry_id.
+     * @return int ID da parceria (nova ou existente) ou 0.
+     */
+    public function create_admin_partnership_for_interest( $property_id, $broker_id, $ctx = array() ) {
+        try {
+            global $wpdb;
+
+            $property_id = absint( $property_id );
+            $broker_id   = absint( $broker_id );
+            if ( ! $property_id || ! $broker_id ) {
+                return 0;
+            }
+            if ( 'property' !== get_post_type( $property_id ) || 'publish' !== get_post_status( $property_id ) ) {
+                return 0;
+            }
+
+            $admin_id = self::platform_admin_id();
+            if ( ! $admin_id || $admin_id === $broker_id || ! get_userdata( $admin_id ) || ! get_userdata( $broker_id ) ) {
+                return 0;
+            }
+
+            $table  = self::partnerships_table();
+            $schema = self::get_partnership_table_schema();
+            $requester_col = $schema['requester_col'];
+            $owner_col     = $schema['owner_col'];
+
+            // Dedupe: parceria não-terminal já existente é reutilizada.
+            $latest = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, status FROM {$table} WHERE property_id = %d AND {$requester_col} = %d AND {$owner_col} = %d ORDER BY id DESC LIMIT 1",
+                    $property_id,
+                    $admin_id,
+                    $broker_id
+                )
+            );
+            if ( $latest && ! in_array( self::normalize_status_key( $latest->status ), $this->terminal_statuses, true ) ) {
+                return absint( $latest->id );
+            }
+
+            $ctx            = is_array( $ctx ) ? $ctx : array();
+            $client_name    = isset( $ctx['client_name'] ) ? sanitize_text_field( (string) $ctx['client_name'] ) : '';
+            $lead_id        = isset( $ctx['lead_id'] ) ? absint( $ctx['lead_id'] ) : 0;
+            $enquiry_id     = isset( $ctx['enquiry_id'] ) ? absint( $ctx['enquiry_id'] ) : 0;
+            $property_title = get_the_title( $property_id );
+
+            $message = sprintf(
+                /* translators: 1: nome do cliente, 2: título do imóvel, 3: lead, 4: enquiry */
+                __( 'Olá! Temos um cliente em potencial (%1$s) interessado no imóvel "%2$s" (lead #%3$d do CRM, enquiry #%4$d). Estou iniciando esta parceria para intermediar o contato e registrar a origem da negociação pela plataforma.', 'imovel-parceiro-core' ),
+                $client_name !== '' ? $client_name : __( 'cliente', 'imovel-parceiro-core' ),
+                $property_title,
+                $lead_id,
+                $enquiry_id
+            );
+
+            $insert_data = array(
+                'property_id' => $property_id,
+                $requester_col => $admin_id,
+                $owner_col => $broker_id,
+                'status' => 'solicitada',
+                'terms_version' => '1.0',
+                $schema['created_col'] => current_time( 'mysql' ),
+            );
+            $insert_format = array( '%d', '%d', '%d', '%s', '%s', '%s' );
+
+            // Divisão de comissão não se aplica à intermediação da plataforma:
+            // deixa o default do banco (não declara split negociado).
+            if ( ! empty( $schema['notes_col'] ) ) {
+                $insert_data[ $schema['notes_col'] ] = $message;
+                $insert_format[] = '%s';
+            }
+
+            $inserted = $wpdb->insert( $table, $insert_data, $insert_format );
+            if ( false === $inserted ) {
+                return 0;
+            }
+            $partnership_id = (int) $wpdb->insert_id;
+
+            // Pós-criação (SLA, auditoria, notificações): falhas aqui não
+            // anulam a parceria já gravada.
+            try {
+                if ( class_exists( 'Imovel_Parceiro_Partnership_Integrity' ) ) {
+                    Imovel_Parceiro_Partnership_Integrity::set_owner_response_sla( $partnership_id );
+                }
+
+                $this->insert_audit_log(
+                    'partnership_requested',
+                    $admin_id,
+                    $broker_id,
+                    $property_id,
+                    $partnership_id,
+                    array(
+                        'status' => 'solicitada',
+                        'message' => $message,
+                        'origin' => 'client_interest',
+                        'lead_id' => $lead_id,
+                        'enquiry_id' => $enquiry_id,
+                    )
+                );
+
+                if ( class_exists( 'Imovel_Parceiro_Partnership_Workflow' ) ) {
+                    Imovel_Parceiro_Partnership_Workflow::record_event(
+                        $partnership_id,
+                        $admin_id,
+                        'status',
+                        'request',
+                        __( 'Parceria solicitada pela plataforma (interesse de cliente)', 'imovel-parceiro-core' ),
+                        $message,
+                        array( 'status' => 'solicitada', 'origin' => 'client_interest' )
+                    );
+                }
+
+                $this->send_partnership_notifications(
+                    'request',
+                    $this->build_partnership_email_context(
+                        $partnership_id,
+                        $property_id,
+                        $admin_id,
+                        $broker_id,
+                        'solicitada',
+                        $admin_id,
+                        array(
+                            'message' => $message,
+                        )
+                    )
+                );
+            } catch ( Throwable $e ) {
+                error_log( 'Imovel Parceiro admin partnership notify: ' . $e->getMessage() );
+            }
+
+            return $partnership_id;
+        } catch ( Throwable $e ) {
+            error_log( 'Imovel Parceiro admin partnership: ' . $e->getMessage() );
+            return 0;
+        }
     }
 
     public function handle_partnership() {

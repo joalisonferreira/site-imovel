@@ -165,6 +165,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 .ipcw-broker__info {
@@ -349,6 +352,33 @@
     color: #64748b;
 }
 
+.ipcw-btn--interest {
+    background: #7a1e2b;
+    color: #fff;
+}
+
+.ipcw-btn--interest .ipcw-btn__icon {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.ipcw-btn--interest .ipcw-btn__sub {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.ipcw-btn--interest:disabled {
+    background: #e8f5ec;
+    color: #166534;
+    cursor: default;
+}
+
+.ipcw-btn--interest:disabled .ipcw-btn__icon {
+    background: rgba(22, 101, 52, 0.12);
+}
+
+.ipcw-btn--interest:disabled .ipcw-btn__sub {
+    color: rgba(22, 101, 52, 0.85);
+}
+
 .ipcw-status-badge {
     display: inline-flex;
     align-items: center;
@@ -367,6 +397,10 @@
 .ipcw-status-badge.is-pending { background: #fef3c7; color: #b45309; }
 .ipcw-status-badge.is-accepted { background: #dcfce7; color: #15803d; }
 .ipcw-status-badge.is-negotiating { background: #e0e7ff; color: #4338ca; }
+.ipcw-status-badge.is-released { background: #d1fae5; color: #047857; }
+.ipcw-status-badge.is-opportunity { background: #ffedd5; color: #c2410c; }
+.ipcw-status-badge.is-visit { background: #e0f2fe; color: #0369a1; }
+.ipcw-status-badge.is-proposal { background: #f3e8ff; color: #7e22ce; }
 .ipcw-status-badge.is-closed { background: #e2e8f0; color: #475569; }
 
 .ipcw-form {
@@ -471,6 +505,131 @@
 .ipcw-confirm h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: #0f172a; }
 .ipcw-confirm p { margin: 4px 0; font-size: 13px; color: #64748b; line-height: 1.5; }
 .ipcw-confirm__redirect { margin-top: 8px !important; font-size: 12px !important; color: #6366f1 !important; font-weight: 600; }
+
+.ipcw-confirm__actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.ipcw-confirm__btn {
+    display: block;
+    width: 100%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.ipcw-confirm__btn--primary {
+    background: #7a1e2b;
+    color: #fff;
+    border: 0;
+}
+
+.ipcw-confirm__btn--primary:hover,
+.ipcw-confirm__btn--primary:focus-visible {
+    background: #631624;
+    color: #fff;
+}
+
+.ipcw-confirm__btn--ghost {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #e5e7eb;
+}
+
+.ipcw-confirm__btn--ghost:hover,
+.ipcw-confirm__btn--ghost:focus-visible {
+    border-color: #7a1e2b;
+    color: #7a1e2b;
+}
+
+/* Request form: summary + commission chip + quick chips */
+.ipcw-req-summary {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    border: 1px solid #eef0f3;
+    border-radius: 12px;
+}
+
+.ipcw-req-summary__thumb {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #e2e8f0;
+}
+
+.ipcw-req-summary__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ipcw-req-summary__info { min-width: 0; }
+
+.ipcw-req-summary__title {
+    margin: 0 0 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ipcw-commission-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #15803d;
+    white-space: nowrap;
+}
+
+.ipcw-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.ipcw-chip {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 7px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 36px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+
+.ipcw-chip:hover,
+.ipcw-chip:focus-visible {
+    border-color: #7a1e2b;
+    color: #7a1e2b;
+    background: #fdf2f4;
+    outline: none;
+}
 
 /* Listing per-card "Parceria" button injected by JS */
 .ipcw-card-btn {

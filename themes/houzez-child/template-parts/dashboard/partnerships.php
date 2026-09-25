@@ -368,7 +368,7 @@ $active_dashboard_tab = in_array( $requested_dashboard_tab, $allowed_dashboard_t
                                             <?php endif; ?>
 
                                             <?php if ( 'accepted' === $current_status && ( $is_owner || $is_requester ) ) : ?>
-                                                <button type="button" class="btn btn-primary btn-sm imovel-parceiro-action" data-action="transition" data-next-status="active" data-partnership-id="<?php echo esc_attr( $partnership->id ); ?>"><?php esc_html_e( 'Ativar parceria', 'imovel-parceiro-core' ); ?></button>
+                                                <button type="button" class="btn btn-success btn-sm imovel-parceiro-action" data-action="transition" data-next-status="active" data-partnership-id="<?php echo esc_attr( $partnership->id ); ?>"><?php esc_html_e( 'Ativar parceria', 'imovel-parceiro-core' ); ?></button>
                                             <?php endif; ?>
 
                                             <?php if ( 'active' === $current_status && ( $is_owner || $is_requester ) ) : ?>
@@ -616,8 +616,8 @@ $active_dashboard_tab = in_array( $requested_dashboard_tab, $allowed_dashboard_t
                                     </div>
                                 </div>
                                 <div class="mt-3 d-flex justify-content-end gap-2">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Voltar', 'imovel-parceiro-core' ); ?></button>
-                                    <button type="submit" class="btn btn-danger"><?php esc_html_e( 'Confirmar', 'imovel-parceiro-core' ); ?></button>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php esc_html_e( 'Voltar', 'imovel-parceiro-core' ); ?></button>
+                                    <button type="submit" id="imovel-parceiro-outcome-confirm" class="btn btn-danger"><?php esc_html_e( 'Confirmar', 'imovel-parceiro-core' ); ?></button>
                                 </div>
                             </form>
                         </div>
@@ -703,6 +703,8 @@ jQuery(function($){
             titleEl.textContent = titles[mode] || '';
         }
 
+        $(modal).find('#imovel-parceiro-outcome-confirm').removeClass('btn-success btn-danger').addClass(mode === 'won' ? 'btn-success' : 'btn-danger');
+
         var $sel = $(modal).find('#imovel-parceiro-outcome-reason');
         $sel.empty().append($('<option>').val('').text('<?php echo esc_js( __( 'Selecione...', 'imovel-parceiro-core' ) ); ?>'));
         $.each(reasons, function(val, label){
@@ -776,7 +778,7 @@ jQuery(function($){
             return;
         }
 
-        if (actionType === 'close') {
+        if (actionType === 'close' || actionType === 'cancel') {
             openOutcomeModal('closed', partnershipId, status);
             return;
         }
