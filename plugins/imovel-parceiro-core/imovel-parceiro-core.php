@@ -63,6 +63,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscriptions.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-houzez-woocommerce-subscriptions.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-pix-subscriptions.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-pix-payment-page.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-fields.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-access.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-extras.php';
