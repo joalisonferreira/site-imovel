@@ -26,6 +26,7 @@ body.woocommerce-checkout .breadcrumb-wrap {
 .woocommerce-checkout-fresh .woocommerce-shipping-fields__field-wrapper .form-row { grid-column: span 12 / span 12; min-width: 0; }
 .woocommerce-checkout-fresh .form-row label { font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block; }
 .woocommerce-checkout-fresh .form-row label .required { color: #dc2626; text-decoration: none; }
+.woocommerce-checkout-fresh .asaas-cc-form-wrapper label .required { display: none; }
 .woocommerce-checkout-fresh .form-row input.input-text,
 .woocommerce-checkout-fresh .form-row select,
 .woocommerce-checkout-fresh .form-row textarea {
