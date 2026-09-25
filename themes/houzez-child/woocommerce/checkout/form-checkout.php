@@ -20,7 +20,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
   <div class="pt-2 pb-4 border-b border-slate-200/80">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div><h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900" style="font-family:'Plus Jakarta Sans',Inter,sans-serif">Finalização de compra</h1><p class="text-sm text-slate-500 mt-0.5">Revise sua assinatura e insira as informações de faturamento credenciadas.</p></div>
-      <div class="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold">
+      <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto text-xs font-semibold">
         <div class="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>1. Plano</span></div>
         <div class="w-4 h-px bg-slate-300"></div>
         <div class="flex items-center gap-1.5 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-full border border-brand-200 shadow-sm"><span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span><span>2. Faturamento &amp; Checkout</span></div>
