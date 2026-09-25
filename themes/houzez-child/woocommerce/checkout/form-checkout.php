@@ -63,12 +63,6 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
       </div>
       <div id="customer_details"><div class="col2-set" style="float:none;width:auto"><div class="col-1" style="float:none;width:auto"><?php do_action('woocommerce_checkout_billing'); ?></div><div class="col-2" style="float:none;width:auto"><?php do_action('woocommerce_checkout_shipping'); ?></div></div></div>
     </div>
-    <div class="bg-white border border-slate-200/90 rounded-2xl shadow-[0_2px_8px_-2px_rgba(15,23,42,.05)] p-6 sm:p-8">
-      <div class="flex items-center gap-3 mb-4"><span class="w-2.5 h-6 bg-slate-400 rounded-full inline-block"></span><h2 class="text-xl font-bold text-slate-900 tracking-tight" style="font-family:'Plus Jakarta Sans',Inter,sans-serif">2. Informação adicional</h2></div>
-      <div class="woocommerce-additional-fields__field-wrapper">
-        <?php foreach ($checkout->get_checkout_fields('order') as $key => $field) : ?><?php woocommerce_form_field($key, $field, $checkout->get_value($key)); ?><?php endforeach; ?>
-      </div>
-    </div>
   </div>
   <div class="lg:col-span-5">
     <div class="sticky top-28 space-y-6">
@@ -78,10 +72,6 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
           <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 rounded-full text-xs text-white/90 border border-white/10"><svg class="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fill-rule="evenodd"></path></svg><span>Ativação Instantânea</span></div>
         </div>
         <div id="order_review" class="woocommerce-checkout-review-order p-6"><?php do_action('woocommerce_checkout_order_review'); ?></div>
-      </div>
-      <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm border border-slate-800 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/10"><svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div>
-        <div class="text-xs"><h5 class="font-bold text-white text-sm">Suporte Especializado CRECI</h5><p class="text-slate-300 mt-0.5">Dúvidas na contratação? Nosso time de corretores sênior está disponível no WhatsApp oficial.</p></div>
       </div>
     </div>
   </div>

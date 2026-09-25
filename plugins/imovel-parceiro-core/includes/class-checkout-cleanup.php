@@ -223,6 +223,9 @@ class Imovel_Parceiro_Checkout_Cleanup {
 		// Complemento desativado: endereço usa só Rua + Número.
 		unset( $fields['billing']['billing_address_2'], $fields['shipping']['shipping_address_2'] );
 
+		// Bloco "Informação adicional" desativado no checkout.
+		unset( $fields['order']['order_comments'] );
+
 		return $fields;
 	}
 
