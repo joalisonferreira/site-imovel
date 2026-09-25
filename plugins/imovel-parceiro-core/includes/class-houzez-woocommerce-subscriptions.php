@@ -631,23 +631,32 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
     }
 
     /**
-     * Detalhes de pagamento pendente de uma assinatura (URLs do boleto e vencimento).
+     * Detalhes de pagamento pendente de uma assinatura (URLs do boleto, QR do
+     * Pix e vencimento).
      *
      * @param object $subscription WC_Subscription.
-     * @return array Com chaves is_boleto, pay_url, ticket_url e due_date.
+     * @return array Com chaves is_boleto, is_pix, pay_url, ticket_url,
+     *               due_date, pix_qr, pix_payload e pix_expires.
      */
     public static function pending_payment_info( $subscription ) {
         $info = array(
-            'is_boleto'  => false,
-            'pay_url'    => '',
-            'ticket_url' => '',
-            'due_date'   => '',
+            'is_boleto'   => false,
+            'is_pix'      => false,
+            'pay_url'     => '',
+            'ticket_url'  => '',
+            'due_date'    => '',
+            'pix_qr'      => '',
+            'pix_payload' => '',
+            'pix_expires' => '',
         );
         if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'get_payment_method' ) ) {
             return $info;
         }
         if ( 'asaas-ticket' === $subscription->get_payment_method() ) {
             $info['is_boleto'] = true;
+        }
+        if ( 'asaas-pix' === $subscription->get_payment_method() ) {
+            $info['is_pix'] = true;
         }
 
         $parent = null;
@@ -658,30 +667,136 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
             }
         }
 
-        if ( $parent ) {
-            if ( method_exists( $parent, 'needs_payment' ) && method_exists( $parent, 'get_checkout_payment_url' ) && $parent->needs_payment() ) {
-                $info['pay_url'] = $parent->get_checkout_payment_url();
-            }
-            // Meta __ASAAS_ORDER do gateway woo-asaas: JSON do pagamento com
-            // bankSlipUrl (boleto), billingType (BOLETO) e dueDate (Y-m-d).
-            $raw = method_exists( $parent, 'get_meta' ) ? $parent->get_meta( '__ASAAS_ORDER' ) : '';
-            if ( '' !== (string) $raw ) {
-                $data = json_decode( (string) $raw );
-                if ( is_object( $data ) ) {
-                    if ( isset( $data->billingType ) && 'BOLETO' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['is_boleto'] = true;
-                    }
-                    if ( isset( $data->bankSlipUrl ) && '' !== (string) $data->bankSlipUrl ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['ticket_url'] = esc_url_raw( (string) $data->bankSlipUrl ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                    }
-                    if ( isset( $data->dueDate ) && '' !== (string) $data->dueDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['due_date'] = sanitize_text_field( (string) $data->dueDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                    }
+        // Pedido mais recente ainda aguardando pagamento (ex.: renovação
+        // manual). Tem prioridade sobre o pedido pai, pois carrega o QR
+        // do ciclo atual e não o do primeiro pagamento.
+        $target = $parent;
+        if ( method_exists( $subscription, 'get_related_orders' ) && function_exists( 'wc_get_order' ) ) {
+            foreach ( (array) $subscription->get_related_orders( 'any' ) as $related_id ) {
+                $related = wc_get_order( absint( $related_id ) );
+                if ( ! $related || ! method_exists( $related, 'needs_payment' ) || ! $related->needs_payment() ) {
+                    continue;
+                }
+                if ( ! $target || (int) $related->get_id() > (int) $target->get_id() ) {
+                    $target = $related;
                 }
             }
         }
 
+        if ( $target ) {
+            if ( method_exists( $target, 'needs_payment' ) && method_exists( $target, 'get_checkout_payment_url' ) && $target->needs_payment() ) {
+                $info['pay_url'] = $target->get_checkout_payment_url();
+            }
+            self::extract_asaas_meta( $target, $info );
+        } elseif ( $parent ) {
+            self::extract_asaas_meta( $parent, $info );
+        }
+
         return $info;
+    }
+
+    /**
+     * Lê o meta __ASAAS_ORDER do gateway woo-asaas (JSON do pagamento) e
+     * preenche boleto (bankSlipUrl) ou Pix (payload + encodedImage) no $info.
+     *
+     * @param object $order WC_Order.
+     * @param array  $info  Array por referência.
+     */
+    private static function extract_asaas_meta( $order, &$info ) {
+        if ( ! is_object( $order ) || ! method_exists( $order, 'get_meta' ) ) {
+            return;
+        }
+        // Meta __ASAAS_ORDER do gateway woo-asaas: JSON do pagamento com
+        // bankSlipUrl (boleto), billingType (BOLETO/PIX) e dueDate (Y-m-d);
+        // no Pix inclui ainda payload (copia-e-cola), encodedImage (QR em
+        // base64) e expirationDate.
+        $raw = $order->get_meta( '__ASAAS_ORDER' );
+        if ( '' === (string) $raw ) {
+            return;
+        }
+        $data = json_decode( (string) $raw );
+        if ( ! is_object( $data ) ) {
+            return;
+        }
+        if ( isset( $data->billingType ) && 'BOLETO' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['is_boleto'] = true;
+        }
+        if ( isset( $data->billingType ) && 'PIX' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['is_pix'] = true;
+        }
+        if ( isset( $data->bankSlipUrl ) && '' !== (string) $data->bankSlipUrl ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['ticket_url'] = esc_url_raw( (string) $data->bankSlipUrl ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->dueDate ) && '' !== (string) $data->dueDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['due_date'] = sanitize_text_field( (string) $data->dueDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->payload ) && '' !== (string) $data->payload ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['pix_payload'] = (string) $data->payload; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->encodedImage ) && '' !== (string) $data->encodedImage ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['pix_qr'] = 'data:image/jpeg;base64,' . (string) $data->encodedImage; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->expirationDate ) && '' !== (string) $data->expirationDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['pix_expires'] = sanitize_text_field( (string) $data->expirationDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+    }
+
+    /**
+     * Renderiza o painel "Pagamento pendente" (QR do Pix + copia-e-cola ou
+     * link do boleto) para a lista de pending_payment_subscriptions_for_user().
+     *
+     * @param array $pending_list Lista de arrays com subscription, package_id e payment.
+     */
+    public static function render_pending_payments( $pending_list ) {
+        if ( empty( $pending_list ) || ! is_array( $pending_list ) ) {
+            return;
+        }
+        foreach ( $pending_list as $item ) {
+            if ( ! is_array( $item ) || empty( $item['subscription'] ) || empty( $item['payment'] ) ) {
+                continue;
+            }
+            $subscription = $item['subscription'];
+            $payment      = $item['payment'];
+            $plan_title   = ! empty( $item['package_id'] ) ? get_the_title( absint( $item['package_id'] ) ) : '';
+            $amount       = method_exists( $subscription, 'get_total' ) ? wc_price( $subscription->get_total() ) : '';
+            ?>
+            <div class="houzez-membership mb-4">
+                <div class="membership-inner">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 style="margin:0;"><?php esc_html_e( 'Pagamento pendente', 'imovel-parceiro-core' ); ?></h5>
+                        <span class="dashboard-label bg-warning"><?php esc_html_e( 'Aguardando pagamento', 'imovel-parceiro-core' ); ?></span>
+                    </div>
+                    <?php if ( $plan_title ) : ?>
+                        <p class="mb-1"><strong><?php echo esc_html( $plan_title ); ?></strong><?php echo $amount ? ' — ' . wp_kses_post( $amount ) : ''; ?></p>
+                    <?php elseif ( $amount ) : ?>
+                        <p class="mb-1"><strong><?php echo wp_kses_post( $amount ); ?></strong></p>
+                    <?php endif; ?>
+                    <?php if ( ! empty( $payment['due_date'] ) ) : ?>
+                        <p class="mb-3 text-muted"><?php esc_html_e( 'Vencimento:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $payment['due_date'] ) ) ); ?></p>
+                    <?php endif; ?>
+
+                    <?php if ( ! empty( $payment['is_pix'] ) && ! empty( $payment['pix_qr'] ) ) : ?>
+                        <div class="d-flex flex-column align-items-center text-center" style="gap:12px;">
+                            <img src="<?php echo esc_attr( $payment['pix_qr'] ); ?>" alt="QR Code Pix" width="220" height="220" style="width:220px;height:220px;border:1px solid #e2e8f0;border-radius:12px;" />
+                            <?php if ( ! empty( $payment['pix_payload'] ) ) : ?>
+                                <input type="text" readonly value="<?php echo esc_attr( $payment['pix_payload'] ); ?>" onclick="this.select();" style="width:100%;font-size:12px;" />
+                                <button type="button" class="btn btn-primary-outlined" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);this.textContent='<?php echo esc_js( __( 'Código copiado!', 'imovel-parceiro-core' ) ); ?>';"><?php esc_html_e( 'Copiar código Pix', 'imovel-parceiro-core' ); ?></button>
+                            <?php endif; ?>
+                            <?php if ( ! empty( $payment['pix_expires'] ) ) : ?>
+                                <p class="mb-0 text-muted" style="font-size:13px;"><?php esc_html_e( 'QR válido até:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $payment['pix_expires'] ) ) ); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    <?php elseif ( ! empty( $payment['is_boleto'] ) && ! empty( $payment['ticket_url'] ) ) : ?>
+                        <p><a href="<?php echo esc_url( $payment['ticket_url'] ); ?>" target="_blank" rel="noopener" class="btn btn-primary"><?php esc_html_e( 'Ver boleto', 'imovel-parceiro-core' ); ?></a></p>
+                    <?php endif; ?>
+
+                    <?php if ( ! empty( $payment['pay_url'] ) ) : ?>
+                        <p class="mt-3 mb-0"><a href="<?php echo esc_url( $payment['pay_url'] ); ?>" class="btn btn-primary"><?php esc_html_e( 'Pagar agora', 'imovel-parceiro-core' ); ?></a></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php
+        }
     }
 
     public function activate_houzez_membership( $subscription ) {

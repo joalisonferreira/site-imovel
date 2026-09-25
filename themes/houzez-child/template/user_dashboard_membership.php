@@ -17,6 +17,10 @@ if ( $agent_agency_id ) {
 }
 $package_id = houzez_get_user_package_id( $user_id );
 $requested_subscription_id = isset( $_GET['subscription_id'] ) ? absint( wp_unslash( $_GET['subscription_id'] ) ) : 0;
+$ipc_pending_payments = array();
+if ( class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) && function_exists( 'wcs_get_users_subscriptions' ) ) {
+    $ipc_pending_payments = Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::pending_payment_subscriptions_for_user( $user_id );
+}
 
 get_header( 'dashboard' );
 get_template_part( 'template-parts/dashboard/sidebar' );
@@ -102,8 +106,16 @@ get_template_part( 'template-parts/dashboard/sidebar' );
                 <?php endif; ?>
             </div>
             <div class="houzez-membership-btn mt-3"><ul class="d-flex align-items-center gap-2"><li><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Alterar assinatura', 'imovel-parceiro-core' ); ?></a></li></ul></div>
+            <?php if ( ! empty( $ipc_pending_payments ) && class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ) : ?>
+                <?php Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::render_pending_payments( $ipc_pending_payments ); ?>
+            <?php endif; ?>
         <?php else : ?>
+            <?php if ( ! empty( $ipc_pending_payments ) && class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ) : ?>
+                <?php Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::render_pending_payments( $ipc_pending_payments ); ?>
+                <div class="houzez-membership-btn mt-3"><ul class="d-flex align-items-center gap-2"><li><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Ver planos', 'imovel-parceiro-core' ); ?></a></li></ul></div>
+            <?php else : ?>
             <div class="houzez-membership"><div class="membership-inner d-flex align-items-center justify-content-between mb-4"><div class="d-flex flex-column"><p class="mb-3"><?php esc_html_e( 'Você não possui assinatura.', 'imovel-parceiro-core' ); ?></p><a href="<?php echo esc_url( $packages_page_link ); ?>" class="btn btn-primary"><?php esc_html_e( 'Obter assinatura', 'imovel-parceiro-core' ); ?></a></div></div></div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
