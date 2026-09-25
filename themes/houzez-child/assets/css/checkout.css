@@ -22,6 +22,17 @@
 .woocommerce-checkout-fresh #billing_first_name_field, .woocommerce-checkout-fresh #billing_last_name_field,
 .woocommerce-checkout-fresh #billing_cpf_field, .woocommerce-checkout-fresh #billing_rg_field,
 .woocommerce-checkout-fresh #billing_phone_field, .woocommerce-checkout-fresh #billing_email_field { grid-column: span 6 / span 6; }
+.woocommerce-checkout-fresh .woocommerce-form-coupon-toggle .woocommerce-info { background: transparent !important; border: none !important; padding: 0 !important; box-shadow: none !important; }
+.woocommerce-checkout-fresh #order_review .shop_table { border: none; margin-bottom: 16px; font-size: 14px; width: 100%; }
+.woocommerce-checkout-fresh #order_review .shop_table th, .woocommerce-checkout-fresh #order_review .shop_table td { border-top: 1px solid #f1f5f9; padding: 12px 8px; }
+.woocommerce-checkout-fresh #order_review .shop_table thead th { border-top: none; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+.woocommerce-checkout-fresh #payment ul.payment_methods { list-style: none; padding: 0; margin: 0; border: none; }
+.woocommerce-checkout-fresh #payment ul.payment_methods li { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+.woocommerce-checkout-fresh #payment ul.payment_methods li:has(input:checked) { border-color: #dc2626; border-width: 2px; box-shadow: 0 4px 16px rgba(220,38,38,.15); }
+.woocommerce-checkout-fresh #payment ul.payment_methods li > label { display: flex; align-items: center; gap: 10px; padding: 14px 16px; font-weight: 700; cursor: pointer; }
+.woocommerce-checkout-fresh #payment div.payment_box { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 16px; font-size: 13px; color: #334155; }
+.woocommerce-checkout-fresh #payment div.payment_box::before { display: none; }
+.woocommerce-checkout-fresh #place_order { width: 100%; background: linear-gradient(to right, #dc2626, #b91c1c) !important; color: #fff !important; border: none !important; border-radius: 12px !important; padding: 16px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 20px 40px -12px rgba(220,38,38,.4) !important; }
 @media (max-width: 640px){
   .woocommerce-checkout-fresh .woocommerce-billing-fields__field-wrapper .form-row,
   .woocommerce-checkout-fresh .woocommerce-shipping-fields__field-wrapper .form-row { grid-column: span 12 / span 12 !important; }
