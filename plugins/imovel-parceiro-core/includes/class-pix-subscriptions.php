@@ -48,6 +48,29 @@ class Imovel_Parceiro_Pix_Subscriptions {
         'subscription_reactivation',
     );
 
+    /**
+     * Traduções PT-BR das telas nativas do Pix no thank-you / order-pay /
+     * ver-pedido (domínio 'woo-asaas'). O .po do woo-asaas não cobre essas
+     * strings, então traduzimos via filtro, só no front.
+     */
+    const PTBR_STRINGS = array(
+        'Payment details'                                                                                                     => 'Detalhes do pagamento',
+        'Pay with Pix.'                                                                                                       => 'Pague com Pix.',
+        'Click here to copy the Pix code'                                                                                     => 'Clique aqui para copiar o código Pix',
+        'Code copied to clipboard'                                                                                            => 'Código copiado',
+        'Open the app or Internet Banking to pay.'                                                                            => 'Abra o app do banco ou o internet banking para pagar.',
+        'In the Pix option, choose "Read QR Code".'                                                                           => 'Na opção Pix, escolha "Ler QR Code".',
+        'Scan the QR Code or, if you prefer, copy the code to Pix Copy and Paste.'                                            => 'Escaneie o QR Code ou, se preferir, copie o código do Pix copia e cola.',
+        'Review the information and confirm payment. Ready! The order status will be updated immediately.'                     => 'Confira os dados e confirme o pagamento. Pronto! O pedido será atualizado automaticamente após a confirmação.',
+        'You have %1$d %2$s to pay. After that time, your order will be cancelled.'                                           => 'Você tem %1$d %2$s para pagar. Após esse prazo, o pedido será cancelado.',
+    );
+
+    const PTBR_PLURALS = array(
+        'minute' => array( 'minuto', 'minutos' ),
+        'hour'   => array( 'hora', 'horas' ),
+        'day'    => array( 'dia', 'dias' ),
+    );
+
     public function __construct() {
         // Etapa 1 (prioridade 5): adiciona as flags ANTES do filtro do
         // woo-asaas (prioridade 10) e do WooCommerce Subscriptions.
@@ -56,6 +79,10 @@ class Imovel_Parceiro_Pix_Subscriptions {
         // forçado do woo-asaas (prioridade 10). Sem isso, a etapa 1 sozinha
         // não basta — o unset é incondicional.
         add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restore_pix_gateway' ), 20 );
+        // Etapa 3: PT-BR nas telas nativas do Pix (thank-you, order-pay,
+        // ver pedido). Só front, só domínio woo-asaas.
+        add_filter( 'gettext', array( $this, 'translate_pix_strings' ), 20, 3 );
+        add_filter( 'ngettext', array( $this, 'translate_pix_plurals' ), 20, 5 );
     }
 
     /**
@@ -167,6 +194,45 @@ class Imovel_Parceiro_Pix_Subscriptions {
         }
 
         return false;
+    }
+
+    /**
+     * Traduz strings singulares do woo-asaas para PT-BR (só front).
+     *
+     * @param string $translation Tradução atual.
+     * @param string $text Texto original.
+     * @param string $domain Domínio.
+     * @return string
+     */
+    public function translate_pix_strings( $translation, $text, $domain ) {
+        if ( 'woo-asaas' !== $domain || is_admin() ) {
+            return $translation;
+        }
+        if ( isset( self::PTBR_STRINGS[ $text ] ) ) {
+            return self::PTBR_STRINGS[ $text ];
+        }
+        return $translation;
+    }
+
+    /**
+     * Traduz plurais do woo-asaas para PT-BR (minuto/hora/dia, só front).
+     *
+     * @param string $translation Tradução atual.
+     * @param string $single Singular original.
+     * @param string $plural Plural original.
+     * @param int    $number Quantidade.
+     * @param string $domain Domínio.
+     * @return string
+     */
+    public function translate_pix_plurals( $translation, $single, $plural, $number, $domain ) {
+        if ( 'woo-asaas' !== $domain || is_admin() ) {
+            return $translation;
+        }
+        if ( isset( self::PTBR_PLURALS[ $single ] ) ) {
+            $forms = self::PTBR_PLURALS[ $single ];
+            return 1 === (int) $number ? $forms[0] : $forms[1];
+        }
+        return $translation;
     }
 }
 

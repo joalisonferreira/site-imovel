@@ -758,6 +758,12 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         if ( empty( $pending_list ) || ! is_array( $pending_list ) ) {
             return;
         }
+        // URL da página atual: o botão "Já paguei" apenas recarrega para
+        // refletir o status que o webhook (produção) já atualizou.
+        $refresh_url = '';
+        if ( isset( $_SERVER['REQUEST_URI'] ) && function_exists( 'home_url' ) ) {
+            $refresh_url = esc_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) );
+        }
         foreach ( $pending_list as $item ) {
             if ( ! is_array( $item ) || empty( $item['subscription'] ) || empty( $item['payment'] ) ) {
                 continue;
@@ -799,6 +805,10 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
 
                     <?php if ( ! empty( $payment['pay_url'] ) ) : ?>
                         <p class="mt-3 mb-0"><a href="<?php echo esc_url( $payment['pay_url'] ); ?>" class="btn btn-primary"><?php esc_html_e( 'Pagar agora', 'imovel-parceiro-core' ); ?></a></p>
+                    <?php endif; ?>
+                    <?php if ( $refresh_url ) : ?>
+                        <p class="mt-2 mb-1"><a href="<?php echo $refresh_url; ?>" class="btn btn-primary-outlined"><?php esc_html_e( 'Já paguei, atualizar status', 'imovel-parceiro-core' ); ?></a></p>
+                        <p class="mb-0 text-muted" style="font-size:13px;"><?php esc_html_e( 'Após pagar, clique para verificar se o plano já foi liberado.', 'imovel-parceiro-core' ); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
