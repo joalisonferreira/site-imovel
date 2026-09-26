@@ -22,6 +22,7 @@ class Imovel_Parceiro_Password_Reset {
 	public function __construct() {
 		add_shortcode( 'ipc_password_reset', array( $this, 'render_shortcode' ) );
 		add_action( 'init', array( $this, 'ensure_page' ), 20 );
+		add_action( 'untrashed_post', array( $this, 'adopt_restored_page' ) );
 		add_filter( 'lostpassword_url', array( $this, 'filter_lostpassword_url' ), 20, 2 );
 		add_filter( 'woocommerce_lostpassword_url', array( $this, 'filter_wc_lostpassword_url' ), 20, 1 );
 		add_filter( 'retrieve_password_message', array( $this, 'rewrite_email_link' ), 20, 4 );
@@ -31,18 +32,22 @@ class Imovel_Parceiro_Password_Reset {
 	/**
 	 * URL da página de redefinição ('' se ainda não existir).
 	 *
+	 * Nunca confia cegamente na option: o ID pode apontar para lixeira,
+	 * rascunho, revisão ou outro post (sequência excluir→restaurar bagunça
+	 * slugs e IDs). Só usa a página se válida; senão adota por shortcode.
+	 *
 	 * @return string
 	 */
 	public static function url() {
 		$page_id = absint( get_option( self::PAGE_OPTION ) );
-		if ( $page_id && 'trash' !== get_post_status( $page_id ) ) {
+		if ( $page_id && self::is_valid_reset_page( $page_id ) ) {
 			$link = get_permalink( $page_id );
 			if ( $link ) {
 				return $link;
 			}
 		}
 
-		$page = get_page_by_path( self::PAGE_SLUG );
+		$page = self::find_reset_page();
 		if ( $page ) {
 			update_option( self::PAGE_OPTION, (int) $page->ID, false );
 			return get_permalink( $page->ID );
@@ -52,14 +57,66 @@ class Imovel_Parceiro_Password_Reset {
 	}
 
 	/**
+	 * Uma página de reset válida é: post_type page, status publish e
+	 * (contém o shortcode OU usa o template dedicado).
+	 */
+	private static function is_valid_reset_page( $page_id ) {
+		$post = get_post( absint( $page_id ) );
+		if ( ! $post || 'page' !== $post->post_type || 'publish' !== $post->post_status ) {
+			return false;
+		}
+		if ( has_shortcode( (string) $post->post_content, 'ipc_password_reset' ) ) {
+			return true;
+		}
+		return 'template/template-password-reset.php' === (string) get_post_meta( $post->ID, '_wp_page_template', true );
+	}
+
+	/**
+	 * Localiza a página de reset: slug oficial primeiro, depois qualquer
+	 * página publicada com o shortcode (robusto a renomeações).
+	 *
+	 * @return WP_Post|null
+	 */
+	private static function find_reset_page() {
+		$page = get_page_by_path( self::PAGE_SLUG );
+		if ( $page && self::is_valid_reset_page( $page->ID ) ) {
+			return $page;
+		}
+
+		$pages = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'posts_per_page' => 10,
+				's'              => 'ipc_password_reset',
+				'fields'         => 'ids',
+			)
+		);
+		foreach ( $pages as $id ) {
+			if ( self::is_valid_reset_page( $id ) ) {
+				return get_post( $id );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Ao restaurar uma página da lixeira, adota-a se for de reset (a
+	 * original restaurada vence duplicatas auto-criadas).
+	 */
+	public function adopt_restored_page( $post_id ) {
+		if ( self::is_valid_reset_page( $post_id ) ) {
+			update_option( self::PAGE_OPTION, (int) $post_id, false );
+		}
+	}
+
+	/**
 	 * Garante a existência da página (cria uma única vez).
+	 * url() já adota qualquer página válida existente.
 	 */
 	public function ensure_page() {
 		if ( self::url() ) {
-			return;
-		}
-
-		if ( get_page_by_path( self::PAGE_SLUG ) ) {
 			return;
 		}
 
