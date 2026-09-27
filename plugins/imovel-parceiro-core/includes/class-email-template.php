@@ -98,8 +98,53 @@ class Imovel_Parceiro_Email_Template {
 		$text = str_replace( "\r", "\n", $text );
 		$text = nl2br( $text );
 
-		// Transforma URLs "nuas" em links clicáveis.
-		$text = preg_replace( '~(\bhttps?://[^\s<]+)~i', '<a href="$1" style="color:' . esc_attr( self::accent() ) . ';text-decoration:none;font-weight:600;">$1</a>', $text );
+		// Transforma URLs "nuas" em links clicáveis com texto encurtado
+		// (o href mantém a URL completa).
+		$text = preg_replace_callback(
+			'~(\bhttps?://[^\s<]+)~i',
+			function ( $matches ) {
+				$raw = rtrim( $matches[1], '.,;:!?)]}\'"”' );
+				$tail = substr( $matches[1], strlen( $raw ) );
+				if ( '' === $raw ) {
+					return $matches[1];
+				}
+				return '<a href="' . esc_url( $raw ) . '" style="color:' . esc_attr( self::accent() ) . ';text-decoration:none;font-weight:600;">' . esc_html( self::short_url_text( $raw ) ) . '</a>' . esc_html( $tail );
+			},
+			$text
+		);
+
+		return $text;
+	}
+
+	/**
+	 * Texto curto para exibir no lugar da URL completa.
+	 *
+	 * Ex.: https://imovelparceiro.com.br/dashboard/?imovel_dashboard_area=parcerias
+	 * vira imovelparceiro.com.br/dashboard/…
+	 *
+	 * @param string $url URL completa.
+	 * @return string
+	 */
+	public static function short_url_text( $url ) {
+		$parts = wp_parse_url( (string) $url );
+		if ( empty( $parts['host'] ) ) {
+			return (string) $url;
+		}
+
+		$host = preg_replace( '/^www\./i', '', $parts['host'] );
+		$path = isset( $parts['path'] ) ? rtrim( (string) $parts['path'], '/' ) : '';
+		if ( '' !== $path && '/' !== substr( $path, -1 ) ) {
+			$path .= '/';
+		}
+
+		$text = $host . $path;
+		if ( function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' ) ) {
+			if ( mb_strlen( $text ) > 42 ) {
+				$text = mb_substr( $text, 0, 41 ) . '…';
+			}
+		} elseif ( strlen( $text ) > 42 ) {
+			$text = substr( $text, 0, 41 ) . '…';
+		}
 
 		return $text;
 	}
@@ -452,6 +497,91 @@ function imovel_parceiro_standardize_account_emails( $args ) {
 	return $args;
 }
 add_filter( 'wp_mail', 'imovel_parceiro_standardize_account_emails', 5 );
+
+/**
+ * E-mails de verificação ao admin (tema Houzez): aplica o layout premium,
+ * garante link do painel (nunca wp-admin) e botão de ação.
+ *
+ * O tema envia em texto puro via wp_mail direto, fora do template. Detecta
+ * pelo assunto (EN/PT) + URL de verificação no corpo.
+ *
+ * @param array $args Argumentos do wp_mail.
+ * @return array
+ */
+function imovel_parceiro_wrap_verification_admin_emails( $args ) {
+	if ( empty( $args['subject'] ) || empty( $args['message'] ) || ! class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
+		return $args;
+	}
+
+	$subject = (string) $args['subject'];
+	$message = (string) $args['message'];
+
+	// Já é HTML (template ou outro remetente): não toca.
+	if ( false !== stripos( $message, '<a ' ) || false !== stripos( $message, '<html' ) ) {
+		return $args;
+	}
+
+	if ( false === stripos( $subject, 'verific' ) ) {
+		return $args;
+	}
+
+	$has_legacy_url = false !== strpos( $message, 'houzez-verification-requests' );
+	$has_panel_url  = false !== strpos( $message, 'imovel_admin_section=verification_requests' );
+	if ( ! $has_legacy_url && ! $has_panel_url ) {
+		return $args;
+	}
+
+	// Segurança extra: nenhum link wp-admin pode restar no corpo.
+	if ( class_exists( 'Imovel_Parceiro_Verification_Notifications' ) ) {
+		$panel_url = Imovel_Parceiro_Verification_Notifications::admin_verification_url();
+	} else {
+		$panel_url = home_url( '/dashboard/' );
+	}
+	$message = preg_replace(
+		'~https?://[^\s\'"]*users\.php\?page=houzez-verification-requests[^\s\'"]*~i',
+		$panel_url,
+		$message
+	);
+
+	// Extrai a URL do painel para o botão de ação.
+	$cta_url = $panel_url;
+	if ( preg_match( '~https?://[^\s\'"]+~i', $message, $matches ) ) {
+		foreach ( $matches as $candidate ) {
+			if ( false !== strpos( $candidate, 'verification' ) ) {
+				$cta_url = rtrim( $candidate, '.,;:!?)]}\'"' );
+				break;
+			}
+		}
+		if ( $cta_url === $panel_url && isset( $matches[0] ) ) {
+			$cta_url = rtrim( $matches[0], '.,;:!?)]}\'"' );
+		}
+	}
+
+	$is_additional = false !== stripos( $subject, 'additional' ) || false !== stripos( $subject, 'adicion' );
+	if ( $is_additional ) {
+		$title    = __( 'Informações adicionais enviadas', 'imovel-parceiro-core' );
+		$new_sub  = sprintf( __( '[%s] Informações adicionais de verificação', 'imovel-parceiro-core' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$cta_text = __( 'Analisar documentos', 'imovel-parceiro-core' );
+	} else {
+		$title    = __( 'Nova solicitação de verificação', 'imovel-parceiro-core' );
+		$new_sub  = sprintf( __( '[%s] Nova solicitação de verificação', 'imovel-parceiro-core' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$cta_text = __( 'Analisar solicitação', 'imovel-parceiro-core' );
+	}
+
+	$args['subject'] = $new_sub;
+	$args['message'] = Imovel_Parceiro_Email_Template::render(
+		Imovel_Parceiro_Email_Template::text_to_html( $message ),
+		array(
+			'title'    => $title,
+			'cta_url'  => $cta_url,
+			'cta_text' => $cta_text,
+		)
+	);
+	$args['headers'] = array( 'Content-Type: text/html; charset=UTF-8' );
+
+	return $args;
+}
+add_filter( 'wp_mail', 'imovel_parceiro_wrap_verification_admin_emails', 8 );
 
 /**
  * Remove a senha em texto puro do e-mail de boas-vindas. Vale para todos os

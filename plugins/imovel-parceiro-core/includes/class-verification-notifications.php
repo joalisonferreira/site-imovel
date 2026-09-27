@@ -254,13 +254,33 @@ class Imovel_Parceiro_Verification_Notifications {
 
     /**
      * Item 5: point admin verification e-mails to the dashboard management screen.
+     *
+     * Substitui o link do wp-admin (users.php?page=houzez-verification-requests)
+     * pelo painel, em vez de apenas anexar — o e-mail não deve expor o admin.
      */
     public function filter_admin_message( $message, $user_id = 0, $verification_data = array(), $user = null ) {
         $url = self::admin_verification_url();
-        $message .= "\n\n" . sprintf(
-            __( 'Gerencie esta solicitação no painel: %s', 'imovel-parceiro-core' ),
-            $url
+        $message = (string) $message;
+
+        $legacy = admin_url( 'users.php?page=houzez-verification-requests' );
+        if ( false !== strpos( $message, $legacy ) ) {
+            $message = str_replace( $legacy, $url, $message );
+            return $message;
+        }
+
+        // Formato alternativo (URL escapada ou com query em outra ordem).
+        $message = preg_replace(
+            '~https?://[^\s\'"]*users\.php\?page=houzez-verification-requests[^\s\'"]*~i',
+            $url,
+            $message
         );
+
+        if ( false === strpos( $message, $url ) ) {
+            $message .= "\n\n" . sprintf(
+                __( 'Gerencie esta solicitação no painel: %s', 'imovel-parceiro-core' ),
+                $url
+            );
+        }
 
         return $message;
     }
