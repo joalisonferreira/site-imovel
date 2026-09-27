@@ -199,28 +199,38 @@ if (is_page_template('template/user_dashboard_submit.php')) {
                         echo '<input type="hidden" name="houzez_draft" value="draft">';
                     } ?>
 
-                    <?php $ipc_cancel_link = function_exists( 'houzez_dashboard_listings' ) ? houzez_dashboard_listings() : home_url( '/' ); ?>
+                    <?php
+                    $ipc_cancel_link = function_exists( 'houzez_dashboard_listings' ) ? houzez_dashboard_listings() : home_url( '/' );
+                    $ipc_cancel_label = houzez_option( 'fal_cancel', esc_html__( 'Cancel', 'houzez' ) );
+                    if ( '' === trim( (string) $ipc_cancel_label ) ) { $ipc_cancel_label = 'Cancelar'; }
+                    $ipc_back_label = houzez_option( 'fal_back', esc_html__( 'Back', 'houzez' ) );
+                    if ( '' === trim( (string) $ipc_back_label ) ) { $ipc_back_label = 'Voltar'; }
+                    $ipc_next_label = houzez_option( 'fal_next', esc_html__( 'Next', 'houzez' ) );
+                    if ( '' === trim( (string) $ipc_next_label ) ) { $ipc_next_label = 'Próximo'; }
+                    $ipc_save_label = houzez_option( 'fal_save_changes', esc_html__( 'Save Changes', 'houzez' ) );
+                    if ( '' === trim( (string) $ipc_save_label ) ) { $ipc_save_label = 'Salvar alterações'; }
+                    ?>
                     <div class="d-flex justify-content-between p-2 add-new-listing-bottom-nav-wrap">
                         <a href="<?php echo esc_url( $ipc_cancel_link ); ?>" class="btn-cancel btn btn-primary-outlined">
-                            <?php echo houzez_option('fal_cancel', esc_html__('Cancel', 'houzez')); ?>
+                            <?php echo esc_html( $ipc_cancel_label ); ?>
                         </a>
                         <?php if ( $show_submit_btn == 'one_step' ) { ?>
                             <button type="submit" class="btn btn-success houzez-submit-js">
                                 <?php get_template_part('template-parts/loader'); ?>
-                                <?php echo houzez_option('fal_save_changes', esc_html__('Save Changes', 'houzez')); ?>
+                                <?php echo esc_html( $ipc_save_label ); ?>
                             </button>
                         <?php } else { ?>
                             <div class="d-flex gap-2 align-items-center">
                                 <button type="button" class="btn-back houzez-hidden btn btn-primary-outlined">
-                                    <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php echo esc_html( houzez_option('fal_back', __('Back', 'houzez')) ); ?>
+                                    <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php echo esc_html( $ipc_back_label ); ?>
                                 </button>
                                 <button type="button" class="btn-next btn btn-primary">
-                                    <?php echo esc_html( houzez_option('fal_next', __('Next', 'houzez')) ); ?> <i class="houzez-icon icon-arrow-right-1 ms-2"></i>
+                                    <?php echo esc_html( $ipc_next_label ); ?> <i class="houzez-icon icon-arrow-right-1 ms-2"></i>
                                 </button>
                                 <div class="btn-step-submit" style="display: none;">
                                     <button type="submit" class="btn btn-success houzez-submit-js">
                                         <?php get_template_part('template-parts/loader'); ?>
-                                        <?php echo houzez_option('fal_save_changes', esc_html__('Save Changes', 'houzez')); ?>
+                                        <?php echo esc_html( $ipc_save_label ); ?>
                                     </button>
                                 </div>
                             </div>
