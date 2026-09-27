@@ -249,7 +249,7 @@ class Imovel_Parceiro_Contact_Widget {
 
         if ( class_exists( 'Imovel_Parceiro_Price_Formatting' ) && Imovel_Parceiro_Price_Formatting::is_rental_property( $property_id ) ) {
             if ( empty( $prefix ) && empty( $postfix ) ) {
-                $prefix = __( '/mês', 'imovel-parceiro-core' );
+                $postfix = __( '/mês', 'imovel-parceiro-core' );
             }
         }
 
@@ -263,6 +263,8 @@ class Imovel_Parceiro_Contact_Widget {
         $label = '';
         if ( '' !== trim( $prefix ) ) {
             $label .= trim( $prefix ) . ' ';
+        } elseif ( '' !== $formatted ) {
+            $label .= 'R$';
         }
         if ( '' !== $formatted ) {
             $label .= $formatted;
