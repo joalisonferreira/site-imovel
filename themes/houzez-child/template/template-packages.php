@@ -107,7 +107,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php elseif ( null !== $plan['listings'] ) : ?>
                         <strong><?php echo esc_html( $plan['listings'] ); ?></strong>
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -117,7 +117,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php if ( null !== $plan['featured'] ) : ?>
                         <strong><?php echo esc_html( $plan['featured'] ); ?> inclusos</strong>
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -127,7 +127,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php if ( null !== $plan['images'] ) : ?>
                         <strong><?php echo esc_html( $plan['images'] ); ?> fotos</strong> por anúncio
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -297,7 +297,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                                 } elseif ( null !== $table_plan['listings'] ) {
                                                     echo esc_html( $table_plan['listings'] );
                                                 } else {
-                                                    echo '—';
+                                                    echo 'Ilimitado';
                                                 }
                                                 ?>
                                             </td>
@@ -307,7 +307,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                         <td>Anúncios com Selo Super Destaque</td>
                                         <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
                                             <td<?php echo (int) $table_plan['id'] === $recommended_id ? ' class="is-recommended"' : ''; ?>>
-                                                <?php echo null !== $table_plan['featured'] ? esc_html( $table_plan['featured'] ) . ' destaques' : '—'; ?>
+                                                <?php echo null !== $table_plan['featured'] ? esc_html( $table_plan['featured'] ) . ' destaques' : 'Ilimitado'; ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -315,7 +315,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                         <td>Fotos por Imóvel</td>
                                         <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
                                             <td<?php echo (int) $table_plan['id'] === $recommended_id ? ' class="is-recommended"' : ''; ?>>
-                                                <?php echo null !== $table_plan['images'] ? esc_html( $table_plan['images'] ) . ' fotos' : '—'; ?>
+                                                <?php echo null !== $table_plan['images'] ? esc_html( $table_plan['images'] ) . ' fotos' : 'Ilimitado'; ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
