@@ -229,8 +229,9 @@ jQuery(function($){
             return;
         }
         updateGalleryCounter();
+        enhanceGalleryIcons();
         if (window.MutationObserver) {
-            var obs = new MutationObserver(function () { updateGalleryCounter(); });
+            var obs = new MutationObserver(function () { updateGalleryCounter(); enhanceGalleryIcons(); });
             obs.observe(document.getElementById('houzez_property_gallery_container'), { childList: true, subtree: true });
             var counterEl = document.querySelector('.upload-image-counter');
             if (counterEl) {
@@ -238,6 +239,25 @@ jQuery(function($){
                 obs2.observe(counterEl, { childList: true, subtree: true, characterData: true });
             }
         }
+        $(document).off('click.ipc-featured').on('click.ipc-featured', '#houzez_property_gallery_container .icon-featured', function(){
+            setTimeout(enhanceGalleryIcons, 80);
+        });
+    }
+
+    function enhanceGalleryIcons() {
+        $('#houzez_property_gallery_container .property-thumb').each(function(){
+            var $thumb = $(this);
+            var $star = $thumb.find('.icon-featured');
+            var $del = $thumb.find('.icon-delete');
+            var isFeat = $star.find('.text-success').length > 0 || $thumb.find('input.featured_image_id').length > 0;
+            $thumb.toggleClass('is-featured', isFeat);
+            $star.toggleClass('is-active', isFeat);
+            $star.attr('title', isFeat ? 'Foto destaque (capa)' : 'Definir como destaque');
+            $star.attr('aria-label', isFeat ? 'Foto destaque (capa)' : 'Definir como destaque');
+            $star.attr('aria-pressed', isFeat ? 'true' : 'false');
+            $del.attr('title', 'Excluir foto');
+            $del.attr('aria-label', 'Excluir foto');
+        });
     }
 
     function ensureDraftStamp() {

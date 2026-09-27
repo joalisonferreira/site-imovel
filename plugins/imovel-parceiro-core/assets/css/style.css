@@ -117,4 +117,34 @@
 .ipc-thankyou-steps{border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin:24px 0;background:#fff}
 .ipc-thankyou-steps__title{font-size:16px;font-weight:700;color:#0f172a;margin:0 0 12px}
 .ipc-thankyou-steps__actions{display:flex;flex-wrap:wrap;gap:10px}
+/* Galeria: ícones de destaque (estrela) e excluir — mais visíveis e acessíveis */
+.upload-gallery-thumb-buttons{border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;background:#f8fafc;padding:4px 6px}
+.upload-gallery-thumb-buttons button{border:0;background:#fff;border-radius:8px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+.upload-gallery-thumb-buttons button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(15,23,42,.14)}
+.upload-gallery-thumb-buttons button .houzez-icon{font-size:18px;line-height:1}
+.upload-gallery-thumb-buttons button.icon-featured .houzez-icon.icon-rating-star{color:#94a3b8}
+.upload-gallery-thumb-buttons button.icon-featured:hover .houzez-icon.icon-rating-star{color:#f59e0b}
+.upload-gallery-thumb-buttons button.icon-featured .houzez-icon.icon-rating-star.text-success{color:#f59e0b !important;text-shadow:0 0 0 rgba(245,158,11,.4)}
+.property-thumb.is-featured{outline:2px solid #f59e0b;outline-offset:-2px;border-radius:8px}
+.upload-gallery-thumb-buttons button.icon-featured.is-active{background:#fef3c7;border:1px solid #f59e0b}
+.upload-gallery-thumb-buttons button.icon-delete .houzez-icon.icon-remove-circle{color:#94a3b8}
+.upload-gallery-thumb-buttons button.icon-delete:hover{background:#fef2f2;border:1px solid #fecaca}
+.upload-gallery-thumb-buttons button.icon-delete:hover .houzez-icon.icon-remove-circle{color:#dc2626}
+/* Botões Próximo/Cancelar do formulário de edição */
+.add-new-listing-bottom-nav-wrap .btn-cancel{border:1px solid #dc2626;color:#dc2626;background:#fff}
+.add-new-listing-bottom-nav-wrap .btn-cancel:hover{background:#fef2f2}
+.add-new-listing-bottom-nav-wrap .btn-next{background:#dc2626;border-color:#dc2626;color:#fff}
+.add-new-listing-bottom-nav-wrap .btn-next:hover{background:#b91c1c;border-color:#b91c1c}
+/* Calculadora estilo Chaves na Mão */
+.ipc-mortgage{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:22px}
+.ipc-mortgage h3{font-size:20px;font-weight:800;margin:0 0 16px}
+.ipc-mortgage .ipc-mortgage-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.ipc-mortgage .ipc-mortgage-financed{background:#fff1f2;border-radius:12px;padding:14px 18px;text-align:center}
+.ipc-mortgage .ipc-mortgage-financed strong{display:block;font-size:20px;color:#e11d48}
+.ipc-mortgage .ipc-term-btns{display:flex;gap:0;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.ipc-mortgage .ipc-term-btns button{flex:1;border:0;background:#f8fafc;padding:10px 0;font-weight:700;cursor:pointer}
+.ipc-mortgage .ipc-term-btns button.is-active{background:#fff;color:#e11d48;box-shadow:inset 0 0 0 1.5px #e11d48;border-radius:8px}
+.ipc-mortgage .ipc-mortgage-cta{background:#e11d48;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;width:100%;cursor:pointer}
+.ipc-mortgage .ipc-mortgage-cta:hover{background:#be123c}
+@media(max-width:768px){.ipc-mortgage .ipc-mortgage-grid{grid-template-columns:1fr}}
 

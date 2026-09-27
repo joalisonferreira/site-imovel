@@ -374,11 +374,20 @@ class Imovel_Parceiro_Contact_Widget {
             return false;
         }
 
-        if ( $viewer_id === $broker_id ) {
+        if ( $viewer_id && $viewer_id === $broker_id ) {
             return true;
         }
         if ( current_user_can( 'manage_options' ) ) {
             return true;
+        }
+        // Corretores/imobiliárias com plano ativo + verificado: liberados em
+        // todos os meios (WhatsApp direto, sem precisar de parceria aceita).
+        if ( $viewer_id && class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact( $viewer_id ) ) {
+            $viewer = get_userdata( $viewer_id );
+            $is_broker_viewer = $viewer && array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $viewer->roles );
+            if ( $is_broker_viewer ) {
+                return true;
+            }
         }
         // Proteção de lead: o cliente NÃO recebe WhatsApp direto. Ele usa o
         // fluxo "Tenho interesse neste imóvel" (lead registrada + corretor

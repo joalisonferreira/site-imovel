@@ -1069,6 +1069,9 @@ class Imovel_Parceiro_Partnerships {
             );
         }
 
+        // A notificação de parceria deve levar para a página de parcerias, não para o imóvel.
+        $partnerships_url = self::get_partnerships_dashboard_url();
+        $detail_url = $partnership_id ? self::dashboard_partnership_detail_url( $partnership_id ) : $partnerships_url;
         foreach ( $targets as $target ) {
             if ( empty( $target['user_id'] ) ) {
                 continue;
@@ -1083,7 +1086,7 @@ class Imovel_Parceiro_Partnerships {
                     'category' => IPC_Notifications::CATEGORY_PARCERIAS,
                     'title' => $target['title'],
                     'message' => $target['message'],
-                    'url' => $property_url,
+                    'url' => $detail_url ? $detail_url : $partnerships_url,
                     'priority' => $target['priority'],
                 )
             );
@@ -1108,7 +1111,7 @@ class Imovel_Parceiro_Partnerships {
                         'category' => IPC_Notifications::CATEGORY_PARCERIAS,
                         'title' => __( 'Nova solicitação de parceria', 'imovel-parceiro-core' ),
                         'message' => sprintf( __( 'Uma solicitação de parceria foi enviada para %s.', 'imovel-parceiro-core' ), $property_title ),
-                        'url' => $property_url,
+                        'url' => isset( $detail_url ) && $detail_url ? $detail_url : self::get_partnerships_dashboard_url(),
                         'priority' => IPC_Notifications::PRIORITY_NORMAL,
                     )
                 );

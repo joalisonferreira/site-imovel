@@ -494,7 +494,16 @@ class Imovel_Parceiro_Partnership_Workflow {
             return;
         }
         $property_id = $property_id ? absint( $property_id ) : ( isset( $row->property_id ) ? absint( $row->property_id ) : 0 );
-        $property_url = $property_id ? get_permalink( $property_id ) : '';
+        // Notificações de parceria levam para a página de parcerias, não para o imóvel.
+        $partnership_url = '';
+        if ( class_exists( 'Imovel_Parceiro_Partnerships' ) ) {
+            if ( $partnership_id ) {
+                $partnership_url = Imovel_Parceiro_Partnerships::dashboard_partnership_detail_url( $partnership_id );
+            }
+            if ( ! $partnership_url ) {
+                $partnership_url = Imovel_Parceiro_Partnerships::get_partnerships_dashboard_url();
+            }
+        }
 
         $requester_id = isset( $row->{ self::requester_col() } ) ? (int) $row->{ self::requester_col() } : 0;
         $owner_id     = isset( $row->{ self::owner_col() } ) ? (int) $row->{ self::owner_col() } : 0;
@@ -513,7 +522,7 @@ class Imovel_Parceiro_Partnership_Workflow {
                     'category'      => IPC_Notifications::CATEGORY_PARCERIAS,
                     'title'         => $title,
                     'message'       => $message,
-                    'url'           => $property_url,
+                    'url'           => $partnership_url,
                     'priority'      => IPC_Notifications::PRIORITY_NORMAL,
                 )
             );
@@ -974,6 +983,13 @@ class Imovel_Parceiro_Partnership_Workflow {
             $to_status = self::CONTACT_RELEASED;
         }
 
+        // Ao finalizar com ganho ou perda a parceria deve ser encerrada automaticamente.
+        if ( in_array( $to_status, array( self::WON, self::LOST ), true ) ) {
+            $this->auto_close_after_resolution( $row->id, $user_id, $to_status, $payload );
+            $to_status = self::CLOSED;
+            $row->status = self::CLOSED;
+        }
+
         return array(
             'ok'           => true,
             'status'       => $to_status,
@@ -1006,6 +1022,48 @@ class Imovel_Parceiro_Partnership_Workflow {
         $row->status = self::NEGOTIATING;
         $this->apply( $row, self::NEGOTIATING, self::CONTACT_RELEASED, $actor_user_id, array() );
 
+        return true;
+    }
+
+    /**
+     * Encerra automaticamente a parceria após ganho/perda.
+     * Mantém resolved_at/resolved_type, registra o encerramento no log,
+     * notifica e envia e-mail ao admin (via email_funnel_event closed).
+     */
+    private function auto_close_after_resolution( $partnership_id, $actor_user_id, $resolved_status, $payload = array() ) {
+        global $wpdb;
+        $row = self::get_partnership( $partnership_id );
+        if ( ! $row ) {
+            return false;
+        }
+        $current = self::funnel_status( isset( $row->status ) ? $row->status : '' );
+        if ( ! in_array( $current, array( self::WON, self::LOST ), true ) ) {
+            return false;
+        }
+        $table = self::partnerships_table();
+        $columns = self::partnership_columns();
+        $now = current_time( 'mysql' );
+        $reason = self::reason_text( self::CLOSED, is_array( $payload ) ? $payload : array() );
+        if ( '' === trim( (string) $reason ) ) {
+            $reason = ( self::WON === $resolved_status )
+                ? __( 'Negócio ganho — encerramento automático', 'imovel-parceiro-core' )
+                : __( 'Oportunidade perdida — encerramento automático', 'imovel-parceiro-core' );
+        }
+        $update = array( 'status' => self::CLOSED );
+        $format = array( '%s' );
+        if ( in_array( 'updated_at', $columns, true ) ) {
+            $update['updated_at'] = $now;
+            $format[] = '%s';
+        }
+        if ( in_array( 'business_reason', $columns, true ) ) {
+            $update['business_reason'] = $reason;
+            $format[] = '%s';
+        }
+        $wpdb->update( $table, $update, array( 'id' => $row->id ), $format, array( '%d' ) );
+        $row->status = self::CLOSED;
+        self::record_event( $row->id, $actor_user_id, 'action', 'closed', __( 'Parceria encerrada automaticamente após ', 'imovel-parceiro-core' ) . self::status_label( $resolved_status ), $reason, array( 'previous' => $current, 'auto' => true ) );
+        $this->notify_for_transition( $row, self::CLOSED );
+        $this->email_funnel_event( $row->id, $row, 'closed', array( 'previous' => $current, 'reason' => $reason ) );
         return true;
     }
 
@@ -1299,14 +1357,16 @@ class Imovel_Parceiro_Partnership_Workflow {
             case 'won':
                 $deal = self::get_latest_event_for_kind( $partnership_id, 'status', self::WON );
                 $wv = $deal && ! empty( $deal->meta['final_value'] ) ? $deal->meta['final_value'] : '';
-                $subject = __( 'Negócio ganho! — Parabéns', 'imovel-parceiro-core' );
+                $subject = __( 'Negócio ganho! Parceria finalizada e salva no log — administração', 'imovel-parceiro-core' );
                 $lines = array(
                     __( 'Parabéns! O negócio foi registrado como ganho.', 'imovel-parceiro-core' ),
                     sprintf( __( 'Imóvel: %s', 'imovel-parceiro-core' ), $property ),
+                    sprintf( __( 'Parceria #%d', 'imovel-parceiro-core' ), $partnership_id ),
                     sprintf( __( 'Envolvidos: %s e %s', 'imovel-parceiro-core' ), $owner_name, $requester_name ),
                     sprintf( __( 'Valor: %s', 'imovel-parceiro-core' ), $wv ? $wv : '-' ),
                     sprintf( __( 'Data: %s', 'imovel-parceiro-core' ), $now ),
                     '',
+                    __( 'A parceria foi salva no log e encerrada automaticamente.', 'imovel-parceiro-core' ),
                     __( 'Lembre-se de realizar a divisão da comissão conforme as regras definidas para esta parceria.', 'imovel-parceiro-core' ),
                 );
                 $to_participants = true;
@@ -1314,17 +1374,21 @@ class Imovel_Parceiro_Partnership_Workflow {
                 break;
 
             case 'lost':
-                $subject = __( 'Oportunidade perdida — parceria', 'imovel-parceiro-core' );
+                $subject = __( 'Oportunidade perdida — parceria finalizada e salva no log', 'imovel-parceiro-core' );
                 $lines = array(
-                    __( 'A oportunidade foi marcada como perdida.', 'imovel-parceiro-core' ),
+                    __( 'A oportunidade foi marcada como perdida e a parceria foi finalizada.', 'imovel-parceiro-core' ),
+                    sprintf( __( 'Parceria #%d', 'imovel-parceiro-core' ), $partnership_id ),
                     sprintf( __( 'Imóvel: %s', 'imovel-parceiro-core' ), $property ),
                     sprintf( __( 'Cliente: %s', 'imovel-parceiro-core' ), $client ? $client : '-' ),
                     sprintf( __( 'Motivo: %s', 'imovel-parceiro-core' ), isset( $data['reason'] ) ? $data['reason'] : '-' ),
                     sprintf( __( 'Observações: %s', 'imovel-parceiro-core' ), isset( $data['notes'] ) ? $data['notes'] : '-' ),
                     sprintf( __( 'Usuário: %s', 'imovel-parceiro-core' ), $actor_name ),
                     sprintf( __( 'Data/hora: %s', 'imovel-parceiro-core' ), $now ),
+                    '',
+                    __( 'A parceria foi salva no log e encerrada automaticamente.', 'imovel-parceiro-core' ),
                 );
                 $to_admin = true;
+                $to_participants = true;
                 break;
 
             case 'closed':
