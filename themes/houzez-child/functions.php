@@ -685,7 +685,7 @@ function imovel_parceiro_admin_update_user() {
     );
 }
 
-// Exibe valores monetários canônicos (1600.00) no formato pt-BR (1.600,00).
+// Exibe valores monetários canônicos (1600.00) no formato pt-BR com R$ (R$1.600,00).
 // Aplica-se somente a campos de preço; demais campos passam intactos.
 function imovel_parceiro_format_price_display( $field_key, $value ) {
     if ( ! is_scalar( $value ) ) {
@@ -718,7 +718,7 @@ function imovel_parceiro_format_price_display( $field_key, $value ) {
         return $value;
     }
 
-    return number_format( (float) $text, 2, ',', '.' );
+    return 'R$' . number_format( (float) $text, 2, ',', '.' );
 }
 
 /**
