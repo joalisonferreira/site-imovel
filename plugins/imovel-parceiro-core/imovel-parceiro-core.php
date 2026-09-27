@@ -45,6 +45,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-owner-workflow.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-duplicates.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-price-formatting.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-elementor-overview-prices.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnerships.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnership-workflow.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-watermark.php';
