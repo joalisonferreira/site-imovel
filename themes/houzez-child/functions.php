@@ -159,11 +159,95 @@ function houzez_child_enqueue_auth_assets() {
         'houzez-child-auth',
         get_stylesheet_directory_uri() . '/assets/js/auth.js',
         array(),
-        '1.0.0',
+        '1.1.0',
         true
+    );
+
+    // Redirect pós-cadastro por perfil (cadastro simplificado, auth.js).
+    wp_localize_script(
+        'houzez-child-auth',
+        'ipcAuth',
+        array(
+            'ajaxurl'   => admin_url( 'admin-ajax.php' ),
+            'redirects' => array(
+                'houzez_owner'  => houzez_child_ipc_page_url( 'cadastrar-imovel' ),
+                'houzez_agent'  => houzez_child_ipc_page_url( 'pacotes' ),
+                'houzez_agency' => houzez_child_ipc_page_url( 'pacotes' ),
+                'houzez_buyer'  => houzez_child_ipc_page_url( 'buscar' ),
+            ),
+        )
     );
 }
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_auth_assets', 100 );
+
+/**
+ * Resolve a URL de uma página pelo slug, com fallback para home_url().
+ */
+function houzez_child_ipc_page_url( $slug ) {
+    $page = get_page_by_path( $slug );
+    if ( $page ) {
+        return get_permalink( $page );
+    }
+
+    return home_url( '/' . trim( $slug, '/' ) . '/' );
+}
+
+/**
+ * Dados do banner "complete seu cadastro" (perfil progressivo).
+ *
+ * @return array|false Array com message/profile_url, ou false quando nada a pedir.
+ */
+function houzez_child_profile_nudge_data() {
+    if ( ! is_user_logged_in() || current_user_can( 'manage_options' ) ) {
+        return false;
+    }
+
+    $user_id = get_current_user_id();
+    $roles   = (array) wp_get_current_user()->roles;
+
+    $dismissed = (int) get_user_meta( $user_id, 'ipc_profile_nudge_dismissed', true );
+    if ( $dismissed && ( time() - $dismissed ) < 30 * DAY_IN_SECONDS ) {
+        return false;
+    }
+
+    $missing = array();
+
+    if ( '' === trim( (string) get_user_meta( $user_id, 'fave_author_mobile', true ) ) ) {
+        $missing[] = __( 'seu WhatsApp', 'houzez' );
+    }
+
+    if ( array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles )
+        && '' === trim( (string) get_user_meta( $user_id, 'fave_author_tax_no', true ) ) ) {
+        $missing[] = __( 'seu CPF/CNPJ', 'houzez' );
+    }
+
+    if ( ! $missing ) {
+        return false;
+    }
+
+    if ( class_exists( 'Imovel_Parceiro_Owner_Workflow' ) && Imovel_Parceiro_Owner_Workflow::is_current_user_proprietario() ) {
+        $profile_url = add_query_arg( 'imovel_owner_area', 'perfil', houzez_child_ipc_page_url( 'dashboard' ) );
+    } else {
+        $profile_url = houzez_child_ipc_page_url( 'meu-perfil' );
+    }
+
+    return array(
+        'message'     => sprintf( __( 'Falta %s para aproveitar tudo.', 'houzez' ), implode( __( ' e ', 'houzez' ), $missing ) ),
+        'profile_url' => $profile_url,
+    );
+}
+
+add_action( 'wp_ajax_ipc_dismiss_profile_nudge', 'houzez_child_dismiss_profile_nudge' );
+
+function houzez_child_dismiss_profile_nudge() {
+    check_ajax_referer( 'ipc_profile_nudge', 'nonce' );
+
+    if ( is_user_logged_in() ) {
+        update_user_meta( get_current_user_id(), 'ipc_profile_nudge_dismissed', time() );
+    }
+
+    wp_send_json_success();
+}
 
 /**
  * Inline CSS for the password visibility toggle.

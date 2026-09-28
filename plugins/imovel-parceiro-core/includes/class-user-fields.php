@@ -226,11 +226,15 @@ class Imovel_Parceiro_User_Fields {
 
         $document = isset( $_POST['person_document'] ) ? preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['person_document'] ) ) ) : '';
 
-        if ( ! in_array( $person_type, array( 'cpf', 'cnpj' ), true ) ) {
+        // Conta mínima: CPF/CNPJ obrigatório só para corretor/imobiliária.
+        // Proprietário/cliente completam depois, no contexto (perfil progressivo).
+        $is_agent_agency = in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true );
+
+        if ( $is_agent_agency && ! in_array( $person_type, array( 'cpf', 'cnpj' ), true ) ) {
             $this->registration_error( __( 'Selecione o tipo de pessoa (CPF ou CNPJ).', 'imovel-parceiro-core' ) );
         }
 
-        if ( '' === $document ) {
+        if ( $is_agent_agency && '' === $document ) {
             $this->registration_error(
                 'cnpj' === $person_type
                     ? __( 'Informe o CNPJ.', 'imovel-parceiro-core' )
@@ -238,12 +242,14 @@ class Imovel_Parceiro_User_Fields {
             );
         }
 
-        if ( 'cnpj' === $person_type ) {
-            if ( ! self::validate_cnpj( $document ) ) {
-                $this->registration_error( __( 'O CNPJ informado é inválido.', 'imovel-parceiro-core' ) );
+        if ( '' !== $document && '' !== $person_type ) {
+            if ( 'cnpj' === $person_type ) {
+                if ( ! self::validate_cnpj( $document ) ) {
+                    $this->registration_error( __( 'O CNPJ informado é inválido.', 'imovel-parceiro-core' ) );
+                }
+            } elseif ( ! self::validate_cpf( $document ) ) {
+                $this->registration_error( __( 'O CPF informado é inválido.', 'imovel-parceiro-core' ) );
             }
-        } elseif ( ! self::validate_cpf( $document ) ) {
-            $this->registration_error( __( 'O CPF informado é inválido.', 'imovel-parceiro-core' ) );
         }
 
         if ( in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true ) ) {
@@ -583,7 +589,7 @@ class Imovel_Parceiro_User_Fields {
                     type: form.querySelector('select[name="person_type"]'),
                     doc: form.querySelector('input[name="person_document"]'),
                     creci: form.querySelector('input[name="creci"]'),
-                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]'),
+                    role: form.querySelector('select[name="role"]') || form.querySelector('input[name="role"]:checked') || form.querySelector('select[name="user_role"]'),
                     roleSlot: form.querySelector('[data-ipc-role-slot]'),
                     creciWrap: form.querySelector('input[name="creci"]') ? form.querySelector('input[name="creci"]').closest('.form-group') : null
                 };
@@ -682,7 +688,7 @@ class Imovel_Parceiro_User_Fields {
                 if (!target || !target.closest) {
                     return;
                 }
-                if (target.matches('select[name="person_type"]') || target.matches('select[name="role"]') || target.matches('select[name="user_role"]')) {
+                if (target.matches('select[name="person_type"]') || target.matches('select[name="role"]') || target.matches('select[name="user_role"]') || target.matches('input[name="role"]')) {
                     var form = target.closest('form');
                     if (form) {
                         syncForm(form);
