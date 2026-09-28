@@ -17,7 +17,7 @@ $show_hide_roles = houzez_option('show_hide_roles');
 $terms_url = get_permalink(houzez_option('login_terms_condition'));
 $privacy_url = get_permalink(houzez_option('login_privacy_policy'));
 if ( ! $privacy_url ) {
-    $privacy_url = $terms_url;
+    $privacy_url = 'https://imovelparceiro.com.br/politica-de-privacidade/';
 }
 ?>
 <div id="hz-register-messages" class="hz-social-messages"></div>
