@@ -66,6 +66,13 @@ class Imovel_Parceiro_Contact_Visibility {
             return;
         }
 
+        // Proprietário não usa os formulários de contato do corretor
+        // (o canal com o próprio corretor é interno, pelo painel).
+        if ( self::viewer_is_owner_blocked( get_current_user_id() ) ) {
+            $message = __( 'Seu perfil de proprietario nao permite entrar em contato com outros corretores por este canal.', 'imovel-parceiro-core' );
+            wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'owner_contact_blocked' ) );
+        }
+
         // Cliente logado sem plano/verificação ainda pode contatar - não bloqueia aqui,
         // deixa o handler original do Houzez processar (ele permite com nome/email).
         // Apenas bloqueia corretores/imobiliárias não qualificados.
@@ -99,7 +106,7 @@ class Imovel_Parceiro_Contact_Visibility {
      * @return array
      */
     public function strip_schema_contact( $schema, $property_id ) {
-        if ( self::viewer_can_see_contact() || ! is_array( $schema ) ) {
+        if ( self::viewer_can_see_contact( 0, $property_id ) || ! is_array( $schema ) ) {
             return $schema;
         }
 
@@ -116,10 +123,13 @@ class Imovel_Parceiro_Contact_Visibility {
     /**
      * Whether the viewer may see phone/contact buttons.
      *
-     * @param int $user_id Optional user id. Defaults to current user.
+     * @param int $user_id     Optional user id. Defaults to current user.
+     * @param int $property_id Optional property context. Owners keep the
+     *                         channel of their OWN listing; on third-party
+     *                         listings (or without context) they are blocked.
      * @return bool
      */
-    public static function viewer_can_see_contact( $user_id = 0 ) {
+    public static function viewer_can_see_contact( $user_id = 0, $property_id = 0 ) {
         $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
         if ( ! $user_id ) {
             return false;
@@ -127,6 +137,11 @@ class Imovel_Parceiro_Contact_Visibility {
 
         $user = get_userdata( $user_id );
         if ( ! $user ) {
+            return false;
+        }
+
+        // Proprietário não contata outros corretores (canal próprio preservado via $property_id).
+        if ( self::viewer_is_owner_blocked( $user_id, $property_id ) ) {
             return false;
         }
 
@@ -147,6 +162,37 @@ class Imovel_Parceiro_Contact_Visibility {
     }
 
     /**
+     * Whether the viewer is a proprietário (houzez_owner) blocked from
+     * contacting brokers in this context.
+     *
+     * Owners keep the channel of their OWN listing (property whose registered
+     * owner is the viewer). Everywhere else — third-party listings or no
+     * property context — they are blocked.
+     *
+     * @param int $user_id     Optional user id. Defaults to current user.
+     * @param int $property_id Optional property context.
+     * @return bool
+     */
+    public static function viewer_is_owner_blocked( $user_id = 0, $property_id = 0 ) {
+        $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+        if ( ! $user_id ) {
+            return false;
+        }
+        $user = get_userdata( $user_id );
+        if ( ! $user || ! in_array( 'houzez_owner', (array) $user->roles, true ) ) {
+            return false;
+        }
+        $property_id = absint( $property_id );
+        if ( $property_id && class_exists( 'Imovel_Parceiro_Partnerships' ) ) {
+            $owner_id = (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id );
+            if ( $owner_id && $owner_id === (int) $user_id ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Suppress contact widgets (or strip contact parts) for unqualified viewers.
      *
      * @param string $content Rendered widget HTML.
@@ -158,7 +204,9 @@ class Imovel_Parceiro_Contact_Visibility {
             return $content;
         }
 
-        if ( self::viewer_can_see_contact() ) {
+        // Contexto do próprio anúncio (preserva o canal do proprietário com seu corretor).
+        $context_property = is_singular( 'property' ) ? get_the_ID() : 0;
+        if ( self::viewer_can_see_contact( 0, $context_property ) ) {
             return $content;
         }
 

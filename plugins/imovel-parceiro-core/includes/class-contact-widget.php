@@ -391,6 +391,15 @@ class Imovel_Parceiro_Contact_Widget {
                 return true;
             }
         }
+        // Proprietário nunca recebe WhatsApp direto de terceiros (o canal com
+        // o próprio corretor é interno, pelo painel). Papel duplo agente+dono
+        // mantém os direitos de corretor acima.
+        if ( $viewer_id ) {
+            $viewer = get_userdata( $viewer_id );
+            if ( $viewer && in_array( 'houzez_owner', (array) $viewer->roles, true ) && ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), (array) $viewer->roles ) ) {
+                return false;
+            }
+        }
         // Proteção de lead: o cliente NÃO recebe WhatsApp direto. Ele usa o
         // fluxo "Tenho interesse neste imóvel" (lead registrada + corretor
         // notificado para fazer o primeiro contato).
@@ -451,7 +460,9 @@ class Imovel_Parceiro_Contact_Widget {
 
         $wa_available = false;
         $wa_link = '';
-        if ( $broker_id && ! $viewer_is_property_owner ) {
+        $owner_contact_blocked = $viewer_id && class_exists( 'Imovel_Parceiro_Contact_Visibility' )
+            && Imovel_Parceiro_Contact_Visibility::viewer_is_owner_blocked( $viewer_id, $property_id );
+        if ( $broker_id && ! $viewer_is_property_owner && ! $owner_contact_blocked ) {
             $wa_available = $this->is_whatsapp_available( $broker_id, $viewer_id, $partnership_row );
             if ( $wa_available ) {
                 $contact = Imovel_Parceiro_Partnership_Workflow::contact_for_user( $broker_id );
@@ -499,9 +510,10 @@ class Imovel_Parceiro_Contact_Widget {
         $status_meta = self::widget_status_label( $canonical );
 
         // Proteção de lead: e-mail do corretor só trafega para quem tem
-        // acesso a contato direto (nunca para o cliente).
+        // acesso a contato direto (nunca para o cliente, nem para o
+        // proprietário em anúncio de terceiros).
         $can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' )
-            ? Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact( $viewer_id )
+            ? Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact( $viewer_id, $property_id )
             : true;
 
         // Fluxo "Tenho interesse neste imóvel" (proteção de lead do cliente).
