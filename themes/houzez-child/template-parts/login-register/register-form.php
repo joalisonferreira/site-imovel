@@ -199,10 +199,6 @@ if ( ! $privacy_url ) {
             </ul>
             <input type="hidden" name="register_pass_retype" class="ipc-pass-retype" value="" />
         </div>
-        <div class="ipc-wz-field">
-            <label for="ipc_wz_pass2"><?php esc_html_e('Confirmar senha', 'houzez'); ?></label>
-            <input id="ipc_wz_pass2" type="password" autocomplete="new-password" placeholder="<?php esc_attr_e('Repita a senha', 'houzez'); ?>" />
-        </div>
 
         <label class="ipc-wz-check ipc-wz-check--box"><input type="checkbox" name="term_condition" value="on" /> <span><?php printf( __( 'Concordo com os %s e a %s.', 'houzez' ), '<a href="' . esc_url( $terms_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Termos de Uso', 'houzez' ) . '</a>', '<a href="' . esc_url( $privacy_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Política de Privacidade', 'houzez' ) . '</a>' ); ?></span></label>
 

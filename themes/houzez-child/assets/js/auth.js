@@ -372,13 +372,6 @@
             }
             return 'A senha precisa de 8 caracteres, 1 maiúscula e 1 símbolo.';
         }
-        var confirm = document.getElementById('ipc_wz_pass2');
-        if (!confirm || confirm.value !== value) {
-            if (confirm) {
-                confirm.classList.add('is-invalid');
-            }
-            return 'As senhas não conferem.';
-        }
         var terms = form.querySelector('input[name="term_condition"]');
         if (!terms || !terms.checked) {
             return 'Você precisa concordar com os Termos de Uso.';
