@@ -184,6 +184,88 @@ function houzez_child_enqueue_auth_assets() {
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_auth_assets', 100 );
 
 /**
+ * Enfileira os assets do lead express + imprime o modal no rodapé.
+ */
+function houzez_child_enqueue_lead_assets() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $css_path = get_stylesheet_directory() . '/assets/css/lead.css';
+    $js_path  = get_stylesheet_directory() . '/assets/js/lead.js';
+
+    wp_enqueue_style(
+        'houzez-child-lead',
+        get_stylesheet_directory_uri() . '/assets/css/lead.css',
+        array(),
+        file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
+    );
+
+    wp_enqueue_script(
+        'houzez-child-lead',
+        get_stylesheet_directory_uri() . '/assets/js/lead.js',
+        array(),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+
+    wp_localize_script(
+        'houzez-child-lead',
+        'ipcLead',
+        array(
+            'ajaxurl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( Imovel_Parceiro_Buyer_Lead::NONCE_ACTION ),
+        )
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_lead_assets', 100 );
+
+add_action( 'wp_footer', 'houzez_child_print_lead_modal', 30 );
+
+function houzez_child_print_lead_modal() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    get_template_part( 'template-parts/lead/buyer-lead-modal' );
+}
+
+/**
+ * Botões de entrada no menu principal: comprador (lead express) e
+ * proprietário (wizard com perfil pré-selecionado). Só código, sem banco.
+ */
+add_filter( 'wp_nav_menu_items', 'houzez_child_header_ctas', 10, 2 );
+
+function houzez_child_header_ctas( $items, $args ) {
+    if ( ! isset( $args->theme_location ) || 'main-menu' !== $args->theme_location ) {
+        return $items;
+    }
+
+    if ( ! class_exists( 'Imovel_Parceiro_Buyer_Lead' ) ) {
+        return $items;
+    }
+
+    $buyer = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+        . '<a href="#" class="ipc-menu-cta ipc-menu-cta--buyer" data-bs-toggle="modal" data-bs-target="#ipc-lead-modal"'
+        . ' title="' . esc_attr__( 'Diga o que procura e onde', 'houzez' ) . '">'
+        . esc_html__( 'Quero comprar', 'houzez' ) . '</a></li>';
+
+    if ( is_user_logged_in() ) {
+        $owner_url = houzez_child_ipc_page_url( 'cadastrar-imovel' );
+        $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+            . '<a href="' . esc_url( $owner_url ) . '" class="ipc-menu-cta ipc-menu-cta--owner"'
+            . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
+            . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
+    } else {
+        $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+            . '<a href="#" class="ipc-menu-cta ipc-menu-cta--owner" data-bs-toggle="modal" data-bs-target="#login-register-form" data-ipc-register-role="houzez_owner"'
+            . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
+            . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
+    }
+
+    return $items . $buyer . $owner;
+}
+/**
  * Resolve a URL de uma página pelo slug, com fallback para home_url().
  */
 function houzez_child_ipc_page_url( $slug ) {

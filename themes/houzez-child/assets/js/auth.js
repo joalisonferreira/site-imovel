@@ -576,6 +576,53 @@
         syncProfileUI(form);
         showStep(form, 1);
 
+        // Ponte lead express -> wizard: pré-preenche com o interesse salvo.
+        try {
+            var rawLead = window.localStorage.getItem('ipcLead');
+            if (rawLead) {
+                window.localStorage.removeItem('ipcLead');
+                var lead = JSON.parse(rawLead);
+                var setVal = function (selector, value) {
+                    if (!value) {
+                        return;
+                    }
+                    var input = form.querySelector(selector);
+                    if (input && !input.value) {
+                        input.value = value;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                };
+                setVal('input[name="ipc_full_name"]', lead.name);
+                setVal('input[name="phone_number"]', lead.phone);
+                setVal('input[name="ipc_location"]', lead.where);
+                var buyerRadio = form.querySelector('input[name="role"][value="houzez_buyer"]');
+                if (buyerRadio) {
+                    buyerRadio.checked = true;
+                }
+                if (lead.goal) {
+                    var goalRadio = form.querySelector('input[name="ipc_goal"][value="' + lead.goal + '"]');
+                    if (goalRadio) {
+                        goalRadio.checked = true;
+                    }
+                }
+                if (lead.types) {
+                    var wanted = String(lead.types).split(',');
+                    Array.prototype.forEach.call(form.querySelectorAll('[data-ipc-wz-chips] .ipc-wz-chip'), function (chip) {
+                        var value = chip.getAttribute('data-value') || '';
+                        var on = wanted.indexOf(value) !== -1;
+                        chip.classList.toggle('is-on', on);
+                    });
+                    var hidden = form.querySelector('[data-ipc-wz-types]');
+                    if (hidden) {
+                        hidden.value = lead.types;
+                    }
+                }
+                syncProfileUI(form);
+            }
+        } catch (e) {
+            /* noop */
+        }
+
         form.addEventListener('change', function (event) {
             var target = event.target;
             if (!target || !target.matches) {
