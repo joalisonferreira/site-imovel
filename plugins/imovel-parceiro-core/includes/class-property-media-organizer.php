@@ -105,105 +105,17 @@ class Imovel_Parceiro_Media_Organizer {
         $property_id = absint($property_id);
         $stored = get_post_meta($property_id, '_imovel_parceiro_media_folder', true);
         if (!empty($stored) && is_string($stored)) {
-            // Auto-reparo (uma única vez): pastas antigas com sequências %xx
-            // (ex: ² virou %c2%b2) nunca resolvem por HTTP — o servidor
-            // decodifica a URL e o nome no disco não bate → 404.
-            $last = substr($stored, strrpos($stored, '/') + 1);
-            if ($this->clean_slug($last) !== $last) {
-                return $this->repair_folder($property_id, $stored);
-            }
             return $stored;
         }
         $slug = sanitize_title(get_the_title($property_id));
-        $slug = $this->clean_slug($slug);
         if (empty($slug)) $slug = 'imovel';
         $slug = substr($slug, 0, 60);
-        $slug = trim($slug, '-');
-        if ($slug === '') $slug = 'imovel';
         $folder = self::BASE_FOLDER . '/' . $slug . '-' . $property_id;
         // Persiste para reutilização futura
         if ($property_id) {
             update_post_meta($property_id, '_imovel_parceiro_media_folder', $folder);
         }
         return $folder;
-    }
-
-    /**
-     * Remove sequências %xx que o sanitize_title() deixa para UTF-8 sem
-     * dobra de acento (² → %c2%b2, – → %e2%80%93 etc.). O % literal no nome
-     * da pasta nunca bate com a URL decodificada pelo servidor → 404.
-     */
-    private function clean_slug($slug) {
-        $slug = preg_replace('/%[0-9a-f]{2}/i', '', strtolower((string) $slug));
-        $slug = preg_replace('/[^a-z0-9-]+/', '-', $slug);
-        $slug = preg_replace('/-{2,}/', '-', $slug);
-        return trim($slug, '-');
-    }
-
-    /**
-     * Renomeia pasta quebrada (%xx no nome) para o nome limpo e atualiza
-     * todas as referências (postmeta da pasta + anexos: _wp_attached_file,
-     * _wp_attachment_metadata.file e guid). Roda uma única vez por imóvel.
-     */
-    private function repair_folder($property_id, $old_folder) {
-        $pos = strrpos($old_folder, '/');
-        $base = $pos === false ? '' : substr($old_folder, 0, $pos);
-        $last = $pos === false ? $old_folder : substr($old_folder, $pos + 1);
-        $clean_last = $this->clean_slug($last);
-        if ($clean_last === '' || $clean_last === $last) {
-            return $old_folder;
-        }
-        $new_folder = ($base !== '' ? $base . '/' : '') . $clean_last;
-
-        $upload = wp_get_upload_dir();
-        $old_path = $upload['basedir'] . '/' . $old_folder;
-        $new_path = $upload['basedir'] . '/' . $new_folder;
-
-        if (file_exists($old_path)) {
-            if (!file_exists($new_path)) {
-                wp_mkdir_p(dirname($new_path));
-                if (!@rename($old_path, $new_path)) {
-                    return $old_folder; // sem permissão: mantém, sem piorar
-                }
-            } else {
-                // Destino já existe: mescla sem sobrescrever.
-                foreach (glob($old_path . '/*') as $src) {
-                    if (!is_file($src)) continue;
-                    $dest = $new_path . '/' . basename($src);
-                    if (!file_exists($dest)) @rename($src, $dest);
-                }
-                @rmdir($old_path);
-            }
-        }
-        update_post_meta($property_id, '_imovel_parceiro_media_folder', $new_folder);
-        $this->rewrite_attachment_paths($old_folder, $new_folder, $upload['baseurl']);
-        return $new_folder;
-    }
-
-    /**
-     * Troca o prefixo da pasta em todos os anexos afetados.
-     */
-    private function rewrite_attachment_paths($old_folder, $new_folder, $baseurl) {
-        global $wpdb;
-        $like = $wpdb->esc_like($old_folder . '/') . '%';
-        $ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value LIKE %s",
-            $like
-        ));
-        if (empty($ids)) return;
-        foreach ($ids as $att_id) {
-            $att_id = absint($att_id);
-            $attached = get_post_meta($att_id, '_wp_attached_file', true);
-            if (!is_string($attached) || strpos($attached, $old_folder . '/') !== 0) continue;
-            $new_rel = $new_folder . substr($attached, strlen($old_folder));
-            update_attached_file($att_id, $new_rel);
-            $meta = wp_get_attachment_metadata($att_id);
-            if (!empty($meta['file']) && strpos($meta['file'], $old_folder . '/') === 0) {
-                $meta['file'] = $new_folder . substr($meta['file'], strlen($old_folder));
-                wp_update_attachment_metadata($att_id, $meta);
-            }
-            $wpdb->update($wpdb->posts, array('guid' => $baseurl . '/' . $new_rel), array('ID' => $att_id));
-        }
     }
 
     /**
