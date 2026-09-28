@@ -215,14 +215,15 @@
         box.hidden = false;
     }
 
-    function isAgency(form) {
-        return checkedRole(form) === 'houzez_agency';
-    }
-
     // Passo 2 existe só para quem tem algo a preencher: docs (corretor/PJ)
     // ou preferências (comprador). Proprietário pula direto para o passo 3.
     function needsStep2(form) {
         return checkedRole(form) !== 'houzez_owner';
+    }
+
+    function docType(form) {
+        var hidden = form.querySelector('[data-ipc-wz-person-type]');
+        return hidden && hidden.value === 'cnpj' ? 'cnpj' : 'cpf';
     }
 
     function syncProfileUI(form) {
@@ -230,17 +231,41 @@
         var agency = role === 'houzez_agency';
         var isAgent = AGENT_ROLES.indexOf(role) !== -1;
         var personType = form.querySelector('[data-ipc-wz-person-type]');
-        if (personType) {
-            personType.value = agency ? 'cnpj' : 'cpf';
+        var doctypeSel = form.querySelector('[data-ipc-wz-doctype]');
+        var doctypeWrap = form.querySelector('[data-ipc-wz-doctype-wrap]');
+        if (agency) {
+            // PJ/imobiliária: sempre CNPJ.
+            if (personType) {
+                personType.value = 'cnpj';
+            }
+            if (doctypeWrap) {
+                doctypeWrap.hidden = true;
+            }
+        } else if (role === 'houzez_agent') {
+            // Corretor: pode ser PF (CPF) ou PJ (CNPJ).
+            if (doctypeWrap) {
+                doctypeWrap.hidden = false;
+            }
+            if (personType && doctypeSel) {
+                personType.value = doctypeSel.value === 'cnpj' ? 'cnpj' : 'cpf';
+            }
+        } else {
+            if (personType) {
+                personType.value = 'cpf';
+            }
+            if (doctypeWrap) {
+                doctypeWrap.hidden = true;
+            }
         }
+        var type = docType(form);
         var docLabel = form.querySelector('[data-ipc-wz-doc-label]');
         if (docLabel) {
-            docLabel.textContent = agency ? 'CNPJ' : 'CPF';
+            docLabel.textContent = type === 'cnpj' ? 'CNPJ' : 'CPF';
         }
         var doc = form.querySelector('input[name="person_document"]');
         if (doc) {
-            doc.placeholder = agency ? '00.000.000/0001-00' : '000.000.000-00';
-            doc.value = maskDoc(doc.value, agency ? 'cnpj' : 'cpf');
+            doc.placeholder = type === 'cnpj' ? '00.000.000/0001-00' : '000.000.000-00';
+            doc.value = maskDoc(doc.value, type);
         }
         var docs = form.querySelector('[data-ipc-wz-docs]');
         if (docs) {
@@ -295,14 +320,14 @@
         if (AGENT_ROLES.indexOf(checkedRole(form)) === -1) {
             return '';
         }
-        var agency = isAgency(form);
+        var isCnpj = docType(form) === 'cnpj';
         var doc = form.querySelector('input[name="person_document"]');
         var docDigits = doc ? digits(doc.value) : '';
-        if (agency ? !validCNPJ(docDigits) : !validCPF(docDigits)) {
+        if (isCnpj ? !validCNPJ(docDigits) : !validCPF(docDigits)) {
             if (doc) {
                 doc.classList.add('is-invalid');
             }
-            return agency ? 'Informe um CNPJ válido.' : 'Informe um CPF válido.';
+            return isCnpj ? 'Informe um CNPJ válido.' : 'Informe um CPF válido.';
         }
         if (AGENT_ROLES.indexOf(checkedRole(form)) !== -1) {
             var creci = form.querySelector('input[name="creci"]');
@@ -560,6 +585,13 @@
                 syncProfileUI(form);
                 showError(form, 1, '');
             }
+            if (target.matches('[data-ipc-wz-doctype]')) {
+                var hidden = form.querySelector('[data-ipc-wz-person-type]');
+                if (hidden) {
+                    hidden.value = target.value === 'cnpj' ? 'cnpj' : 'cpf';
+                }
+                syncProfileUI(form);
+            }
         });
 
         form.addEventListener('click', function (event) {
@@ -624,8 +656,7 @@
                 }
             }
             if (target.matches('input[name="person_document"]')) {
-                var type = isAgency(form) ? 'cnpj' : 'cpf';
-                var maskedDoc = maskDoc(target.value, type);
+                var maskedDoc = maskDoc(target.value, docType(form));
                 if (maskedDoc !== target.value) {
                     target.value = maskedDoc;
                 }

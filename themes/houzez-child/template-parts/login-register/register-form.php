@@ -121,6 +121,13 @@ if ( ! $privacy_url ) {
 
         <input type="hidden" name="person_type" data-ipc-wz-person-type="1" value="cpf" />
         <div data-ipc-wz-docs="1">
+        <div class="ipc-wz-field" data-ipc-wz-doctype-wrap="1" hidden>
+            <label for="ipc_wz_doctype"><?php esc_html_e('Tipo de pessoa', 'houzez'); ?></label>
+            <select id="ipc_wz_doctype" data-ipc-wz-doctype="1">
+                <option value="cpf"><?php esc_html_e('Pessoa Física (CPF)', 'houzez'); ?></option>
+                <option value="cnpj"><?php esc_html_e('Pessoa Jurídica (CNPJ)', 'houzez'); ?></option>
+            </select>
+        </div>
         <div class="ipc-wz-grid">
             <div class="ipc-wz-field">
                 <label for="ipc_wz_doc"><span data-ipc-wz-doc-label="1"><?php esc_html_e('CPF', 'houzez'); ?></span> <span class="ipc-wz-req">*</span></label>
