@@ -1,32 +1,37 @@
 /* Botões de entrada (header) + modal lead express. */
+#main-nav .ipc-menu-li {
+    align-self: center;
+}
+#main-nav .ipc-menu-li + .ipc-menu-li {
+    margin-left: 8px;
+}
 .ipc-menu-cta {
     display: inline-flex !important;
     align-items: center;
-    gap: 6px;
-    padding: 9px 16px !important;
-    border-radius: 10px !important;
-    font-weight: 700 !important;
+    justify-content: center;
+    height: 40px;
+    padding: 0 18px !important;
+    border-radius: 6px !important;
+    font-weight: 800 !important;
     font-size: 13px !important;
-    line-height: 1.2 !important;
+    line-height: 1 !important;
+    letter-spacing: .04em;
+    text-transform: uppercase !important;
     white-space: nowrap;
     transition: filter .15s ease, background-color .15s ease;
 }
-li > .ipc-menu-cta--buyer {
-    border: 1.5px solid #dc2626 !important;
-    color: #dc2626 !important;
-    background: #fff !important;
-}
-li > .ipc-menu-cta--buyer:hover {
-    background: #fef2f2 !important;
-}
+li > .ipc-menu-cta--buyer,
 li > .ipc-menu-cta--owner {
-    background: #dc2626 !important;
-    border: 1.5px solid #dc2626 !important;
+    background-color: #dc2626 !important;
+    border: 1px solid #dc2626 !important;
     color: #fff !important;
 }
+li > .ipc-menu-cta--buyer:hover,
 li > .ipc-menu-cta--owner:hover {
-    filter: brightness(.93);
+    background-color: #b91c1c !important;
+    border-color: #b91c1c !important;
     color: #fff !important;
+    filter: none;
 }
 .ipc-lead-card {
     position: relative;
