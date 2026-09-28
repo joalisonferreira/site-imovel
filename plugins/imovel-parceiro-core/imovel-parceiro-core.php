@@ -185,6 +185,15 @@ class Imovel_Parceiro_Core {
             }
         }
 
+        $is_owner_blocked = false;
+        if ( is_user_logged_in() ) {
+            $uid = get_current_user_id();
+            $ctx_property = is_singular( 'property' ) ? get_queried_object_id() : 0;
+            if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+                $is_owner_blocked = Imovel_Parceiro_Contact_Visibility::viewer_is_owner_blocked( $uid, $ctx_property );
+            }
+        }
+
         wp_enqueue_style( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/css/style.css', array(), $style_version );
         wp_enqueue_script( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/js/app.js', array( 'jquery' ), $script_version, true );
         wp_localize_script( 'imovel-parceiro-core', 'imovelParceiroCore', array(
@@ -195,6 +204,7 @@ class Imovel_Parceiro_Core {
             'request_status' => $request_status,
             'is_rental_property' => false,
             'is_client' => $is_client,
+            'is_owner_blocked' => $is_owner_blocked,
             'partnerships_url' => class_exists( 'Imovel_Parceiro_Partnerships' ) ? Imovel_Parceiro_Partnerships::dashboard_partnerships_url() : '',
             'messages' => array(
                 'acceptances_required' => __( 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.', 'imovel-parceiro-core' ),

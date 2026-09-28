@@ -184,7 +184,10 @@
         html += '<div class="ipcw-actions">';
 
         // WhatsApp action. Disabled for the property owner (cannot contact self).
-        if (req.is_owner) {
+        // Proprietário bloqueado (anúncio de terceiros): não renderiza nada — silencioso, sem mensagem.
+        if (req.owner_blocked) {
+            /* botão oculto para proprietário em anúncio de terceiros */
+        } else if (req.is_owner) {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + lockIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
@@ -214,9 +217,10 @@
             html += '</span></button>';
         }
 
-        // Partnership action. Hidden for the property owner (cannot partner with self) and for clients (houzez_buyer).
+        // Partnership action. Hidden for the property owner (cannot partner with self), for clients (houzez_buyer)
+        // and for blocked owners (third-party listings) — silencioso, sem mensagem.
         // Cada estado tem rótulo explícito: o corretor sabe antes do clique.
-        if (!req.is_owner && !req.is_client) {
+        if (!req.is_owner && !req.is_client && !req.owner_blocked) {
             var brokerName = b.name || '';
             var commissionLabel = (req.commission && req.commission.label) ? req.commission.label : '';
             if (ps.exists) {

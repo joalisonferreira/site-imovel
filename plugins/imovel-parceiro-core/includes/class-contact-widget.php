@@ -565,6 +565,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'needs_subscription' => (bool) $needs_subscription,
                 'is_owner' => (bool) $viewer_is_property_owner,
                 'is_client' => (bool) $viewer_is_client,
+                'owner_blocked' => (bool) $owner_contact_blocked,
                 'state' => $partnership_row ? 'existing' : ( $can_request ? 'ok' : ( $needs_subscription ? 'needs_plan' : 'needs_login' ) ),
                 'commission' => self::default_commission_split(),
                 'plans_url' => class_exists( 'Imovel_Parceiro_Subscriptions' ) ? Imovel_Parceiro_Subscriptions::plans_url() : '',
