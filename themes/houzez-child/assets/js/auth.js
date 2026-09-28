@@ -118,17 +118,6 @@
         return value;
     }
 
-    function maskBirth(value) {
-        value = digits(value).slice(0, 8);
-        if (value.length > 4) {
-            return value.replace(/(\d{2})(\d{2})(\d{1,4})/, '$1/$2/$3');
-        }
-        if (value.length > 2) {
-            return value.replace(/(\d{2})(\d{1,2})/, '$1/$2');
-        }
-        return value;
-    }
-
     /* ---------- validadores ---------- */
     function validCPF(value) {
         value = digits(value);
@@ -169,26 +158,6 @@
             }
         }
         return true;
-    }
-
-    function validBirth(value) {
-        var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || ''));
-        if (!m) {
-            return false;
-        }
-        var day = parseInt(m[1], 10);
-        var month = parseInt(m[2], 10) - 1;
-        var year = parseInt(m[3], 10);
-        var date = new Date(year, month, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
-            return false;
-        }
-        var now = new Date();
-        var age = now.getFullYear() - year;
-        if (now.getMonth() < month || (now.getMonth() === month && now.getDate() < day)) {
-            age -= 1;
-        }
-        return age >= 16 && date <= now;
     }
 
     function validEmail(value) {
@@ -250,9 +219,16 @@
         return checkedRole(form) === 'houzez_agency';
     }
 
+    // Passo 2 existe só para quem tem algo a preencher: docs (corretor/PJ)
+    // ou preferências (comprador). Proprietário pula direto para o passo 3.
+    function needsStep2(form) {
+        return checkedRole(form) !== 'houzez_owner';
+    }
+
     function syncProfileUI(form) {
         var role = checkedRole(form);
         var agency = role === 'houzez_agency';
+        var isAgent = AGENT_ROLES.indexOf(role) !== -1;
         var personType = form.querySelector('[data-ipc-wz-person-type]');
         if (personType) {
             personType.value = agency ? 'cnpj' : 'cpf';
@@ -265,6 +241,10 @@
         if (doc) {
             doc.placeholder = agency ? '00.000.000/0001-00' : '000.000.000-00';
             doc.value = maskDoc(doc.value, agency ? 'cnpj' : 'cpf');
+        }
+        var docs = form.querySelector('[data-ipc-wz-docs]');
+        if (docs) {
+            docs.style.display = isAgent ? '' : 'none';
         }
         var creciWrap = form.querySelector('[data-ipc-wz-creci-wrap]');
         if (creciWrap) {
@@ -311,6 +291,10 @@
     }
 
     function validateStep2(form) {
+        // Conta mínima: documento só para corretor/PJ; preferências são opcionais.
+        if (AGENT_ROLES.indexOf(checkedRole(form)) === -1) {
+            return '';
+        }
         var agency = isAgency(form);
         var doc = form.querySelector('input[name="person_document"]');
         var docDigits = doc ? digits(doc.value) : '';
@@ -319,13 +303,6 @@
                 doc.classList.add('is-invalid');
             }
             return agency ? 'Informe um CNPJ válido.' : 'Informe um CPF válido.';
-        }
-        var birth = form.querySelector('input[name="birthdate"]');
-        if (!birth || !validBirth(birth.value)) {
-            if (birth) {
-                birth.classList.add('is-invalid');
-            }
-            return 'Informe uma data de nascimento válida (16 anos ou mais).';
         }
         if (AGENT_ROLES.indexOf(checkedRole(form)) !== -1) {
             var creci = form.querySelector('input[name="creci"]');
@@ -618,18 +595,26 @@
             var next = event.target && event.target.closest ? event.target.closest('[data-ipc-wz-next]') : null;
             if (next) {
                 var to = parseInt(next.getAttribute('data-ipc-wz-next'), 10);
-                var error = to === 3 ? validateStep2(form) : validateStep1(form);
+                if (to === 2 && !needsStep2(form)) {
+                    to = 3;
+                }
+                var error = (to === 3 && needsStep2(form)) ? validateStep2(form) : validateStep1(form);
+                var current = to === 3 && !needsStep2(form) ? 1 : (to === 3 ? 2 : 1);
                 if (error) {
-                    showError(form, to === 3 ? 2 : 1, error);
+                    showError(form, current, error);
                     return;
                 }
-                showError(form, to === 3 ? 2 : 1, '');
+                showError(form, current, '');
                 showStep(form, to);
                 return;
             }
             var prev = event.target && event.target.closest ? event.target.closest('[data-ipc-wz-prev]') : null;
             if (prev) {
-                showStep(form, parseInt(prev.getAttribute('data-ipc-wz-prev'), 10));
+                var back = parseInt(prev.getAttribute('data-ipc-wz-prev'), 10);
+                if (back === 2 && !needsStep2(form)) {
+                    back = 1;
+                }
+                showStep(form, back);
             }
         });
 
@@ -650,12 +635,6 @@
                 var maskedDoc = maskDoc(target.value, type);
                 if (maskedDoc !== target.value) {
                     target.value = maskedDoc;
-                }
-            }
-            if (target.matches('input[name="birthdate"]')) {
-                var maskedBirth = maskBirth(target.value);
-                if (maskedBirth !== target.value) {
-                    target.value = maskedBirth;
                 }
             }
             if (target.matches('input[name="register_pass"]')) {

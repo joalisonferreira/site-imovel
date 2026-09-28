@@ -267,15 +267,6 @@ class Imovel_Parceiro_User_Fields {
                 $this->registration_error( __( 'Este CRECI já está cadastrado por outro usuário.', 'imovel-parceiro-core' ) );
             }
         }
-
-        // Data de nascimento (wizard): DD/MM/AAAA, data real passada, 16+.
-        if ( isset( $_POST['birthdate'] ) && '' !== trim( (string) wp_unslash( $_POST['birthdate'] ) ) ) {
-            if ( ! self::validate_birthdate( sanitize_text_field( wp_unslash( $_POST['birthdate'] ) ) ) ) {
-                $this->registration_error( __( 'Informe uma data de nascimento válida (16 anos ou mais).', 'imovel-parceiro-core' ) );
-            }
-        } elseif ( ! empty( $GLOBALS['ipc_register_wizard'] ) ) {
-            $this->registration_error( __( 'Informe sua data de nascimento.', 'imovel-parceiro-core' ) );
-        }
     }
 
     /**
@@ -319,49 +310,6 @@ class Imovel_Parceiro_User_Fields {
         }
 
         return false;
-    }
-
-    /**
-     * Valida data de nascimento DD/MM/AAAA: real, passada, 16 anos ou mais.
-     *
-     * @param string $value Data no formato DD/MM/AAAA.
-     * @return bool
-     */
-    public static function validate_birthdate( $value ) {
-        if ( ! preg_match( '/^(\d{2})\/(\d{2})\/(\d{4})$/', trim( (string) $value ), $m ) ) {
-            return false;
-        }
-
-        $day   = (int) $m[1];
-        $month = (int) $m[2];
-        $year  = (int) $m[3];
-
-        if ( ! checkdate( $month, $day, $year ) ) {
-            return false;
-        }
-
-        $birth = DateTime::createFromFormat( 'Y-m-d', sprintf( '%04d-%02d-%02d', $year, $month, $day ) );
-        $now   = new DateTime( 'now' );
-
-        if ( ! $birth || $birth > $now ) {
-            return false;
-        }
-
-        return $now->diff( $birth )->y >= 16;
-    }
-
-    /**
-     * Normaliza DD/MM/AAAA para AAAA-MM-DD (ou '' se inválida).
-     *
-     * @param string $value Data no formato DD/MM/AAAA.
-     * @return string
-     */
-    public static function normalize_birthdate( $value ) {
-        if ( ! preg_match( '/^(\d{2})\/(\d{2})\/(\d{4})$/', trim( (string) $value ), $m ) ) {
-            return '';
-        }
-
-        return sprintf( '%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1] );
     }
 
     private function registration_error( $message ) {
@@ -506,12 +454,7 @@ class Imovel_Parceiro_User_Fields {
             $this->insert_terms_audit_log( $user_id, $person_type, $document_store );
         }
 
-        // Passo 2 do wizard: nascimento + preferências (somente usermeta, sem schema novo).
-        $birthdate = isset( $_POST['birthdate'] ) ? self::normalize_birthdate( sanitize_text_field( wp_unslash( $_POST['birthdate'] ) ) ) : '';
-        if ( '' !== $birthdate ) {
-            update_user_meta( $user_id, 'ipc_birthdate', $birthdate );
-        }
-
+        // Passo 2 do wizard: preferências (somente usermeta, sem schema novo).
         $goal = isset( $_POST['ipc_goal'] ) ? sanitize_key( wp_unslash( $_POST['ipc_goal'] ) ) : '';
         if ( in_array( $goal, array( 'comprar', 'alugar', 'investir' ), true ) ) {
             update_user_meta( $user_id, 'ipc_goal', $goal );

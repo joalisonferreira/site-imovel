@@ -216,8 +216,8 @@ function houzez_child_profile_nudge_data() {
         $missing[] = __( 'seu WhatsApp', 'houzez' );
     }
 
-    if ( array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles )
-        && '' === trim( (string) get_user_meta( $user_id, 'fave_author_tax_no', true ) ) ) {
+    // Perfil progressivo: CPF/CNPJ adiado no cadastro mínimo é pedido aqui.
+    if ( '' === trim( (string) get_user_meta( $user_id, 'fave_author_tax_no', true ) ) ) {
         $missing[] = __( 'seu CPF/CNPJ', 'houzez' );
     }
 

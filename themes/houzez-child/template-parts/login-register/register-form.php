@@ -120,19 +120,17 @@ if ( ! $privacy_url ) {
         <p class="ipc-wz-sub"><?php esc_html_e('Usamos essas informações para validar seu cadastro e personalizar oportunidades.', 'houzez'); ?></p>
 
         <input type="hidden" name="person_type" data-ipc-wz-person-type="1" value="cpf" />
+        <div data-ipc-wz-docs="1">
         <div class="ipc-wz-grid">
             <div class="ipc-wz-field">
                 <label for="ipc_wz_doc"><span data-ipc-wz-doc-label="1"><?php esc_html_e('CPF', 'houzez'); ?></span> <span class="ipc-wz-req">*</span></label>
                 <input id="ipc_wz_doc" type="text" name="person_document" inputmode="numeric" placeholder="000.000.000-00" />
             </div>
-            <div class="ipc-wz-field">
-                <label for="ipc_wz_birth"><?php esc_html_e('Data de nascimento', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
-                <input id="ipc_wz_birth" type="text" name="birthdate" inputmode="numeric" placeholder="DD/MM/AAAA" maxlength="10" />
-            </div>
         </div>
         <div class="ipc-wz-field" data-ipc-wz-creci-wrap="1" hidden>
             <label for="ipc_wz_creci"><?php esc_html_e('CRECI', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
             <input id="ipc_wz_creci" type="text" name="creci" autocomplete="off" placeholder="<?php esc_attr_e('Ex: 123456-F', 'houzez'); ?>" />
+        </div>
         </div>
 
         <div data-ipc-wz-prefs="1">
