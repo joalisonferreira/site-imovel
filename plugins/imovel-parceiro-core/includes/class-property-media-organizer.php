@@ -80,6 +80,12 @@ class Imovel_Parceiro_Media_Organizer {
             return $dirs;
         }
 
+        // Guarda: se o CPT ainda não foi registrado neste ponto do boot,
+        // qualquer checagem edit_post geraria notice map_meta_cap — usa pasta padrão.
+        if (!post_type_exists('property')) {
+            return $dirs;
+        }
+
         if (!current_user_can('edit_post', $property_id) && !current_user_can('edit_posts')) {
             return $dirs;
         }
@@ -124,6 +130,9 @@ class Imovel_Parceiro_Media_Organizer {
     public function maybe_move_gallery($post_id, $post, $update) {
         if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) return;
         if (get_post_type($post_id) !== 'property') return;
+        // Guarda: CPT ainda não registrado (save muito cedo no boot) — aborta
+        // antes de qualquer checagem edit_post para não gerar notice map_meta_cap.
+        if (!post_type_exists('property')) return;
         if (!current_user_can('edit_post', $post_id) && !current_user_can('edit_posts') && !current_user_can('manage_options')) {
             return;
         }
@@ -174,6 +183,11 @@ class Imovel_Parceiro_Media_Organizer {
      * Move um attachment (original + todos os sizes + webp) para a pasta do imóvel
      */
     private function move_attachment_to_property_folder($attachment_id, $property_id) {
+        // Guarda: sem o CPT registrado não há como mapear edit_post — aborta
+        // (evita notice map_meta_cap em chamadas precoces no boot).
+        if (!post_type_exists('property')) {
+            return false;
+        }
         // Verifica se o usuário pode editar o imóvel ou é o autor do anexo
         $att_author = (int) get_post_field('post_author', $attachment_id);
         $current_user = get_current_user_id();

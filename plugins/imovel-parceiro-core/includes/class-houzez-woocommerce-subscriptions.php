@@ -248,6 +248,10 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
     }
 
     public function save_package_metabox( $post_id, $post, $update ) {
+        // Guarda: sem o CPT registrado não há como mapear edit_post (evita notice map_meta_cap).
+        if ( 'houzez_packages' !== get_post_type( $post_id ) || ! post_type_exists( 'houzez_packages' ) ) {
+            return;
+        }
         if ( ! isset( $_POST['imovel_parceiro_package_subscription_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['imovel_parceiro_package_subscription_nonce'] ) ), 'imovel_parceiro_package_subscription' ) || ! current_user_can( 'edit_post', $post_id ) ) {
             return;
         }
