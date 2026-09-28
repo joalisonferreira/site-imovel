@@ -140,6 +140,12 @@ class Imovel_Parceiro_User_Fields {
     public function render_register_fields() {
         ?>
         <input type="hidden" name="ipc_user_fields" value="1" />
+        <?php
+        // Modo wizard (template próprio com os mesmos names): só o marcador.
+        if ( ! empty( $GLOBALS['ipc_register_wizard'] ) ) {
+            return;
+        }
+        ?>
         <?php if ( empty( $GLOBALS['ipc_register_full_name_rendered'] ) ) : ?>
         <div class="form-group">
             <div class="form-group-field">
@@ -261,6 +267,15 @@ class Imovel_Parceiro_User_Fields {
                 $this->registration_error( __( 'Este CRECI já está cadastrado por outro usuário.', 'imovel-parceiro-core' ) );
             }
         }
+
+        // Data de nascimento (wizard): DD/MM/AAAA, data real passada, 16+.
+        if ( isset( $_POST['birthdate'] ) && '' !== trim( (string) wp_unslash( $_POST['birthdate'] ) ) ) {
+            if ( ! self::validate_birthdate( sanitize_text_field( wp_unslash( $_POST['birthdate'] ) ) ) ) {
+                $this->registration_error( __( 'Informe uma data de nascimento válida (16 anos ou mais).', 'imovel-parceiro-core' ) );
+            }
+        } elseif ( ! empty( $GLOBALS['ipc_register_wizard'] ) ) {
+            $this->registration_error( __( 'Informe sua data de nascimento.', 'imovel-parceiro-core' ) );
+        }
     }
 
     /**
@@ -304,6 +319,49 @@ class Imovel_Parceiro_User_Fields {
         }
 
         return false;
+    }
+
+    /**
+     * Valida data de nascimento DD/MM/AAAA: real, passada, 16 anos ou mais.
+     *
+     * @param string $value Data no formato DD/MM/AAAA.
+     * @return bool
+     */
+    public static function validate_birthdate( $value ) {
+        if ( ! preg_match( '/^(\d{2})\/(\d{2})\/(\d{4})$/', trim( (string) $value ), $m ) ) {
+            return false;
+        }
+
+        $day   = (int) $m[1];
+        $month = (int) $m[2];
+        $year  = (int) $m[3];
+
+        if ( ! checkdate( $month, $day, $year ) ) {
+            return false;
+        }
+
+        $birth = DateTime::createFromFormat( 'Y-m-d', sprintf( '%04d-%02d-%02d', $year, $month, $day ) );
+        $now   = new DateTime( 'now' );
+
+        if ( ! $birth || $birth > $now ) {
+            return false;
+        }
+
+        return $now->diff( $birth )->y >= 16;
+    }
+
+    /**
+     * Normaliza DD/MM/AAAA para AAAA-MM-DD (ou '' se inválida).
+     *
+     * @param string $value Data no formato DD/MM/AAAA.
+     * @return string
+     */
+    public static function normalize_birthdate( $value ) {
+        if ( ! preg_match( '/^(\d{2})\/(\d{2})\/(\d{4})$/', trim( (string) $value ), $m ) ) {
+            return '';
+        }
+
+        return sprintf( '%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1] );
     }
 
     private function registration_error( $message ) {
@@ -447,6 +505,42 @@ class Imovel_Parceiro_User_Fields {
         if ( ! empty( $_POST['term_condition'] ) ) {
             $this->insert_terms_audit_log( $user_id, $person_type, $document_store );
         }
+
+        // Passo 2 do wizard: nascimento + preferências (somente usermeta, sem schema novo).
+        $birthdate = isset( $_POST['birthdate'] ) ? self::normalize_birthdate( sanitize_text_field( wp_unslash( $_POST['birthdate'] ) ) ) : '';
+        if ( '' !== $birthdate ) {
+            update_user_meta( $user_id, 'ipc_birthdate', $birthdate );
+        }
+
+        $goal = isset( $_POST['ipc_goal'] ) ? sanitize_key( wp_unslash( $_POST['ipc_goal'] ) ) : '';
+        if ( in_array( $goal, array( 'comprar', 'alugar', 'investir' ), true ) ) {
+            update_user_meta( $user_id, 'ipc_goal', $goal );
+        }
+
+        $types_raw = isset( $_POST['ipc_property_types'] ) ? sanitize_text_field( wp_unslash( $_POST['ipc_property_types'] ) ) : '';
+        $types     = array_values(
+            array_filter(
+                array_map( 'trim', explode( ',', $types_raw ) ),
+                function ( $type ) {
+                    return '' !== $type && mb_strlen( $type ) <= 60;
+                }
+            )
+        );
+        if ( $types ) {
+            update_user_meta( $user_id, 'ipc_property_types', array_slice( $types, 0, 8 ) );
+        }
+
+        $price_range = isset( $_POST['ipc_price_range'] ) ? sanitize_key( wp_unslash( $_POST['ipc_price_range'] ) ) : '';
+        if ( in_array( $price_range, array( 'ate-300', '300-500', '500-800', '800-1200', '1200-2000', 'acima-2000' ), true ) ) {
+            update_user_meta( $user_id, 'ipc_price_range', $price_range );
+        }
+
+        $location = isset( $_POST['ipc_location'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['ipc_location'] ) ) ) : '';
+        if ( '' !== $location ) {
+            update_user_meta( $user_id, 'ipc_location', mb_substr( $location, 0, 120 ) );
+        }
+
+        update_user_meta( $user_id, 'ipc_consultoria', ! empty( $_POST['ipc_consultoria'] ) ? '1' : '' );
     }
 
     private function insert_terms_audit_log( $user_id, $person_type, $document ) {
