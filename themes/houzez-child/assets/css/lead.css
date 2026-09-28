@@ -1,23 +1,34 @@
-/* Botões de entrada (header) + modal lead express. */
-#main-nav .ipc-menu-li {
-    align-self: center;
+/* Botões de entrada: funcionam no header do tema (#main-nav) e no header
+   montado no Elementor (.houzez-elementor-menu), que tem estilos próprios
+   grandes nos links — por isso tudo aqui vai com especificidade + !important. */
+#main-nav .ipc-menu-li,
+.houzez-elementor-menu > .ipc-menu-li,
+.main-ele-nav .ipc-menu-li {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
-#main-nav .ipc-menu-li + .ipc-menu-li {
-    margin-left: 8px;
+#main-nav .ipc-menu-li + .ipc-menu-li,
+.houzez-elementor-menu > .ipc-menu-li + .ipc-menu-li {
+    margin-left: 8px !important;
 }
-.ipc-menu-cta {
+#main-nav .ipc-menu-cta,
+.houzez-elementor-menu .ipc-menu-cta,
+.main-ele-nav .ipc-menu-cta {
     display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    max-height: 40px !important;
     padding: 0 18px !important;
+    margin: 0 !important;
     border-radius: 6px !important;
     font-weight: 800 !important;
     font-size: 13px !important;
     line-height: 1 !important;
-    letter-spacing: .04em;
+    letter-spacing: .04em !important;
     text-transform: uppercase !important;
-    white-space: nowrap;
+    white-space: nowrap !important;
     transition: filter .15s ease, background-color .15s ease;
 }
 li > .ipc-menu-cta--buyer,
