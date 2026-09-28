@@ -155,11 +155,14 @@ function houzez_child_enqueue_auth_assets() {
      */
     wp_add_inline_style( 'houzez-child-auth', houzez_child_auth_password_toggle_css() );
 
+    $auth_js_path = get_stylesheet_directory() . '/assets/js/auth.js';
+    $auth_js_ver  = file_exists( $auth_js_path ) ? (string) filemtime( $auth_js_path ) : '1.1.0';
+
     wp_enqueue_script(
         'houzez-child-auth',
         get_stylesheet_directory_uri() . '/assets/js/auth.js',
         array(),
-        '1.1.0',
+        $auth_js_ver,
         true
     );
 
