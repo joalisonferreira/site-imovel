@@ -113,7 +113,9 @@ class Imovel_Parceiro_Media_Organizer {
         if (!empty($stored) && is_string($stored)) {
             return $stored;
         }
-        $slug = sanitize_title(get_the_title($property_id));
+        // v2: slug limpo (sanitize_title sozinho embute %xx literais, ex.: ² vira
+        // %c2%b2 e o servidor não resolve a URL depois → foto 404).
+        $slug = self::clean_slug(get_the_title($property_id));
         if (empty($slug)) $slug = 'imovel';
         $slug = substr($slug, 0, 60);
         $folder = self::BASE_FOLDER . '/' . $slug . '-' . $property_id;
@@ -122,6 +124,108 @@ class Imovel_Parceiro_Media_Organizer {
             update_post_meta($property_id, '_imovel_parceiro_media_folder', $folder);
         }
         return $folder;
+    }
+
+    /**
+     * Slug seguro para nome de pasta: remove sequências %xx literais e
+     * restringe a [a-z0-9-].
+     */
+    public static function clean_slug($title) {
+        $slug = sanitize_title($title);
+        $slug = preg_replace('/%[0-9a-fA-F]{2}/', '', $slug);
+        $slug = preg_replace('/[^a-z0-9-]+/', '-', strtolower($slug));
+        return trim($slug, '-');
+    }
+
+    /**
+     * Reparo v2 de pasta criada com %xx literais (ex.: ...-m%c2%b2-recreio-23065).
+     * Roda SOMENTE em contexto save_post (maybe_move_gallery), com trava
+     * anti-reentrância, e atualiza o nome gravado no imóvel. De propósito NÃO
+     * usa wp_update_post (o guid vai via SQL direto) para não disparar
+     * save_post em cadeia. Nunca chamar dentro de filtros (ex.: upload_dir).
+     */
+    private function maybe_repair_folder($property_id) {
+        static $repairing = array();
+        if (!empty($repairing[$property_id])) {
+            return;
+        }
+        $stored = get_post_meta($property_id, '_imovel_parceiro_media_folder', true);
+        if (empty($stored) || !is_string($stored) || strpos($stored, '%') === false) {
+            return;
+        }
+        $base = basename($stored);
+        $suffix = '-' . absint($property_id);
+        $slug_part = $base;
+        if ($suffix !== '-' && substr($base, -strlen($suffix)) === $suffix) {
+            $slug_part = substr($base, 0, -strlen($suffix));
+        }
+        $clean = self::BASE_FOLDER . '/' . trim(self::clean_slug($slug_part), '-') . $suffix;
+
+        $repairing[$property_id] = true;
+        $upload = wp_get_upload_dir();
+        $old_path = $upload['basedir'] . '/' . $stored;
+        $new_path = $upload['basedir'] . '/' . $clean;
+        if (is_dir($old_path) && !file_exists($new_path)) {
+            if (!@rename($old_path, $new_path)) {
+                unset($repairing[$property_id]);
+                return; // sem rename, não reescreve nada
+            }
+        }
+        // Nome gravado sempre atualizado (evita reexecução a cada save).
+        update_post_meta($property_id, '_imovel_parceiro_media_folder', $clean);
+        if (is_dir($new_path)) {
+            $this->rewrite_attachment_paths($stored, $clean);
+        }
+        unset($repairing[$property_id]);
+    }
+
+    /**
+     * Reescreve os caminhos dos anexos da pasta antiga para a nova
+     * (_wp_attached_file, _wp_attachment_metadata e guid + flags do plugin).
+     */
+    private function rewrite_attachment_paths($old_rel, $new_rel) {
+        global $wpdb;
+        $like = $wpdb->esc_like($old_rel) . '%';
+        $att_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value LIKE %s",
+            $like
+        ));
+        if (!empty($att_ids)) {
+            foreach ($att_ids as $att_id) {
+                $att_id = absint($att_id);
+                $file = get_post_meta($att_id, '_wp_attached_file', true);
+                if (!is_string($file) || strpos($file, $old_rel) !== 0) {
+                    continue;
+                }
+                $new_file = $new_rel . substr($file, strlen($old_rel));
+                update_post_meta($att_id, '_wp_attached_file', $new_file);
+                $meta = wp_get_attachment_metadata($att_id);
+                if (is_array($meta)) {
+                    if (isset($meta['file']) && is_string($meta['file']) && strpos($meta['file'], $old_rel) === 0) {
+                        $meta['file'] = $new_rel . substr($meta['file'], strlen($old_rel));
+                    }
+                    update_post_meta($att_id, '_wp_attachment_metadata', $meta);
+                }
+                $guid = $wpdb->get_var($wpdb->prepare("SELECT guid FROM {$wpdb->posts} WHERE ID = %d", $att_id));
+                if (is_string($guid) && strpos($guid, $old_rel) !== false) {
+                    $wpdb->update(
+                        $wpdb->posts,
+                        array('guid' => str_replace($old_rel, $new_rel, $guid)),
+                        array('ID' => $att_id),
+                        array('%s'),
+                        array('%d')
+                    );
+                    clean_post_cache($att_id);
+                }
+            }
+        }
+        // Flags de pasta do próprio plugin nos anexos.
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_key = '_imovel_parceiro_media_folder' AND meta_value LIKE %s",
+            $old_rel,
+            $new_rel,
+            $like
+        ));
     }
 
     /**
@@ -136,6 +240,8 @@ class Imovel_Parceiro_Media_Organizer {
         if (!current_user_can('edit_post', $post_id) && !current_user_can('edit_posts') && !current_user_can('manage_options')) {
             return;
         }
+        // Reparo v2 de pasta com %xx literais: só aqui (save_post), nunca em filtro.
+        $this->maybe_repair_folder($post_id);
         // Evita loop: marca que já moveu esta versão
         if (get_post_meta($post_id, self::META_MOVED, true)) {
             // Se for atualização, ainda pode haver novas imagens em temp; verifica
