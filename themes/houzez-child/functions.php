@@ -237,6 +237,11 @@ function houzez_child_print_lead_modal() {
 add_filter( 'wp_nav_menu_items', 'houzez_child_header_ctas', 10, 2 );
 
 function houzez_child_header_ctas( $items, $args ) {
+    // Só na home.
+    if ( ! is_front_page() ) {
+        return $items;
+    }
+
     // Dispara no menu principal por location OU por slug (o header da home
     // pode renderizar o menu direto, sem theme_location atribuída).
     $location = isset( $args->theme_location ) ? (string) $args->theme_location : '';
