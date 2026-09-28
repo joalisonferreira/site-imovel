@@ -237,7 +237,28 @@ function houzez_child_print_lead_modal() {
 add_filter( 'wp_nav_menu_items', 'houzez_child_header_ctas', 10, 2 );
 
 function houzez_child_header_ctas( $items, $args ) {
-    if ( ! isset( $args->theme_location ) || 'main-menu' !== $args->theme_location ) {
+    // Dispara no menu principal por location OU por slug (o header da home
+    // pode renderizar o menu direto, sem theme_location atribuída).
+    $location = isset( $args->theme_location ) ? (string) $args->theme_location : '';
+    $menu_slug = '';
+    if ( isset( $args->menu ) ) {
+        if ( is_object( $args->menu ) && isset( $args->menu->slug ) ) {
+            $menu_slug = (string) $args->menu->slug;
+        } elseif ( is_numeric( $args->menu ) ) {
+            $menu_obj = wp_get_nav_menu_object( (int) $args->menu );
+            if ( $menu_obj && isset( $menu_obj->slug ) ) {
+                $menu_slug = (string) $menu_obj->slug;
+            }
+        } elseif ( is_string( $args->menu ) ) {
+            $menu_obj = wp_get_nav_menu_object( $args->menu );
+            $menu_slug = $menu_obj && isset( $menu_obj->slug ) ? (string) $menu_obj->slug : $args->menu;
+        }
+    }
+
+    $is_primary = 'main-menu' === $location
+        || in_array( $menu_slug, array( 'main-menu', 'menu-principal' ), true );
+
+    if ( ! $is_primary ) {
         return $items;
     }
 
