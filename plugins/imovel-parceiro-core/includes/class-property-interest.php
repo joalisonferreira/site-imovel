@@ -477,9 +477,15 @@ class Imovel_Parceiro_Property_Interest {
             );
         }
 
-        // 2) E-mail ao corretor com os dados do cliente.
+        // 2) E-mail com os dados do cliente. Este fluxo é exclusivo de clientes
+        // (ajax_submit rejeita não-clientes), então o lead vai para a plataforma
+        // (contato@), não para o corretor. O corretor continua vendo a lead no
+        // CRM + notificação in-app.
         $broker = get_userdata( $broker_id );
         $to     = $broker ? $broker->user_email : '';
+        if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+            $to = Imovel_Parceiro_Contact_Visibility::CLIENT_LEAD_EMAIL;
+        }
         if ( ! $to || ! is_email( $to ) ) {
             return;
         }
@@ -503,7 +509,7 @@ class Imovel_Parceiro_Property_Interest {
             $lines[] = sprintf( __( 'Mensagem do cliente: %s', 'imovel-parceiro-core' ), $message );
         }
         $lines[] = '';
-        $lines[] = sprintf( __( 'Lead #%1$d no seu CRM (enquiry #%2$d) — prova de origem para a comissão da plataforma.', 'imovel-parceiro-core' ), $lead_id, $enquiry_id );
+        $lines[] = sprintf( __( 'Lead #%1$d (enquiry #%2$d) registrada no CRM do corretor — prova de origem para a comissão da plataforma.', 'imovel-parceiro-core' ), $lead_id, $enquiry_id );
 
         if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
             Imovel_Parceiro_Email_Template::send(
