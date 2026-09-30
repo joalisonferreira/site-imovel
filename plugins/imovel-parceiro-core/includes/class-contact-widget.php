@@ -542,7 +542,7 @@ class Imovel_Parceiro_Contact_Widget {
                 'id' => $broker_id,
                 'name' => ! empty( $broker['name'] ) ? $broker['name'] : '',
                 'avatar' => ! empty( $broker['user_id'] ) ? get_avatar_url( $broker['user_id'], array( 'size' => 96 ) ) : '',
-                'email' => $can_see_contact && ! empty( $broker['email'] ) ? $broker['email'] : '',
+                'email' => ( $can_see_contact && ! $viewer_is_client && ! empty( $broker['email'] ) ) ? $broker['email'] : '',
                 'creci' => ! empty( $broker['creci'] ) ? $broker['creci'] : '',
                 'company' => ! empty( $broker['company'] ) ? $broker['company'] : '',
             ),

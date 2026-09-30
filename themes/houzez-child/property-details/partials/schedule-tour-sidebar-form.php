@@ -29,6 +29,10 @@ if ( ! $ipc_can_see_contact && '' !== $ipc_agent_data_html && class_exists( 'Imo
 	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_nodes_by_class( $ipc_agent_data_html, array( 'agent-phone' ) );
 	$ipc_agent_data_html = preg_replace( '/<input[^>]*name="target_email\[\]"[^>]*>/', '', $ipc_agent_data_html );
 }
+// Cliente logado: só formulários — remove botões de contato direto do card.
+if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::is_client() && '' !== $ipc_agent_data_html ) {
+	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_agent_card_contact( $ipc_agent_data_html );
+}
 
 if ($agent_email && $agent_display != 'none') { 
 

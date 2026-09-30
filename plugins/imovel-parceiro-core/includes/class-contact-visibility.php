@@ -16,6 +16,20 @@ class Imovel_Parceiro_Contact_Visibility {
     const ALLOWED_ROLES = array( 'houzez_agent', 'houzez_agency' );
 
     /**
+     * Contato da plataforma: leads de clientes (Agendar visita / Mensagem /
+     * contato do corretor) são redirecionados para este e-mail em vez do corretor.
+     */
+    const CLIENT_LEAD_EMAIL = 'contato@imovelparceiro.com.br';
+
+    /**
+     * Flag request-scoped: filtro wp_mail armado só durante o AJAX de contato
+     * enviado por cliente (ver arm_client_redirect()).
+     *
+     * @var bool
+     */
+    private static $client_redirect_armed = false;
+
+    /**
      * Elementor contact widgets fully suppressed when the viewer is unqualified.
      *
      * @var string[]
@@ -77,6 +91,12 @@ class Imovel_Parceiro_Contact_Visibility {
         // deixa o handler original do Houzez processar (ele permite com nome/email).
         // Apenas bloqueia corretores/imobiliárias não qualificados.
         $user_id = get_current_user_id();
+        if ( $user_id && self::is_client( $user_id ) ) {
+            // Cliente: formulários habilitados, mas o lead vai para contato@
+            // (filtro wp_mail armado só nesta requisição AJAX).
+            self::arm_client_redirect();
+            return;
+        }
         if ( $user_id ) {
             $user = get_userdata( $user_id );
             // Se não é corretor/imobiliária, é cliente ou outro papel - libera
@@ -193,6 +213,58 @@ class Imovel_Parceiro_Contact_Visibility {
     }
 
     /**
+     * Whether the user is a cliente (qualquer papel que não seja
+     * corretor/imobiliária/proprietário/admin). É esse público que tem os
+     * formulários habilitados com lead redirecionado para a plataforma.
+     *
+     * @param int $user_id Optional user id. Defaults to current user.
+     * @return bool
+     */
+    public static function is_client( $user_id = 0 ) {
+        $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+        if ( ! $user_id ) {
+            return false;
+        }
+        $user = get_userdata( $user_id );
+        if ( ! $user ) {
+            return false;
+        }
+        return empty( array_intersect(
+            array( 'houzez_agent', 'houzez_agency', 'houzez_owner', 'administrator' ),
+            (array) $user->roles
+        ) );
+    }
+
+    /**
+     * Arma o redirecionamento do lead do cliente para CLIENT_LEAD_EMAIL.
+     * Escopo restrito: só vale nesta requisição AJAX (o handler nativo morre
+     * com wp_die logo após enviar).
+     */
+    public static function arm_client_redirect() {
+        if ( self::$client_redirect_armed ) {
+            return;
+        }
+        self::$client_redirect_armed = true;
+        add_filter( 'wp_mail', array( __CLASS__, 'redirect_client_mail' ) );
+    }
+
+    /**
+     * Troca o destinatário do e-mail pelo contato da plataforma.
+     * Nota: se a loja configurar cópia CC/BCC nesses formulários, a cópia
+     * também é roteada para contato@ nesta requisição (efeito documentado).
+     *
+     * @param array $args Argumentos do wp_mail (to, subject, message, headers, attachments).
+     * @return array
+     */
+    public static function redirect_client_mail( $args ) {
+        if ( empty( $args['to'] ) ) {
+            return $args;
+        }
+        $args['to'] = self::CLIENT_LEAD_EMAIL;
+        return $args;
+    }
+
+    /**
      * Suppress contact widgets (or strip contact parts) for unqualified viewers.
      *
      * @param string $content Rendered widget HTML.
@@ -207,6 +279,16 @@ class Imovel_Parceiro_Contact_Visibility {
         // Contexto do próprio anúncio (preserva o canal do proprietário com seu corretor).
         $context_property = is_singular( 'property' ) ? get_the_ID() : 0;
         if ( self::viewer_can_see_contact( 0, $context_property ) ) {
+            // Cliente logado: só formulários — suprime botões de contato direto.
+            if ( self::is_client() ) {
+                $client_name = $widget->get_name();
+                if ( in_array( $client_name, self::$blocked_widgets, true ) ) {
+                    return '';
+                }
+                if ( 'houzez_elementor_agent_card' === $client_name ) {
+                    return self::strip_agent_card_contact( $content );
+                }
+            }
             return $content;
         }
 
