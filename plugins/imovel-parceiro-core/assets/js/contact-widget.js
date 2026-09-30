@@ -184,9 +184,10 @@
         html += '<div class="ipcw-actions">';
 
         // WhatsApp action. Disabled for the property owner (cannot contact self).
-        // Proprietário bloqueado (anúncio de terceiros): não renderiza nada — silencioso, sem mensagem.
-        if (req.owner_blocked) {
-            /* botão oculto para proprietário em anúncio de terceiros */
+        // Proprietário bloqueado (anúncio de terceiros) e cliente (usa o fluxo
+        // "Tenho interesse neste imóvel"): não renderiza nada — silencioso, sem mensagem.
+        if (req.owner_blocked || req.is_client) {
+            /* botão WhatsApp oculto */
         } else if (req.is_owner) {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + lockIcon() + '</span>';
