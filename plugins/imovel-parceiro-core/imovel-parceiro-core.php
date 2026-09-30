@@ -84,6 +84,7 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-mailer.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-password-reset.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-buyer-lead.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-crm-ptbr.php';
     }
 
     private function hooks() {
