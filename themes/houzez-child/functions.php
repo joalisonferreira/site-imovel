@@ -302,6 +302,43 @@ function houzez_child_header_ctas( $items, $args ) {
 
     return $items . $buyer . $owner;
 }
+
+/**
+ * Placeholders PT-BR do cadastro de imóvel (AGENTS.md: PT-BR obrigatório).
+ *
+ * Quase todos vêm de options (houzez_options); o inglês aparece quando a
+ * option está vazia (fallback do código) ou foi salva em inglês. Este filtro
+ * preenche só nesses casos — nunca sobrescreve texto já traduzido no admin.
+ */
+add_filter( 'redux/options/houzez_options/global_variable', 'houzez_child_placeholders_ptbr', 20 );
+
+function houzez_child_placeholders_ptbr( $options ) {
+    if ( ! is_array( $options ) ) {
+        return $options;
+    }
+
+    $map = array(
+        'cl_energy_cls_plac'              => array( 'Selecione a classe energética', array( 'Select Energy Class' ) ),
+        'cl_energy_index_plac'            => array( 'Ex.: 92,42 kWh/m²a', array( 'For example: 92.42 kWh / m²a' ) ),
+        'cl_energy_renew_index_plac'      => array( 'Ex.: 0,00 kWh/m²a', array( 'For example: 0.00 kWh / m²a' ) ),
+        'cl_virtual_plac'                 => array( 'Cole o link ou o código iframe do tour virtual', array( 'Enter virtual tour link OR iframe/embeded code' ) ),
+        'cl_energy_build_performance_plac' => array( 'Desempenho energético do edifício', array() ),
+        'cl_energy_ecp_p_plac'            => array( 'Classificação energética potencial', array() ),
+        'cl_energy_ecp_rating_plac'       => array( 'Classificação energética atual', array() ),
+        'cl_price_postfix_plac'           => array( 'Texto após o preço (ex.: /mês)', array( 'Enter the label after price' ) ),
+    );
+
+    foreach ( $map as $key => $data ) {
+        list( $ptbr, $english ) = $data;
+        $current = isset( $options[ $key ] ) ? trim( (string) $options[ $key ] ) : '';
+        if ( '' === $current || in_array( $current, $english, true ) ) {
+            $options[ $key ] = $ptbr;
+        }
+    }
+
+    return $options;
+}
+
 /**
  * Resolve a URL de uma página pelo slug, com fallback para home_url().
  */
