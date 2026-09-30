@@ -14,6 +14,17 @@ class Imovel_Parceiro_Buyer_Lead {
     const NONCE_ACTION = 'ipc_buyer_lead';
     const SOURCE       = 'Lead express - menu Quero comprar';
 
+    /**
+     * Dono do lead no CRM (recebe no CRM > Leads e o e-mail de aviso).
+     */
+    const RECIPIENT_EMAIL = 'contato@imovelparceiro.com.br';
+
+    /**
+     * Papéis considerados "comprador": o lead gerado por eles vai para o
+     * RECIPIENT_EMAIL em vez da própria conta.
+     */
+    const BUYER_ROLES = array( 'houzez_buyer', 'subscriber' );
+
     public function __construct() {
         add_action( 'wp_ajax_ipc_save_buyer_lead', array( $this, 'save_lead' ) );
         add_action( 'wp_ajax_nopriv_ipc_save_buyer_lead', array( $this, 'save_lead' ) );
@@ -95,11 +106,7 @@ class Imovel_Parceiro_Buyer_Lead {
             self::SOURCE
         );
 
-        $user_id = get_current_user_id();
-        if ( ! $user_id ) {
-            $admin = get_user_by( 'email', get_option( 'admin_email' ) );
-            $user_id = $admin ? (int) $admin->ID : 0;
-        }
+        $user_id = $this->resolve_recipient_id();
 
         $table = self::table_name();
 
@@ -182,8 +189,39 @@ class Imovel_Parceiro_Buyer_Lead {
         );
     }
 
+    /**
+     * Define o dono do lead: contato@ para visitantes e compradores;
+     * demais logados mantêm na própria conta. Fallback: admin.
+     *
+     * @return int
+     */
+    private function resolve_recipient_id() {
+        $recipient = get_user_by( 'email', self::RECIPIENT_EMAIL );
+        $recipient_id = $recipient ? (int) $recipient->ID : 0;
+
+        if ( is_user_logged_in() ) {
+            $me = wp_get_current_user();
+            if ( array_intersect( self::BUYER_ROLES, (array) $me->roles ) ) {
+                return $recipient_id ? $recipient_id : (int) $me->ID;
+            }
+
+            return (int) $me->ID;
+        }
+
+        if ( $recipient_id ) {
+            return $recipient_id;
+        }
+
+        $admin = get_user_by( 'email', get_option( 'admin_email' ) );
+
+        return $admin ? (int) $admin->ID : 0;
+    }
+
     private function notify_admin( $lead_id, $name, $phone, $email, $message ) {
-        $to = get_option( 'admin_email' );
+        $to = self::RECIPIENT_EMAIL;
+        if ( ! get_user_by( 'email', $to ) ) {
+            $to = get_option( 'admin_email' );
+        }
         if ( ! $to || ! is_email( $to ) ) {
             return;
         }
