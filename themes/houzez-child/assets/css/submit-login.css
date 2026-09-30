@@ -1,0 +1,160 @@
+/**
+ * Tela "Entre para cadastrar seu imóvel" (/cadastrar-imovel deslogado).
+ * Override: themes/houzez-child/template-parts/dashboard/submit/partials/login-required.php
+ * Prefixo ipc-submit-login-* para não colidir com o CSS do Houzez.
+ */
+.ipc-submit-login {
+	display: flex;
+	justify-content: center;
+	padding: 12px 0 8px;
+}
+
+.ipc-submit-login__card {
+	width: 100%;
+	max-width: 640px;
+	background: #fff;
+	border: 1px solid #e8edf1;
+	border-radius: 18px;
+	box-shadow: 0 18px 45px -18px rgba(16, 42, 67, 0.25);
+	padding: 44px 40px 36px;
+	text-align: center;
+}
+
+.ipc-submit-login__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 68px;
+	height: 68px;
+	border-radius: 50%;
+	color: var(--houzez-primary, #0b6e4f);
+	background: #e6f2ec;
+	background: color-mix(in srgb, var(--houzez-primary, #0b6e4f) 10%, #fff);
+	margin-bottom: 18px;
+}
+
+.ipc-submit-login__eyebrow {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--houzez-primary, #0b6e4f);
+	margin: 0 0 8px;
+}
+
+.ipc-submit-login__title {
+	font-size: 28px;
+	line-height: 1.25;
+	font-weight: 800;
+	color: #102a43;
+	margin: 0 0 10px;
+}
+
+.ipc-submit-login__text {
+	font-size: 15.5px;
+	line-height: 1.6;
+	color: #5b6b7c;
+	margin: 0 auto 20px;
+	max-width: 480px;
+}
+
+.ipc-submit-login__benefits {
+	list-style: none;
+	margin: 0 auto 26px;
+	padding: 18px 20px;
+	max-width: 480px;
+	text-align: left;
+	background: #f6f9fb;
+	border: 1px solid #e8edf1;
+	border-radius: 12px;
+	display: grid;
+	gap: 10px;
+}
+
+.ipc-submit-login__benefits li {
+	position: relative;
+	font-size: 14.5px;
+	color: #33475c;
+	padding-left: 30px;
+	line-height: 1.5;
+}
+
+.ipc-submit-login__benefits li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 1px;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--houzez-primary, #0b6e4f)
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+		no-repeat center / 11px 11px;
+}
+
+.ipc-submit-login__actions {
+	display: flex;
+	justify-content: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-top: 30px;
+	margin-bottom: 16px;
+}
+
+.ipc-submit-login__actions .ipc-submit-login__btn .btn {
+	min-width: 210px;
+	padding: 12px 26px;
+	font-weight: 700;
+	border-radius: 10px;
+}
+
+.ipc-submit-login__note {
+	font-size: 12.5px;
+	color: #8a97a5;
+	margin: 0;
+}
+
+/* Fundo todo branco: a seção da página e as caixas do Houzez ficam brancas e
+ * planas atrás do cartão, sem sombras nem margens cinzas. */
+section.dashboard-content-block-wrap:has(.ipc-submit-login-wrap),
+div.dashboard-content-block-wrap:has(.ipc-submit-login-wrap) {
+	background-color: #fff;
+}
+
+.ipc-submit-login-wrap.block-wrap {
+	background-color: #fff;
+	border: none;
+	box-shadow: none;
+	border-radius: 0;
+	margin-top: 0;
+	padding: 10px 0 20px;
+}
+
+.ipc-submit-login-wrap .block-content-wrap {
+	background-color: transparent;
+}
+
+.ipc-submit-login__card {
+	box-shadow: none;
+}
+
+@media (max-width: 575px) {
+	.ipc-submit-login__card {
+		padding: 32px 22px 28px;
+		border-radius: 14px;
+	}
+
+	.ipc-submit-login__title {
+		font-size: 23px;
+	}
+
+	.ipc-submit-login__actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.ipc-submit-login__actions .ipc-submit-login__btn .btn {
+		width: 100%;
+		min-width: 0;
+	}
+}

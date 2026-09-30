@@ -122,6 +122,17 @@ function houzez_child_enqueue_dashboard_assets() {
         '1.0.0'
     );
 
+    // Tela "Entre para cadastrar seu imóvel" (visitante deslogado no submit).
+    $submit_login_css = get_stylesheet_directory() . '/assets/css/submit-login.css';
+    if ( file_exists( $submit_login_css ) ) {
+        wp_enqueue_style(
+            'houzez-child-submit-login',
+            get_stylesheet_directory_uri() . '/assets/css/submit-login.css',
+            array( 'houzez-child-dashboard-tailwind' ),
+            (string) filemtime( $submit_login_css )
+        );
+    }
+
     wp_enqueue_script(
         'houzez-child-dashboard',
         get_stylesheet_directory_uri() . '/assets/js/dashboard.js',
