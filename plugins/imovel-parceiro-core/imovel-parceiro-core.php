@@ -93,6 +93,7 @@ class Imovel_Parceiro_Core {
         add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_notification_assets' ) );
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_osm_fallback' ), 30 );
         add_filter( 'pre_wp_mail', array( $this, 'maybe_mock_mail_for_client' ), 10, 2 );
         add_filter( 'gettext', array( $this, 'fix_search_labels' ), 20, 3 );
     }
@@ -129,6 +130,30 @@ class Imovel_Parceiro_Core {
             }
         }
         return $return;
+    }
+
+
+    /**
+     * Fallback de endereco no cadastro (somente OSM): Photon + pin manual.
+     * O proprio JS verifica #geocomplete + Leaflet antes de agir.
+     */
+    public function enqueue_osm_fallback() {
+        if ( ! function_exists( 'houzez_is_dashboard' ) || ! houzez_is_dashboard() ) {
+            return;
+        }
+
+        $file = IMOVEL_PARCEIRO_CORE_DIR . 'assets/js/osm-address-fallback.js';
+        if ( ! file_exists( $file ) ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'imovel-parceiro-osm-fallback',
+            IMOVEL_PARCEIRO_CORE_URL . 'assets/js/osm-address-fallback.js',
+            array( 'jquery', 'jquery-ui-autocomplete' ),
+            (string) filemtime( $file ),
+            true
+        );
     }
 
     public function load_textdomain() {
