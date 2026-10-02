@@ -251,6 +251,22 @@
         };
     }
 
+    /* O fluxo OSM do tema anexa um jQuery UI autocomplete no mesmo campo.
+     * Como o Google é o sugeridor oficial aqui, desliga o concorrente para
+     * não exibir duas listas sobrepostas. */
+    function disableCompetingAutocomplete(input) {
+        try {
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.autocomplete) {
+                var $input = window.jQuery(input);
+                if ($input.data('ui-autocomplete')) {
+                    $input.autocomplete('disable');
+                }
+            }
+        } catch (e) {
+            /* noop */
+        }
+    }
+
     function newSessionToken() {
         try {
             return new google.maps.places.AutocompleteSessionToken();
@@ -264,6 +280,7 @@
             return;
         }
         input.dataset.ipcSuggestBound = '1';
+        disableCompetingAutocomplete(input);
         var timer = null;
         var sessionToken = newSessionToken();
 
@@ -326,6 +343,7 @@
             return;
         }
         input.dataset.ipcSuggestBound = '1';
+        disableCompetingAutocomplete(input);
         var autocomplete = new google.maps.places.Autocomplete(input, {
             types: ['address'],
             componentRestrictions: { country: 'br' },
