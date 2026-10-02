@@ -68,41 +68,6 @@
     var lastFillTime = 0;
     var lastFilledAddress = '';
 
-    /* Recasa os selects (cidade/bairro/estado/país) depois que a cascata
-     * do tema carregar as opções via AJAX. */
-    function retrySelects() {
-        if (!lastComponents) {
-            return;
-        }
-        var fakePlace = { address_components: lastComponents };
-        var city = pick(fakePlace, ['administrative_area_level_2', 'locality']);
-        var neighborhood = pick(fakePlace, ['sublocality_level_1', 'sublocality', 'neighborhood']);
-        if (city) {
-            setField(['city'], compText(city));
-        }
-        if (neighborhood) {
-            setField(['neighborhood'], compText(neighborhood));
-        }
-        var state = pick(fakePlace, ['administrative_area_level_1']);
-        if (state) {
-            var stateEl = document.getElementById('countyState') || document.querySelector('select[name="administrative_area_level_1"]');
-            if (stateEl && stateEl.tagName === 'SELECT') {
-                if (!setSelect(stateEl, compText(state))) {
-                    setSelect(stateEl, compText(state, true));
-                }
-            }
-        }
-        var country = pick(fakePlace, ['country']);
-        if (country) {
-            var countryEl = document.getElementById('country');
-            if (countryEl && countryEl.tagName === 'SELECT') {
-                if (!setSelect(countryEl, compText(country))) {
-                    setSelect(countryEl, compText(country, true));
-                }
-            }
-        }
-    }
-
     /* Nova Places API usa longText/shortText; legada usa long_name/short_name. */
     function compText(comp, short) {
         if (!comp) {
@@ -269,7 +234,7 @@
                 setText(stateEl, compText(state));
             }
             // A escolha do estado dispara a cascata cidade→bairro no tema.
-            applyCascade(compText(city), compText(neighborhood));
+            ensureCascade(compText(city), compText(neighborhood));
         }
         if (zip) {
             setField(['zip'], compText(zip));
@@ -286,8 +251,6 @@
         }
 
         lastComponents = place.address_components || null;
-        window.setTimeout(retrySelects, 900);
-        window.setTimeout(retrySelects, 2200);
 
         // Coordenadas: preenchem os inputs E movem o mapa/pin do OSM.
         var location = place.location || (place.geometry && place.geometry.location);
@@ -463,61 +426,74 @@
         }
     }
 
-    /* Aguarda a cascata do tema popular o select (AJAX) antes de casar. */
-    function waitOptions(select, done) {
-        if (!select || select.tagName !== 'SELECT') {
-            done(false);
-            return;
-        }
-        if (select.options.length > 1) {
-            done(true);
-            return;
-        }
-        var finished = false;
-        var observer = null;
-        function finish(ok) {
-            if (finished) {
-                return;
-            }
-            finished = true;
-            try {
-                if (observer) {
-                    observer.disconnect();
-                }
-            } catch (e) {
-                /* noop */
-            }
-            done(ok);
-        }
-        try {
-            observer = new MutationObserver(function () {
-                if (select.options.length > 1) {
-                    finish(true);
-                }
-            });
-            observer.observe(select, { childList: true });
-        } catch (e) {
-            done(false);
-            return;
-        }
-        window.setTimeout(function () {
-            finish(select.options.length > 1);
-        }, 6000);
+    /* A cascata do tema recarrega cidade/bairro via AJAX e redefine a seleção.
+     * Vigia os selects por ~10s e reaplica enquanto o valor estiver vazio. */
+    function selectEl(id, name) {
+        return document.getElementById(id) || document.querySelector('[name="' + name + '"]');
     }
 
-    function applyCascade(cityName, areaName) {
-        var cityEl = document.getElementById('city') || document.querySelector('[name="locality"]');
-        waitOptions(cityEl, function () {
+    function selectHasValue(el) {
+        return !!(el && el.tagName === 'SELECT' && el.value);
+    }
+
+    function ensureCascade(cityName, areaName) {
+        var end = Date.now() + 10000;
+        function alive() {
+            return Date.now() <= end;
+        }
+        function applyCity() {
             if (cityName) {
                 setField(['city', 'locality'], cityName);
             }
-            var areaEl = document.getElementById('neighborhood') || document.querySelector('[name="neighborhood"]');
-            waitOptions(areaEl, function () {
-                if (areaName) {
-                    setField(['neighborhood'], areaName);
-                }
-            });
+            return selectHasValue(selectEl('city', 'locality'));
+        }
+        function applyArea() {
+            if (areaName) {
+                setField(['neighborhood'], areaName);
+            }
+            return selectHasValue(selectEl('neighborhood', 'neighborhood'));
+        }
+        function watch(el, apply, done) {
+            if (!el || el.tagName !== 'SELECT') {
+                return;
+            }
+            try {
+                var obs = new MutationObserver(function () {
+                    if (!alive()) {
+                        obs.disconnect();
+                        return;
+                    }
+                    if (apply()) {
+                        obs.disconnect();
+                        if (done) {
+                            done();
+                        }
+                    }
+                });
+                obs.observe(el, { childList: true });
+                window.setTimeout(function () {
+                    obs.disconnect();
+                }, 10000);
+            } catch (e) {
+                /* noop */
+            }
+        }
+        applyCity();
+        applyArea();
+        watch(selectEl('city', 'locality'), applyCity, function () {
+            applyArea();
+            watch(selectEl('neighborhood', 'neighborhood'), applyArea, null);
         });
+        window.setTimeout(function () {
+            if (alive()) {
+                applyCity();
+                applyArea();
+            }
+        }, 3000);
+        window.setTimeout(function () {
+            applyCity();
+            applyArea();
+        }, 6500);
     }
 
     function newSessionToken() {
