@@ -166,10 +166,23 @@
         return false;
     }
 
+    /* Atualiza o botão visível dos selects estilizados (bootstrap-select /
+     * select2). Incondicional: se o plugin não estiver naquele elemento,
+     * a exceção é engolida e o valor continua definido no select nativo. */
     function refreshPicker(select) {
         try {
-            if (window.jQuery && window.jQuery(select).data('selectpicker')) {
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.selectpicker) {
                 window.jQuery(select).selectpicker('refresh');
+            }
+        } catch (e) {
+            /* noop */
+        }
+        try {
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                var $select = window.jQuery(select);
+                if ($select.data('select2')) {
+                    $select.trigger('change.select2');
+                }
             }
         } catch (e) {
             /* noop */
