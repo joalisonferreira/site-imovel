@@ -136,7 +136,8 @@
         }
         var target = norm(value);
         var options = select.options;
-        for (var i = 0; i < options.length; i++) {
+        var i;
+        for (i = 0; i < options.length; i++) {
             if (norm(options[i].text) === target || norm(options[i].value) === target) {
                 select.selectedIndex = i;
                 select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -144,6 +145,24 @@
                 return true;
             }
         }
+        // Fallback tolerante: uma única opção que contenha o texto (ou vice-versa).
+        var candidates = [];
+        for (i = 0; i < options.length; i++) {
+            var text = norm(options[i].text);
+            var val = norm(options[i].value);
+            if ((text && (text.indexOf(target) !== -1 || target.indexOf(text) !== -1)) ||
+                (val && (val.indexOf(target) !== -1 || target.indexOf(val) !== -1))) {
+                candidates.push(i);
+            }
+        }
+        if (candidates.length === 1) {
+            select.selectedIndex = candidates[0];
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            refreshPicker(select);
+            ipcLog('match aproximado no select:', value);
+            return true;
+        }
+        ipcLog('sem match no select para:', value, '| opcoes:', options.length);
         return false;
     }
 
@@ -230,6 +249,8 @@
             } else {
                 setText(stateEl, compText(state));
             }
+            // A escolha do estado dispara a cascata cidade→bairro no tema.
+            applyCascade(compText(city), compText(neighborhood));
         }
         if (zip) {
             setField(['zip'], compText(zip));
@@ -423,6 +444,63 @@
         }
     }
 
+    /* Aguarda a cascata do tema popular o select (AJAX) antes de casar. */
+    function waitOptions(select, done) {
+        if (!select || select.tagName !== 'SELECT') {
+            done(false);
+            return;
+        }
+        if (select.options.length > 1) {
+            done(true);
+            return;
+        }
+        var finished = false;
+        var observer = null;
+        function finish(ok) {
+            if (finished) {
+                return;
+            }
+            finished = true;
+            try {
+                if (observer) {
+                    observer.disconnect();
+                }
+            } catch (e) {
+                /* noop */
+            }
+            done(ok);
+        }
+        try {
+            observer = new MutationObserver(function () {
+                if (select.options.length > 1) {
+                    finish(true);
+                }
+            });
+            observer.observe(select, { childList: true });
+        } catch (e) {
+            done(false);
+            return;
+        }
+        window.setTimeout(function () {
+            finish(select.options.length > 1);
+        }, 6000);
+    }
+
+    function applyCascade(cityName, areaName) {
+        var cityEl = document.getElementById('city') || document.querySelector('[name="locality"]');
+        waitOptions(cityEl, function () {
+            if (cityName) {
+                setField(['city', 'locality'], cityName);
+            }
+            var areaEl = document.getElementById('neighborhood') || document.querySelector('[name="neighborhood"]');
+            waitOptions(areaEl, function () {
+                if (areaName) {
+                    setField(['neighborhood'], areaName);
+                }
+            });
+        });
+    }
+
     function newSessionToken() {
         try {
             return new google.maps.places.AutocompleteSessionToken();
@@ -437,6 +515,8 @@
         }
         input.dataset.ipcSuggestBound = '1';
         disableCompetingAutocomplete(input);
+        // Chrome ignora autocomplete="off" em campos de endereço.
+        input.setAttribute('autocomplete', 'ipc-no-autofill');
         var timer = null;
         var sessionToken = newSessionToken();
 
@@ -471,6 +551,8 @@
         }
 
         input.addEventListener('input', function () {
+            // O tema pode religar o autocomplete concorrente; mantém desligado.
+            disableCompetingAutocomplete(input);
             var query = input.value;
             window.clearTimeout(timer);
             if (query.trim().length < 3) {
