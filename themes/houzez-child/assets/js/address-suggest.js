@@ -250,6 +250,23 @@
             setText(document.getElementById('longitude'), String(lng));
             moveOsmMap(lat, lng);
         }
+
+        try {
+            var report = {};
+            ['city', 'neighborhood', 'countyState', 'country', 'zip'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) {
+                    report[id] = '(elemento ausente)';
+                } else if (el.tagName === 'SELECT') {
+                    report[id] = 'select com ' + el.options.length + ' opcoes, valor=' + el.value;
+                } else {
+                    report[id] = 'valor=' + el.value;
+                }
+            });
+            ipcLog('estado final dos campos:', JSON.stringify(report));
+        } catch (e) {
+            /* noop */
+        }
     }
 
     var placesLib = null;
@@ -424,6 +441,13 @@
             }
             place.fetchFields({ fields: ['addressComponents', 'formattedAddress', 'location'] }).then(function () {
                 ipcLog('detalhes OK:', (place.addressComponents || []).length, 'componentes, location:', !!place.location);
+                try {
+                    ipcLog('componentes:', (place.address_components || place.addressComponents || []).map(function (c) {
+                        return (c.types || []).join('+') + '=' + c.long_name;
+                    }).join(' | '));
+                } catch (e) {
+                    /* noop */
+                }
                 fillFromPlace({
                     address_components: place.addressComponents,
                     formatted_address: place.formattedAddress,
