@@ -88,6 +88,7 @@ class Imovel_Parceiro_Contact_Visibility {
         // (filtro wp_mail armado só nesta requisição AJAX).
         if ( self::viewer_can_submit_forms() ) {
             self::arm_lead_redirect();
+            self::arm_crm_reassign();
             return;
         }
 
@@ -249,6 +250,94 @@ class Imovel_Parceiro_Contact_Visibility {
      * Escopo restrito: só vale nesta requisição AJAX (o handler nativo morre
      * com wp_die logo após enviar).
      */
+    /**
+     * Reatribuição tardia do CRM para o usuário contato@.
+     *
+     * O handler nativo (`Houzez_Collect_Form_Data`, prioridade 10 em
+     * `houzez_after_agent_form_submission`) atribui o lead ao dono do anúncio.
+     * Este callback (prioridade 30) reatribui ao contato@ as linhas criadas
+     * NESTA requisição (e-mail do remetente + janela de tempo), inclusive
+     * `enquiry_to`. Sem match, não toca em nada.
+     */
+    public static function arm_crm_reassign() {
+        add_action( 'houzez_after_agent_form_submission', array( __CLASS__, 'reassign_client_lead' ), 30 );
+    }
+
+    public static function is_redirect_armed() {
+        return self::$client_redirect_armed;
+    }
+
+    /**
+     * Dono exclusivo do lead de cliente: usuário contato@.
+     *
+     * @return int 0 quando não há usuário da plataforma (não reatribui).
+     */
+    public static function client_lead_user_id() {
+        $user = get_user_by( 'email', self::CLIENT_LEAD_EMAIL );
+        if ( $user ) {
+            return (int) $user->ID;
+        }
+        $admin = get_user_by( 'email', get_option( 'admin_email' ) );
+        if ( $admin ) {
+            return (int) $admin->ID;
+        }
+        return 0;
+    }
+
+    public static function reassign_client_lead() {
+        global $wpdb;
+
+        $target_id = self::client_lead_user_id();
+        if ( ! $target_id ) {
+            return;
+        }
+
+        $sender_email = '';
+        foreach ( array( 'email', 'useremail' ) as $key ) {
+            if ( ! empty( $_POST[ $key ] ) && is_email( wp_unslash( $_POST[ $key ] ) ) ) {
+                $sender_email = sanitize_email( wp_unslash( $_POST[ $key ] ) );
+                break;
+            }
+        }
+        if ( '' === $sender_email ) {
+            return;
+        }
+
+        $since = gmdate( 'Y-m-d H:i:s', time() - 180 );
+
+        $leads_table = $wpdb->prefix . 'houzez_crm_leads';
+        $lead_ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT lead_id FROM {$leads_table} WHERE email = %s AND time >= %s",
+                $sender_email,
+                $since
+            )
+        );
+        $lead_ids = array_map( 'absint', (array) $lead_ids );
+        $lead_ids = array_filter( $lead_ids );
+        if ( empty( $lead_ids ) ) {
+            return;
+        }
+
+        $in = implode( ',', $lead_ids );
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$leads_table} SET user_id = %d WHERE lead_id IN ({$in})",
+                $target_id
+            )
+        );
+
+        $enq_table = $wpdb->prefix . 'houzez_crm_enquiries';
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$enq_table} SET user_id = %d, enquiry_to = %d WHERE lead_id IN ({$in}) AND time >= %s",
+                $target_id,
+                $target_id,
+                $since
+            )
+        );
+    }
+
     public static function arm_lead_redirect() {
         if ( self::$client_redirect_armed ) {
             return;

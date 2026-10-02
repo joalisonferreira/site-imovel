@@ -465,6 +465,12 @@ class IPC_Notifications {
         $property_id = $this->request_property_id( $data );
         $email = isset( $data['target_email'] ) ? sanitize_email( wp_unslash( $data['target_email'] ) ) : '';
         $recipient = $this->resolve_property_recipient( $property_id, $email );
+        if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::is_redirect_armed() ) {
+            $platform = Imovel_Parceiro_Contact_Visibility::client_lead_user_id();
+            if ( $platform ) {
+                $recipient = $platform;
+            }
+        }
         if ( ! $recipient ) {
             return;
         }
@@ -508,6 +514,11 @@ class IPC_Notifications {
     public function notify_houzez_message( $args ) {
         if ( ! is_array( $args ) || empty( $args['to'] ) ) {
             return;
+        }
+
+        // Lead de cliente: espelho in-app vai para contato@, nunca ao dono.
+        if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::is_redirect_armed() ) {
+            $args['to'] = Imovel_Parceiro_Contact_Visibility::CLIENT_LEAD_EMAIL;
         }
 
         $user = get_user_by( 'email', sanitize_email( $args['to'] ) );
