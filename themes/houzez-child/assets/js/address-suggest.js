@@ -166,6 +166,48 @@
 
     window.ipcAddressSuggestInit = initAutocomplete;
 
+    /* Falha de autenticação do Google (chave/billing/restrição): esconde o
+     * diálogo assustador do Google e avisa de forma amigável. Os campos
+     * continuam preenchíveis manualmente; o mapa OSM não é afetado. */
+    function dismissGoogleDialog() {
+        var texts = ['não carregou o Google Maps corretamente', "didn't load Google Maps correctly"];
+        var observer;
+        try {
+            observer = new MutationObserver(function () {
+                var divs = document.querySelectorAll('body div');
+                for (var i = 0; i < divs.length; i++) {
+                    var text = divs[i].innerText || '';
+                    var matches = text.length < 400 && texts.some(function (needle) {
+                        return text.indexOf(needle) !== -1;
+                    });
+                    if (matches && divs[i].querySelector('button')) {
+                        divs[i].style.display = 'none';
+                        observer.disconnect();
+                        return;
+                    }
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            window.setTimeout(function () {
+                observer.disconnect();
+            }, 10000);
+        } catch (e) {
+            /* noop */
+        }
+    }
+
+    window.gm_authFailure = function () {
+        dismissGoogleDialog();
+        var input = document.getElementById('geocomplete');
+        if (input && !document.getElementById('ipc-suggest-warn') && input.closest('.form-group')) {
+            var warn = document.createElement('p');
+            warn.id = 'ipc-suggest-warn';
+            warn.style.cssText = 'margin:6px 0 0;font-size:12px;color:#92400e;';
+            warn.textContent = 'Sugestões de endereço indisponíveis no momento — preencha os campos manualmente.';
+            input.closest('.form-group').appendChild(warn);
+        }
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initAutocomplete);
     } else {
