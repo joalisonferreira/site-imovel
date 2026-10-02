@@ -8,6 +8,99 @@
 (function () {
     'use strict';
 
+    var osmMap = null;
+    var leafletHookTries = 0;
+
+    /* O mapa OSM do tema vive num closure: intercepta L.map antes do ready
+     * do tema para guardar a instância e poder centralizar/mover o pin. */
+    function hookLeaflet() {
+        if (!window.L || !window.L.map) {
+            return false;
+        }
+        if (window.L.map.__ipcHooked) {
+            return true;
+        }
+        var origMap = window.L.map;
+        window.L.map = function (id, options) {
+            var map = origMap.call(this, id, options);
+            try {
+                var mapId = typeof id === 'string' ? id : (id && id.id ? id.id : '');
+                if (mapId === 'map_canvas') {
+                    osmMap = map;
+                }
+            } catch (e) {
+                /* noop */
+            }
+            return map;
+        };
+        window.L.map.__ipcHooked = true;
+        return true;
+    }
+
+    function ensureLeafletHook() {
+        if (hookLeaflet()) {
+            return;
+        }
+        if (leafletHookTries < 40) {
+            leafletHookTries += 1;
+            window.setTimeout(ensureLeafletHook, 250);
+        }
+    }
+
+    function moveOsmMap(lat, lng) {
+        if (!osmMap || !window.L) {
+            return false;
+        }
+        try {
+            osmMap.setView([lat, lng], Math.max(osmMap.getZoom(), 16));
+            osmMap.eachLayer(function (layer) {
+                if (window.L.Marker && layer instanceof window.L.Marker) {
+                    layer.setLatLng([lat, lng]);
+                }
+            });
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    var lastComponents = null;
+
+    /* Recasa os selects (cidade/bairro/estado/país) depois que a cascata
+     * do tema carregar as opções via AJAX. */
+    function retrySelects() {
+        if (!lastComponents) {
+            return;
+        }
+        var fakePlace = { address_components: lastComponents };
+        var city = pick(fakePlace, ['administrative_area_level_2', 'locality']);
+        var neighborhood = pick(fakePlace, ['sublocality_level_1', 'sublocality', 'neighborhood']);
+        if (city) {
+            setField(['city'], city.long_name);
+        }
+        if (neighborhood) {
+            setField(['neighborhood'], neighborhood.long_name);
+        }
+        var state = pick(fakePlace, ['administrative_area_level_1']);
+        if (state) {
+            var stateEl = document.getElementById('countyState') || document.querySelector('select[name="administrative_area_level_1"]');
+            if (stateEl && stateEl.tagName === 'SELECT') {
+                if (!setSelect(stateEl, state.long_name)) {
+                    setSelect(stateEl, state.short_name);
+                }
+            }
+        }
+        var country = pick(fakePlace, ['country']);
+        if (country) {
+            var countryEl = document.getElementById('country');
+            if (countryEl && countryEl.tagName === 'SELECT') {
+                if (!setSelect(countryEl, country.long_name)) {
+                    setSelect(countryEl, country.short_name);
+                }
+            }
+        }
+    }
+
     function norm(value) {
         return String(value || '')
             .normalize('NFD')
@@ -140,6 +233,23 @@
                 setText(countryEl, country.long_name);
             }
         }
+
+        lastComponents = place.address_components || null;
+        window.setTimeout(retrySelects, 900);
+        window.setTimeout(retrySelects, 2200);
+
+        // Coordenadas: preenchem os inputs E movem o mapa/pin do OSM.
+        var location = place.location || (place.geometry && place.geometry.location);
+        var lat = location ? (typeof location.lat === 'function' ? location.lat() : location.lat) : null;
+        var lng = location ? (typeof location.lng === 'function' ? location.lng() : (location.lon || location.lng)) : null;
+        if (typeof lng === 'function') {
+            lng = lng();
+        }
+        if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) {
+            setText(document.getElementById('latitude'), String(lat));
+            setText(document.getElementById('longitude'), String(lng));
+            moveOsmMap(lat, lng);
+        }
     }
 
     var placesLib = null;
@@ -245,6 +355,9 @@
             } else if (event.key === 'Enter' && activeIndex >= 0) {
                 event.preventDefault();
                 items[activeIndex].click();
+            } else if (event.key === 'Enter' && items.length) {
+                event.preventDefault();
+                items[0].click();
             } else if (event.key === 'Escape') {
                 closeDropdown(input);
             }
@@ -287,7 +400,7 @@
         function fetchPlace(prediction, token) {
             closeDropdown(input);
             var place = prediction.toPlace();
-            place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] }).then(function () {
+            place.fetchFields({ fields: ['addressComponents', 'formattedAddress', 'location'] }).then(function () {
                 fillFromPlace({
                     address_components: place.addressComponents,
                     formatted_address: place.formattedAddress
@@ -380,6 +493,9 @@
     }
 
     window.ipcAddressSuggestInit = initAutocomplete;
+
+    // Intercepta a criação do mapa OSM o quanto antes (antes do ready do tema).
+    ensureLeafletHook();
 
     /* Falha de autenticação do Google (chave/billing/restrição): esconde o
      * diálogo assustador do Google e avisa de forma amigável. Os campos
