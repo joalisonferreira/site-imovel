@@ -65,6 +65,7 @@ if ( isset( $_GET['imovel_dashboard_area'] ) && 'notificacoes' === sanitize_key(
         <div class="dashboard-content">
             <?php get_template_part( 'template-parts/dashboard/notifications' ); ?>
             <?php get_template_part( 'template-parts/dashboard/profile-nudge' ); ?>
+            <?php get_template_part( 'template-parts/dashboard/no-plan-notice' ); ?>
         </div>
     </div>
     <?php
@@ -81,6 +82,7 @@ if ( $is_proprietario ) {
         <div class="dashboard-content">
             <?php get_template_part( 'template-parts/dashboard/owner-overview' ); ?>
             <?php get_template_part( 'template-parts/dashboard/profile-nudge' ); ?>
+            <?php get_template_part( 'template-parts/dashboard/no-plan-notice' ); ?>
         </div>
     </div>
     <?php
@@ -115,6 +117,7 @@ get_template_part( 'template-parts/dashboard/sidebar' );
     <div class="dashboard-content">
         <?php get_template_part( 'template-parts/dashboard/dashboard-overview' ); ?>
         <?php get_template_part( 'template-parts/dashboard/profile-nudge' ); ?>
+        <?php get_template_part( 'template-parts/dashboard/no-plan-notice' ); ?>
     </div>
 </div>
 <?php

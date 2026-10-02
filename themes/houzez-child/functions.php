@@ -300,10 +300,9 @@ function houzez_child_guard_submit_without_plan() {
     if ( ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles ) ) {
         return;
     }
-    if ( function_exists( 'houzez_option' ) && 'membership' !== houzez_option( 'enable_paid_submission' ) ) {
-        return;
-    }
-    if ( ! function_exists( 'houzez_user_has_membership' ) ) {
+    // Plano ativo = assinatura Woo ativa vinculada a um pacote (regra do projeto).
+    // Independe do modo enable_paid_submission (o site opera em modo gratuito).
+    if ( ! class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ) {
         return;
     }
     $package_user_id = (int) $user->ID;
@@ -313,7 +312,7 @@ function houzez_child_guard_submit_without_plan() {
             $package_user_id = $agency_id;
         }
     }
-    if ( houzez_user_has_membership( $package_user_id ) ) {
+    if ( Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::active_package_for_user( $package_user_id ) ) {
         return;
     }
     $dashboard = function_exists( 'houzez_get_template_link_2' )
