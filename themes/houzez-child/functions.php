@@ -273,6 +273,59 @@ add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_address_suggest', 100 );
 
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_lead_assets', 100 );
 
+/**
+ * Corretor/imobiliária sem plano ativo não abre o formulário de anúncio:
+ * redireciona para a página inicial do dashboard (só criação; edição liberada).
+ */
+add_action( 'template_redirect', 'houzez_child_guard_submit_without_plan', 5 );
+
+function houzez_child_guard_submit_without_plan() {
+    if ( is_admin() || ! is_page_template( 'template/user_dashboard_submit.php' ) ) {
+        return;
+    }
+    if ( ! is_user_logged_in() ) {
+        return;
+    }
+    if ( isset( $_GET['edit_property'] ) ) {
+        return;
+    }
+    if ( current_user_can( 'manage_options' ) ) {
+        return;
+    }
+    if ( function_exists( 'houzez_is_editor' ) && houzez_is_editor() ) {
+        return;
+    }
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    if ( ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles ) ) {
+        return;
+    }
+    if ( function_exists( 'houzez_option' ) && 'membership' !== houzez_option( 'enable_paid_submission' ) ) {
+        return;
+    }
+    if ( ! function_exists( 'houzez_user_has_membership' ) ) {
+        return;
+    }
+    $package_user_id = (int) $user->ID;
+    if ( function_exists( 'houzez_get_agent_agency_id' ) ) {
+        $agency_id = (int) houzez_get_agent_agency_id( $package_user_id );
+        if ( $agency_id ) {
+            $package_user_id = $agency_id;
+        }
+    }
+    if ( houzez_user_has_membership( $package_user_id ) ) {
+        return;
+    }
+    $dashboard = function_exists( 'houzez_get_template_link_2' )
+        ? houzez_get_template_link_2( 'template/user_dashboard.php' )
+        : home_url( '/dashboard/' );
+    if ( ! $dashboard ) {
+        $dashboard = home_url( '/' );
+    }
+    wp_safe_redirect( add_query_arg( 'ipc_no_plan', '1', $dashboard ) );
+    exit;
+}
+
 add_action( 'wp_footer', 'houzez_child_print_lead_modal', 30 );
 
 function houzez_child_print_lead_modal() {
