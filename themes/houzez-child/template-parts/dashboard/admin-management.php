@@ -25,6 +25,20 @@ $entity_configs = array(
         'icon' => 'users',
         'color' => 'bg-blue-50 text-blue-600',
     ),
+    'clients' => array(
+        'label' => __( 'Clientes', 'imovel-parceiro-core' ),
+        'post_type' => '',
+        'description' => __( 'Gerencie clientes cadastrados na plataforma.', 'imovel-parceiro-core' ),
+        'icon' => 'user',
+        'color' => 'bg-cyan-50 text-cyan-600',
+    ),
+    'owners' => array(
+        'label' => __( 'Proprietários', 'imovel-parceiro-core' ),
+        'post_type' => '',
+        'description' => __( 'Gerencie proprietários cadastrados na plataforma.', 'imovel-parceiro-core' ),
+        'icon' => 'home',
+        'color' => 'bg-orange-50 text-orange-600',
+    ),
     'agencies' => array(
         'label' => __( 'Imobiliárias', 'imovel-parceiro-core' ),
         'singular' => __( 'Imobiliária', 'imovel-parceiro-core' ),
@@ -320,12 +334,12 @@ if ( 'approve' === $current_action && $current_id ) {
     exit;
 }
 
-$ipc_deletable_sections = array( 'agents', 'agencies', 'packages', 'reviews', 'testimonials', 'coupons' );
+$ipc_deletable_sections = array( 'agents', 'clients', 'owners', 'agencies', 'packages', 'reviews', 'testimonials', 'coupons' );
 
 if ( 'delete' === $current_action && $current_id && in_array( $current_section, $ipc_deletable_sections, true ) ) {
     $nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
 
-    if ( 'agents' === $current_section ) {
+    if ( in_array( $current_section, array( 'agents', 'clients', 'owners' ), true ) ) {
         if ( current_user_can( 'delete_users' ) && ! user_can( $current_id, 'manage_options' ) && wp_verify_nonce( $nonce, 'imovel_admin_delete_user_' . $current_id ) ) {
             // wp_delete_user() lives in wp-admin/includes/user.php, which is
             // not loaded on the front end. Load it on demand to avoid a fatal.
@@ -450,14 +464,29 @@ if ( $is_creating ) {
 }
 
 $ipc_launcher_groups = array(
-    'Pessoas' => array( 'agents', 'agencies', 'verification_requests' ),
+    'Pessoas' => array( 'agents', 'clients', 'owners', 'agencies', 'verification_requests' ),
     'Planos & conteúdo' => array( 'packages', 'coupons', 'reviews', 'testimonials' ),
     'Imóveis' => array( 'approval' ),
 );
 
 $ipc_entity_counts = array();
+$ipc_user_section_roles = array(
+    'clients' => array( 'houzez_buyer', 'subscriber' ),
+    'owners'  => array( 'houzez_owner', 'houzez_seller' ),
+);
 foreach ( $entity_configs as $ipc_key => $ipc_config ) {
     if ( empty( $ipc_config['post_type'] ) ) {
+        // Seções de usuários (clientes/proprietários): conta por papéis para o hub.
+        if ( isset( $ipc_user_section_roles[ $ipc_key ] ) && function_exists( 'count_users' ) ) {
+            $ipc_role_counts = count_users();
+            $ipc_total = 0;
+            foreach ( $ipc_user_section_roles[ $ipc_key ] as $ipc_r ) {
+                if ( isset( $ipc_role_counts['avail_roles'][ $ipc_r ] ) ) {
+                    $ipc_total += (int) $ipc_role_counts['avail_roles'][ $ipc_r ];
+                }
+            }
+            $ipc_entity_counts[ $ipc_key ] = array( $ipc_total, 0 );
+        }
         continue;
     }
     $ipc_type_counts = wp_count_posts( $ipc_config['post_type'] );
@@ -1006,7 +1035,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                 <h5 style="margin:0;"><?php echo esc_html( $selected_entity['label'] ); ?></h5>
                 <?php if ( 'verification_requests' !== $current_section ) : ?>
-                    <?php if ( 'agents' === $current_section ) : ?>
+                    <?php if ( in_array( $current_section, array( 'agents', 'clients', 'owners' ), true ) ) : ?>
                         <button type="button" class="btn btn-primary" id="imovel-user-new-btn"><?php esc_html_e( 'Novo usuário', 'imovel-parceiro-core' ); ?></button>
                     <?php else : ?>
                         <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'edit', 'imovel_admin_id' => 0 ), $dashboard_url ) ); ?>" class="btn btn-primary"><?php esc_html_e( 'Novo item', 'imovel-parceiro-core' ); ?></a>
@@ -1529,7 +1558,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                 </script>
 
             <?php else : ?>
-                <?php if ( 'agents' === $current_section ) : ?>
+                <?php if ( in_array( $current_section, array( 'agents', 'clients', 'owners' ), true ) ) : ?>
                     <?php
                     $user_search = isset( $_GET['imovel_user_search'] ) ? sanitize_text_field( wp_unslash( $_GET['imovel_user_search'] ) ) : '';
                     $users_query_args = array(
@@ -1542,6 +1571,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         $users_query_args['search'] = '*' . $user_search . '*';
                         $users_query_args['search_columns'] = array( 'user_login', 'user_email', 'display_name' );
                     }
+                    // Filtro por papéis: cada seção de pessoas lista só os seus.
+                    if ( isset( $ipc_user_section_roles[ $current_section ] ) ) {
+                        $users_query_args['role__in'] = $ipc_user_section_roles[ $current_section ];
+                    }
                     $wp_users_query = new WP_User_Query( $users_query_args );
                     $wp_users = $wp_users_query->get_results();
                     $users_total = (int) $wp_users_query->get_total();
@@ -1550,13 +1583,14 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         'houzez_agent' => __( 'Corretor', 'imovel-parceiro-core' ),
                         'houzez_owner' => __( 'Proprietário', 'imovel-parceiro-core' ),
                         'houzez_seller' => __( 'Vendedor', 'imovel-parceiro-core' ),
+                        'houzez_buyer' => __( 'Cliente', 'imovel-parceiro-core' ),
                         'subscriber' => __( 'Cliente', 'imovel-parceiro-core' ),
                         'administrator' => __( 'Administrador', 'imovel-parceiro-core' ),
                         'editor' => __( 'Editor', 'imovel-parceiro-core' ),
                     );
                     ?>
                     <form method="get" style="margin-bottom:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                        <input type="hidden" name="imovel_admin_section" value="agents" />
+                        <input type="hidden" name="imovel_admin_section" value="<?php echo esc_attr( $current_section ); ?>" />
                         <input type="hidden" name="imovel_admin_action" value="list" />
                         <input type="text" name="imovel_user_search" value="<?php echo esc_attr( $user_search ); ?>" placeholder="<?php esc_attr_e( 'Buscar por nome, login ou e-mail', 'imovel-parceiro-core' ); ?>" style="padding:8px; border:1px solid #d9d9d9; border-radius:6px; flex:1 1 200px; min-width:0;" />
                         <button type="submit" class="btn btn-primary"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></button>
@@ -1626,7 +1660,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 <span class="badge bg-danger" style="margin-left:6px;"><?php esc_html_e( 'Bloqueado', 'imovel-parceiro-core' ); ?></span>
                                             <?php endif; ?>
                                             <form method="post" class="imovel-user-block-form" style="display:inline-block; margin-left:6px;">
-                                                <input type="hidden" name="imovel_admin_section" value="agents" />
+                                                <input type="hidden" name="imovel_admin_section" value="<?php echo esc_attr( $current_section ); ?>" />
                                                 <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $user_item->ID ); ?>" />
                                                 <input type="hidden" name="imovel_admin_block_action" value="<?php echo $ipc_blocked ? 'unblock' : 'block'; ?>" />
                                                 <input type="hidden" name="imovel_admin_block_reason" value="" />
@@ -1638,7 +1672,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 </button>
                                             </form>
                                             <?php if ( ! user_can( $user_item->ID, 'manage_options' ) ) : ?>
-                                                <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_section' => 'agents', 'imovel_admin_action' => 'delete', 'imovel_admin_id' => $user_item->ID, '_wpnonce' => wp_create_nonce( 'imovel_admin_delete_user_' . $user_item->ID ) ), $dashboard_url ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.', 'imovel-parceiro-core' ) ); ?>');" style="margin-left:8px; color:#dc2626;">
+                                                <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'delete', 'imovel_admin_id' => $user_item->ID, '_wpnonce' => wp_create_nonce( 'imovel_admin_delete_user_' . $user_item->ID ) ), $dashboard_url ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.', 'imovel-parceiro-core' ) ); ?>');" style="margin-left:8px; color:#dc2626;">
                                                     <?php echo houzez_dash_icon( 'trash-2', 'h-4 w-4' ); ?> <?php esc_html_e( 'Excluir', 'imovel-parceiro-core' ); ?>
                                                 </a>
                                             <?php endif; ?>
@@ -1655,7 +1689,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             <?php
                             $users_pagination_base = add_query_arg(
                                 array(
-                                    'imovel_admin_section' => 'agents',
+                                    'imovel_admin_section' => $current_section,
                                     'imovel_admin_action' => 'list',
                                     'imovel_admin_per_page' => $per_page,
                                     'imovel_user_search' => $user_search,
@@ -1831,7 +1865,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         var btnNew = document.getElementById('imovel-user-new-btn');
                         if (!modal || !form) return;
 
-                        var roleMap = { 'houzez_agent':'corretor', 'houzez_owner':'proprietario', 'subscriber':'cliente', 'houzez_seller':'vendedor' };
+                        var roleMap = { 'houzez_agent':'corretor', 'houzez_owner':'proprietario', 'subscriber':'cliente', 'houzez_buyer':'cliente', 'houzez_seller':'vendedor' };
                         var createNonce = '<?php echo esc_js( wp_create_nonce( 'imovel_admin_create_user' ) ); ?>';
                         var updateNonce = '<?php echo esc_js( wp_create_nonce( 'imovel_admin_update_user' ) ); ?>';
 
@@ -1853,6 +1887,9 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                         if (btnNew) {
                             btnNew.addEventListener('click', function(){
                                 resetForm();
+                                // Preseleciona o tipo de conta conforme a seção atual.
+                                var ipcSectionDefault = { 'agents':'corretor', 'clients':'cliente', 'owners':'proprietario' }['<?php echo esc_js( $current_section ); ?>'] || '';
+                                if (ipcSectionDefault) { document.getElementById('imovel-user-role').value = ipcSectionDefault; }
                                 document.getElementById('imovel-user-modal-title').textContent = 'Novo usuário';
                                 document.getElementById('imovel-user-submit').innerHTML = 'Salvar';
                                 open();

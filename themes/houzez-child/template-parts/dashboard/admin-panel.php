@@ -354,7 +354,7 @@ $management_tabs = array(
     ),
 );
 
-$admin_management_sections = array( 'agents', 'agencies', 'packages', 'reviews', 'testimonials', 'approval', 'verification_requests' );
+$admin_management_sections = array( 'agents', 'clients', 'owners', 'agencies', 'packages', 'reviews', 'testimonials', 'approval', 'verification_requests' );
 $child_management_sections = array(
     'owner_documents' => __( 'Documentação', 'imovel-parceiro-core' ),
     'broker_changes' => __( 'Trocas de corretor', 'imovel-parceiro-core' ),
@@ -583,6 +583,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
         $ipc_gestao_sections = array(
             '' => __( 'Cadastros', 'imovel-parceiro-core' ),
             'agents' => __( 'Corretores', 'imovel-parceiro-core' ),
+            'clients' => __( 'Clientes', 'imovel-parceiro-core' ),
+            'owners' => __( 'Proprietários', 'imovel-parceiro-core' ),
             'agencies' => __( 'Imobiliárias', 'imovel-parceiro-core' ),
             'verification_requests' => __( 'Verificação', 'imovel-parceiro-core' ),
             'packages' => __( 'Planos', 'imovel-parceiro-core' ),
@@ -606,6 +608,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             ),
             __( 'Pessoas', 'imovel-parceiro-core' ) => array(
                 'agents' => array( 'users' ),
+                'clients' => array( 'user' ),
+                'owners' => array( 'home' ),
                 'agencies' => array( 'briefcase' ),
                 'verification_requests' => array( 'badge-check' ),
             ),
