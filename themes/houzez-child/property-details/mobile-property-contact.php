@@ -50,6 +50,23 @@ if ( is_user_logged_in() && is_singular('property') ) {
 // Contact buttons (message/call) only for logged-in corretor/imobiliária
 // with an active plan and a verified Houzez profile.
 $ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact();
+
+// Cliente e proprietário bloqueado: veem só formulários (modal do envelope).
+// WhatsApp direto e ligação ficam ocultos, como nas demais superfícies.
+$ipc_hide_direct = false;
+if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+    if ( Imovel_Parceiro_Contact_Visibility::is_client() ) {
+        $ipc_hide_direct = true;
+    } elseif ( is_user_logged_in() && is_singular( 'property' ) ) {
+        $ipc_pid = (int) get_queried_object_id();
+        if ( ! $ipc_pid ) {
+            $ipc_pid = (int) get_the_ID();
+        }
+        if ( $ipc_pid > 0 && Imovel_Parceiro_Contact_Visibility::viewer_is_owner_blocked( get_current_user_id(), $ipc_pid ) ) {
+            $ipc_hide_direct = true;
+        }
+    }
+}
 ?>
 <div class="mobile-property-contact w-100 d-block d-lg-none" role="complementary">
     <div class="d-flex justify-content-between">
@@ -70,12 +87,12 @@ $ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && I
             <i class="houzez-icon icon-envelope" aria-hidden="true"></i>
         </button>
         <?php endif; ?>
-        <?php if ( $ipc_can_see_contact && !empty( $agent_whatsapp_call ) && houzez_option('agent_whatsapp_num', 1) ) { ?>
+        <?php if ( $ipc_can_see_contact && ! $ipc_hide_direct && !empty( $agent_whatsapp_call ) && houzez_option('agent_whatsapp_num', 1) ) { ?>
         <a href="https://api.whatsapp.com/send?phone=<?php echo esc_attr( $agent_whatsapp_call ); ?>&text=<?php echo houzez_option('spl_con_interested', 'Hello, I am interested in').' ['.get_the_title().'] '.get_permalink(); ?> " class="btn btn-secondary-outlined">
             <i class="houzez-icon icon-messaging-whatsapp" aria-hidden="true"></i>
         </a>
         <?php } ?>
-        <?php if ( $ipc_can_see_contact && ! empty($agent_number_call) && houzez_option('agent_mobile_num', 1) ) { ?>
+        <?php if ( $ipc_can_see_contact && ! $ipc_hide_direct && ! empty($agent_number_call) && houzez_option('agent_mobile_num', 1) ) { ?>
         <a href="tel:<?php echo esc_attr($agent_number_call); ?>" class="btn btn-secondary-outlined">
             <i class="houzez-icon icon-phone" aria-hidden="true"></i>
         </a>
