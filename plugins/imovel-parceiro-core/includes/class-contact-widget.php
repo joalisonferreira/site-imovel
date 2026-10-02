@@ -627,6 +627,17 @@ class Imovel_Parceiro_Contact_Widget {
             $config = null;
         }
 
+        // Hide the floating button for clients and blocked owners: no
+        // direct-contact shortcut for them (interest/form channels remain
+        // available elsewhere). Guests keep it (needs_login gating inside);
+        // owners viewing their own listing are not blocked.
+        if ( $is_single && null !== $config && class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+            $ipc_fab_viewer = get_current_user_id();
+            if ( Imovel_Parceiro_Contact_Visibility::is_client( $ipc_fab_viewer ) || Imovel_Parceiro_Contact_Visibility::viewer_is_owner_blocked( $ipc_fab_viewer, $property_id ) ) {
+                $config = null;
+            }
+        }
+
         $fab_label = __( 'Falar com o corretor', 'imovel-parceiro-core' );
         ?>
         <div id="ipcw-root" class="ipcw-hidden" data-single="<?php echo $is_single ? '1' : '0'; ?>" data-listing="<?php echo $this->is_listing_context() ? '1' : '0'; ?>">
