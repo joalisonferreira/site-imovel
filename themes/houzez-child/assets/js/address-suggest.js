@@ -65,6 +65,8 @@
     }
 
     var lastComponents = null;
+    var lastFillTime = 0;
+    var lastFilledAddress = '';
 
     /* Recasa os selects (cidade/bairro/estado/país) depois que a cascata
      * do tema carregar as opções via AJAX. */
@@ -232,6 +234,9 @@
         if (!place || !place.address_components) {
             return;
         }
+        // Marca o instante do preenchimento: os eventos `input` sintéticos
+        // disparados abaixo NÃO podem reabrir a lista de sugestões.
+        lastFillTime = Date.now();
 
         var route = pick(place, ['route']);
         var number = pick(place, ['street_number']);
@@ -239,6 +244,7 @@
         if (street) {
             var addressInput = document.getElementById('geocomplete');
             setText(addressInput, street);
+            lastFilledAddress = street;
         }
 
         var city = pick(place, ['administrative_area_level_2', 'locality']);
@@ -566,8 +572,12 @@
         input.addEventListener('input', function () {
             // O tema pode religar o autocomplete concorrente; mantém desligado.
             disableCompetingAutocomplete(input);
-            var query = input.value;
             window.clearTimeout(timer);
+            if (Date.now() - lastFillTime < 1500 && input.value === lastFilledAddress) {
+                closeDropdown(input);
+                return;
+            }
+            var query = input.value;
             if (query.trim().length < 3) {
                 closeDropdown(input);
                 return;
