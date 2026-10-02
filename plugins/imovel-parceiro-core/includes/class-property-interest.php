@@ -10,11 +10,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * O cliente NÃO recebe o WhatsApp direto do corretor responsável. Em vez
  * disso, clica em "Tenho interesse neste imóvel", o que registra a lead no
- * **CRM nativo do Houzez** (tabelas houzez_crm_leads + houzez_crm_enquiries,
- * exatamente como as leads dos formulários nativos) com cliente, imóvel,
- * corretor responsável, data/hora e IP — prova de origem para a comissão da
- * plataforma — e notifica o corretor (painel + e-mail) com os dados do
- * cliente para que ELE faça o primeiro contato (intermediação).
+ * **CRM nativo do Houzez** (tabelas houzez_crm_leads + houzez_crm_enquiries)
+ * com dono = usuário contato@ (plataforma) — nunca o corretor dono do
+ * imóvel — com cliente, imóvel, data/hora e IP (prova de origem para a
+ * comissão da plataforma), e notifica a plataforma (painel + e-mail
+ * contato@) com os dados do cliente. O primeiro contato parte da equipe
+ * da plataforma (intermediação).
  *
  * Reaproveita: CRM Houzez, notificações in-app de IPC_Notifications e o
  * widget flutuante de contato.
@@ -69,6 +70,27 @@ class Imovel_Parceiro_Property_Interest {
     }
 
     /**
+     * Dono da lead de interesse: usuário contato@ (plataforma). Fallbacks:
+     * e-mail do admin e, em último caso, o corretor (nunca quebra o fluxo).
+     *
+     * @param int $fallback_id ID usado quando não há usuário da plataforma.
+     * @return int
+     */
+    public static function recipient_id( $fallback_id = 0 ) {
+        if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+            $user = get_user_by( 'email', Imovel_Parceiro_Contact_Visibility::CLIENT_LEAD_EMAIL );
+            if ( $user ) {
+                return (int) $user->ID;
+            }
+        }
+        $admin = get_user_by( 'email', get_option( 'admin_email' ) );
+        if ( $admin ) {
+            return (int) $admin->ID;
+        }
+        return absint( $fallback_id );
+    }
+
+    /**
      * Interesse já registrado no CRM (lead + enquiry do corretor para o
      * imóvel com o e-mail do cliente). Idempotência do botão.
      *
@@ -100,8 +122,27 @@ class Imovel_Parceiro_Property_Interest {
         if ( ! $broker_id ) {
             return 0;
         }
+        $recipient_id = self::recipient_id( $broker_id );
 
         $enquiry_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT e.enquiry_id FROM {$tables['enquiries']} e
+                 INNER JOIN {$tables['leads']} l ON l.lead_id = e.lead_id
+                 WHERE e.user_id = %d AND e.listing_id = %d AND l.email = %s AND e.enquiry_meta LIKE %s
+                 ORDER BY e.enquiry_id DESC LIMIT 1",
+                $recipient_id,
+                $property_id,
+                $contact['email'],
+                '%' . $wpdb->esc_like( self::KIND_INTEREST ) . '%'
+            )
+        );
+        if ( $enquiry_id ) {
+            return absint( $enquiry_id );
+        }
+
+        // Legado: interesse registrado no CRM do corretor antes do roteamento
+        // para a plataforma conta como já registrado (evita duplicar).
+        $legacy_id = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT e.enquiry_id FROM {$tables['enquiries']} e
                  INNER JOIN {$tables['leads']} l ON l.lead_id = e.lead_id
@@ -114,7 +155,7 @@ class Imovel_Parceiro_Property_Interest {
             )
         );
 
-        return $enquiry_id ? absint( $enquiry_id ) : 0;
+        return $legacy_id ? absint( $legacy_id ) : 0;
     }
 
     /**
@@ -197,6 +238,10 @@ class Imovel_Parceiro_Property_Interest {
             wp_send_json_error( array( 'message' => __( 'Não foi possível identificar o corretor responsável.', 'imovel-parceiro-core' ) ), 500 );
         }
 
+        // Roteamento: lead + e-mail vão para a plataforma (contato@), nunca
+        // para o corretor dono do imóvel.
+        $recipient_id = self::recipient_id( $broker_id );
+
         // Sem autocontato.
         if ( (int) $broker_id === (int) $user_id ) {
             wp_send_json_error( array( 'message' => __( 'Você é o responsável por este imóvel.', 'imovel-parceiro-core' ) ), 400 );
@@ -209,7 +254,7 @@ class Imovel_Parceiro_Property_Interest {
                 array(
                     'already'    => true,
                     'enquiry_id' => $existing,
-                    'message'    => __( 'Interesse já registrado! O corretor responsável já foi avisado e entrará em contato.', 'imovel-parceiro-core' ),
+                    'message'    => __( 'Interesse já registrado! Nossa equipe foi avisada e entrará em contato com você.', 'imovel-parceiro-core' ),
                 )
             );
         }
@@ -234,10 +279,11 @@ class Imovel_Parceiro_Property_Interest {
             wp_send_json_error( array( 'message' => __( 'Recurso indisponível no momento.', 'imovel-parceiro-core' ) ), 500 );
         }
 
-        // Lead no CRM do corretor (mesmo mapeamento das leads nativas).
-        $lead_id = self::find_crm_lead( $tables['leads'], $broker_id, $contact['email'] );
+        // Lead no CRM da plataforma (usuário contato@) — mesmo mapeamento
+        // das leads nativas. Nunca no CRM do corretor dono do imóvel.
+        $lead_id = self::find_crm_lead( $tables['leads'], $recipient_id, $broker_id, $contact['email'] );
         if ( ! $lead_id ) {
-            $lead_id = self::create_crm_lead( $tables['leads'], $broker_id, $property_id, $contact, $message );
+            $lead_id = self::create_crm_lead( $tables['leads'], $recipient_id, $broker_id, $property_id, $contact, $message );
         } elseif ( '' !== $contact['phone'] ) {
             self::touch_crm_lead_phone( $tables['leads'], $lead_id, $contact['phone'] );
         }
@@ -246,19 +292,19 @@ class Imovel_Parceiro_Property_Interest {
         }
 
         // Enquiry vinculada ao imóvel (como as nativas de formulário).
-        $enquiry_id = self::create_crm_enquiry( $tables['enquiries'], $broker_id, $lead_id, $property_id, $user_id, $contact, $message );
+        $enquiry_id = self::create_crm_enquiry( $tables['enquiries'], $recipient_id, $broker_id, $lead_id, $property_id, $user_id, $contact, $message );
         if ( ! $enquiry_id ) {
             wp_send_json_error( array( 'message' => __( 'Não foi possível registrar seu interesse. Tente novamente.', 'imovel-parceiro-core' ) ), 500 );
         }
 
-        $this->notify_broker( $lead_id, $enquiry_id, $property_id, $broker_id, $contact, $message );
+        $this->notify_broker( $lead_id, $enquiry_id, $property_id, $broker_id, $recipient_id, $contact, $message );
 
         wp_send_json_success(
             array(
                 'already'    => false,
                 'lead_id'    => $lead_id,
                 'enquiry_id' => $enquiry_id,
-                'message'    => __( 'Interesse registrado! O corretor responsável foi avisado e entrará em contato com você.', 'imovel-parceiro-core' ),
+                'message'    => __( 'Interesse registrado! Nossa equipe foi avisada e entrará em contato com você.', 'imovel-parceiro-core' ),
             )
         );
     }
@@ -267,19 +313,44 @@ class Imovel_Parceiro_Property_Interest {
      * CRM nativo (houzez_crm_leads + houzez_crm_enquiries)
      * ------------------------------------------------------------------ */
 
-    private static function find_crm_lead( $leads_table, $broker_id, $email ) {
+    private static function find_crm_lead( $leads_table, $recipient_id, $broker_id, $email ) {
         global $wpdb;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $lead_id = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT lead_id FROM {$leads_table} WHERE user_id = %d AND email = %s ORDER BY lead_id DESC LIMIT 1",
+                $recipient_id,
+                $email
+            )
+        );
+        if ( $lead_id ) {
+            return absint( $lead_id );
+        }
+
+        // Legado: lead criada no CRM do corretor antes do roteamento para a
+        // plataforma — reatribui ao contato@ (mesmo padrão do lead express).
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $legacy_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT lead_id FROM {$leads_table} WHERE user_id = %d AND email = %s ORDER BY lead_id DESC LIMIT 1",
                 $broker_id,
                 $email
             )
         );
+        if ( $legacy_id ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $wpdb->update(
+                $leads_table,
+                array( 'user_id' => $recipient_id ),
+                array( 'lead_id' => absint( $legacy_id ) ),
+                array( '%d' ),
+                array( '%d' )
+            );
+            return absint( $legacy_id );
+        }
 
-        return $lead_id ? absint( $lead_id ) : 0;
+        return 0;
     }
 
     private static function split_name( $name ) {
@@ -292,10 +363,11 @@ class Imovel_Parceiro_Property_Interest {
     }
 
     /**
-     * Insere a lead no CRM do corretor com o mesmo mapeamento das nativas
-     * (Houzez_Leads::save_lead).
+     * Insere a lead no CRM da plataforma (usuário contato@) com o mesmo
+     * mapeamento das nativas (Houzez_Leads::save_lead). O corretor dono do
+     * imóvel é mantido em enquiry_to apenas como procedência.
      */
-    private static function create_crm_lead( $leads_table, $broker_id, $property_id, $contact, $message ) {
+    private static function create_crm_lead( $leads_table, $recipient_id, $broker_id, $property_id, $contact, $message ) {
         global $wpdb;
 
         list( $first_name, $last_name ) = self::split_name( $contact['name'] );
@@ -304,7 +376,7 @@ class Imovel_Parceiro_Property_Interest {
         $ok = $wpdb->insert(
             $leads_table,
             array(
-                'user_id'           => $broker_id,
+                'user_id'           => $recipient_id,
                 'prefix'            => '',
                 'display_name'      => $contact['name'],
                 'first_name'        => $first_name,
@@ -358,7 +430,7 @@ class Imovel_Parceiro_Property_Interest {
     /**
      * Insere a enquiry vinculada ao imóvel (como as nativas de formulário).
      */
-    private static function create_crm_enquiry( $enquiries_table, $broker_id, $lead_id, $property_id, $user_id, $contact, $message ) {
+    private static function create_crm_enquiry( $enquiries_table, $recipient_id, $broker_id, $lead_id, $property_id, $user_id, $contact, $message ) {
         global $wpdb;
 
         $proof = sprintf(
@@ -373,7 +445,7 @@ class Imovel_Parceiro_Property_Interest {
         $ok = $wpdb->insert(
             $enquiries_table,
             array(
-                'user_id'           => $broker_id,
+                'user_id'           => $recipient_id,
                 'lead_id'           => $lead_id,
                 'listing_id'        => $property_id,
                 'negotiator'        => '',
@@ -463,8 +535,8 @@ class Imovel_Parceiro_Property_Interest {
         // 1) Notificação in-app (painel do corretor).
         if ( class_exists( 'IPC_Notifications' ) ) {
             IPC_Notifications::send(
-                array(
-                    'user_id'     => $broker_id,
+            array(
+                'user_id'           => $recipient_id,
                     'property_id' => $property_id,
                     'type'        => 'LEAD_INTERESSE',
                     'category'    => IPC_Notifications::CATEGORY_PROPRIEDADES,
@@ -477,10 +549,8 @@ class Imovel_Parceiro_Property_Interest {
             );
         }
 
-        // 2) E-mail com os dados do cliente. Este fluxo é exclusivo de clientes
-        // (ajax_submit rejeita não-clientes), então o lead vai para a plataforma
-        // (contato@), não para o corretor. O corretor continua vendo a lead no
-        // CRM + notificação in-app.
+        // 2) E-mail com os dados do cliente para a plataforma (contato@).
+        // O corretor dono do imóvel não recebe nada deste fluxo.
         $broker = get_userdata( $broker_id );
         $to     = $broker ? $broker->user_email : '';
         if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
@@ -509,7 +579,7 @@ class Imovel_Parceiro_Property_Interest {
             $lines[] = sprintf( __( 'Mensagem do cliente: %s', 'imovel-parceiro-core' ), $message );
         }
         $lines[] = '';
-        $lines[] = sprintf( __( 'Lead #%1$d (enquiry #%2$d) registrada no CRM do corretor — prova de origem para a comissão da plataforma.', 'imovel-parceiro-core' ), $lead_id, $enquiry_id );
+        $lines[] = sprintf( __( 'Lead #%1$d (enquiry #%2$d) registrada no CRM da plataforma (usuário contato@) — prova de origem para a comissão.', 'imovel-parceiro-core' ), $lead_id, $enquiry_id );
 
         if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
             Imovel_Parceiro_Email_Template::send(

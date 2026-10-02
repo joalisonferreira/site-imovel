@@ -165,10 +165,10 @@ class Imovel_Parceiro_Contact_Widget {
                     'needs_subscription' => __( 'Seu plano acabou ou não está ativo.', 'imovel-parceiro-core' ),
                     'view_plans' => __( 'Ver planos', 'imovel-parceiro-core' ),
                     'interest' => __( 'Tenho interesse neste imóvel', 'imovel-parceiro-core' ),
-                    'interest_sub' => __( 'O corretor responsável entrará em contato', 'imovel-parceiro-core' ),
+                    'interest_sub' => __( 'Nossa equipe entrará em contato', 'imovel-parceiro-core' ),
                     'interest_done' => __( 'Interesse já registrado', 'imovel-parceiro-core' ),
-                    'interest_done_sub' => __( 'O corretor responsável já foi avisado.', 'imovel-parceiro-core' ),
-                    'interest_message_ph' => __( 'Mensagem opcional para o corretor (máx. 500 caracteres)', 'imovel-parceiro-core' ),
+                    'interest_done_sub' => __( 'Nossa equipe já foi avisada.', 'imovel-parceiro-core' ),
+                    'interest_message_ph' => __( 'Mensagem opcional (máx. 500 caracteres)', 'imovel-parceiro-core' ),
                     'interest_send' => __( 'Enviar interesse', 'imovel-parceiro-core' ),
                     'interest_sending' => __( 'Enviando…', 'imovel-parceiro-core' ),
                     'interest_ok' => __( 'Interesse registrado!', 'imovel-parceiro-core' ),
@@ -401,8 +401,8 @@ class Imovel_Parceiro_Contact_Widget {
             }
         }
         // Proteção de lead: o cliente NÃO recebe WhatsApp direto. Ele usa o
-        // fluxo "Tenho interesse neste imóvel" (lead registrada + corretor
-        // notificado para fazer o primeiro contato).
+        // fluxo "Tenho interesse neste imóvel" (lead registrada no CRM da
+        // plataforma + equipe notificada para fazer o primeiro contato).
         if ( $row && Imovel_Parceiro_Partnership_Workflow::is_contact_released( $row ) ) {
             return true;
         }
