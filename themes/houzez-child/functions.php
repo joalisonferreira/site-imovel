@@ -229,6 +229,48 @@ function houzez_child_enqueue_lead_assets() {
         )
     );
 }
+/**
+ * Híbrido OSM + Google no cadastro de imóvel (functions.php: mapa e pin
+ * continuam OSM; o Google entra só com sugestões no campo de endereço).
+ * Inerte sem chave em Opções do Tema → Maps → Google Maps API Key.
+ */
+function houzez_child_enqueue_address_suggest() {
+    if ( is_admin() || ! is_page_template( 'template/user_dashboard_submit.php' ) ) {
+        return;
+    }
+
+    if ( ! function_exists( 'houzez_option' ) ) {
+        return;
+    }
+
+    $key = trim( (string) houzez_option( 'googlemap_api_key' ) );
+    if ( '' === $key ) {
+        return;
+    }
+
+    if ( 'google' === houzez_option( 'map_system_submit', 'osm' ) ) {
+        return;
+    }
+
+    wp_enqueue_script(
+        'ipc-google-places',
+        'https://maps.googleapis.com/maps/api/js?key=' . urlencode( $key ) . '&libraries=places&loading=async&callback=ipcAddressSuggestInit',
+        array(),
+        null,
+        true
+    );
+
+    $js_path = get_stylesheet_directory() . '/assets/js/address-suggest.js';
+    wp_enqueue_script(
+        'houzez-child-address-suggest',
+        get_stylesheet_directory_uri() . '/assets/js/address-suggest.js',
+        array( 'ipc-google-places' ),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_address_suggest', 100 );
+
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_lead_assets', 100 );
 
 add_action( 'wp_footer', 'houzez_child_print_lead_modal', 30 );
