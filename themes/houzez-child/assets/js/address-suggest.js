@@ -260,6 +260,10 @@
     }
 
     function bindNewFlow(input) {
+        if (input.dataset.ipcSuggestBound === '1') {
+            return;
+        }
+        input.dataset.ipcSuggestBound = '1';
         var timer = null;
         var sessionToken = newSessionToken();
 
@@ -318,6 +322,10 @@
     }
 
     function bindLegacyFlow(input) {
+        if (input.dataset.ipcSuggestBound === '1') {
+            return;
+        }
+        input.dataset.ipcSuggestBound = '1';
         var autocomplete = new google.maps.places.Autocomplete(input, {
             types: ['address'],
             componentRestrictions: { country: 'br' },
@@ -329,16 +337,13 @@
         });
     }
 
+    var initRetries = 0;
+
     function initAutocomplete() {
         var input = document.getElementById('geocomplete');
-        if (!input) {
+        if (!input || input.dataset.ipcSuggestBound === '1') {
             return;
         }
-        // Evita duplo vínculo (tema pode já ter anexado o próprio autocomplete).
-        if (input.dataset.ipcSuggestBound === '1') {
-            return;
-        }
-        input.dataset.ipcSuggestBound = '1';
         injectStyles();
 
         ensurePlacesLib(function (lib) {
@@ -346,6 +351,12 @@
                 bindNewFlow(input);
             } else if (window.google && google.maps.places && google.maps.places.Autocomplete) {
                 bindLegacyFlow(input);
+            }
+            // Sem lib ainda (Google carregando): tenta de novo; o callback do
+            // Google + o polling abaixo garantem o vínculo tardio.
+            else if (initRetries < 15) {
+                initRetries += 1;
+                window.setTimeout(initAutocomplete, 1000);
             }
         });
     }
