@@ -293,6 +293,17 @@
         }
     }
 
+    function ipcLog() {
+        try {
+            var args = ['[ipc-suggest]'].concat(Array.prototype.slice.call(arguments));
+            if (window.console && console.log) {
+                console.log.apply(console, args);
+            }
+        } catch (e) {
+            /* noop */
+        }
+    }
+
     function renderDropdown(input, suggestions, sessionToken, fetchPlace) {
         closeDropdown(input);
         if (!suggestions.length) {
@@ -331,8 +342,12 @@
             button.appendChild(secondary);
             button.addEventListener('mousedown', function (event) {
                 event.preventDefault();
-                fetchPlace(prediction, sessionToken);
+                selectPrediction();
             });
+            function selectPrediction() {
+                fetchPlace(prediction, sessionToken);
+            }
+            button._ipcSelect = selectPrediction;
             button.addEventListener('mouseenter', function () {
                 highlight(index);
             });
@@ -352,12 +367,12 @@
             } else if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 highlight((activeIndex - 1 + items.length) % items.length);
-            } else if (event.key === 'Enter' && activeIndex >= 0) {
+            } else if (event.key === 'Enter' && activeIndex >= 0 && items[activeIndex]._ipcSelect) {
                 event.preventDefault();
-                items[activeIndex].click();
-            } else if (event.key === 'Enter' && items.length) {
+                items[activeIndex]._ipcSelect();
+            } else if (event.key === 'Enter' && items.length && items[0]._ipcSelect) {
                 event.preventDefault();
-                items[0].click();
+                items[0]._ipcSelect();
             } else if (event.key === 'Escape') {
                 closeDropdown(input);
             }
@@ -399,15 +414,24 @@
 
         function fetchPlace(prediction, token) {
             closeDropdown(input);
-            var place = prediction.toPlace();
+            ipcLog('place selecionado, buscando detalhes...');
+            var place;
+            try {
+                place = prediction.toPlace();
+            } catch (err) {
+                ipcLog('ERRO toPlace:', err && err.message);
+                return;
+            }
             place.fetchFields({ fields: ['addressComponents', 'formattedAddress', 'location'] }).then(function () {
+                ipcLog('detalhes OK:', (place.addressComponents || []).length, 'componentes, location:', !!place.location);
                 fillFromPlace({
                     address_components: place.addressComponents,
-                    formatted_address: place.formattedAddress
+                    formatted_address: place.formattedAddress,
+                    location: place.location
                 });
                 sessionToken = newSessionToken();
-            }).catch(function () {
-                /* mantém o texto digitado */
+            }).catch(function (err) {
+                ipcLog('ERRO fetchFields:', err && (err.message || err));
             });
         }
 
@@ -436,9 +460,11 @@
                         if (input.value !== query) {
                             return;
                         }
+                        var count = (response.suggestions || []).length;
+                        ipcLog('sugestões recebidas:', count);
                         renderDropdown(input, response.suggestions || [], sessionToken, fetchPlace);
-                    }).catch(function () {
-                        /* ignora erros transitórios de digitação */
+                    }).catch(function (err) {
+                        ipcLog('ERRO suggestions:', err && (err.message || err));
                     });
                 });
             }, 300);
