@@ -124,6 +124,10 @@ class Imovel_Parceiro_Buyer_Lead {
             $wpdb->update(
                 $table,
                 array(
+                    // Reatribui o dono: sem isso, um telefone já cadastrado
+                    // mantém o user_id antigo e o lead NÃO aparece na página
+                    // de Leads do contato@ (que filtra por user_id).
+                    'user_id'      => $user_id,
                     'display_name' => $name,
                     'first_name'   => $first_name,
                     'last_name'    => $last_name,
@@ -134,7 +138,7 @@ class Imovel_Parceiro_Buyer_Lead {
                     'time'         => gmdate( 'Y-m-d H:i:s' ),
                 ),
                 array( 'lead_id' => $existing_id ),
-                array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+                array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
                 array( '%d' )
             );
             $lead_id = $existing_id;
@@ -179,7 +183,7 @@ class Imovel_Parceiro_Buyer_Lead {
             wp_send_json_error( array( 'message' => __( 'Não foi possível salvar. Tente novamente.', 'imovel-parceiro-core' ) ) );
         }
 
-        $this->notify_admin( $lead_id, $name, $phone_digits, $email, $message );
+        $this->notify_admin( $lead_id, $name, $phone_digits, $email, $goal_label, $types, $where );
 
         wp_send_json_success(
             array(
@@ -217,7 +221,7 @@ class Imovel_Parceiro_Buyer_Lead {
         return $admin ? (int) $admin->ID : 0;
     }
 
-    private function notify_admin( $lead_id, $name, $phone, $email, $message ) {
+    private function notify_admin( $lead_id, $name, $phone, $email, $goal_label, $types, $where ) {
         $to = self::RECIPIENT_EMAIL;
         if ( ! get_user_by( 'email', $to ) ) {
             $to = get_option( 'admin_email' );
@@ -226,17 +230,77 @@ class Imovel_Parceiro_Buyer_Lead {
             return;
         }
 
-        $subject = sprintf( __( '[Lead express] %s quer %s', 'imovel-parceiro-core' ), $name, $message );
-        $body    = sprintf(
-            __( "Novo interesse de comprador (lead #%d).\n\nNome: %s\nWhatsApp: %s\nE-mail: %s\n\n%s", 'imovel-parceiro-core' ),
-            $lead_id,
+        $where_short = mb_substr( trim( (string) $where ), 0, 60 );
+        $subject     = sprintf(
+            __( '[Lead express] %1$s quer %2$s em %3$s', 'imovel-parceiro-core' ),
             $name,
-            $phone,
-            '' !== $email ? $email : __( 'não informado', 'imovel-parceiro-core' ),
-            $message
+            function_exists( 'mb_strtolower' ) ? mb_strtolower( $goal_label ) : strtolower( $goal_label ),
+            $where_short
         );
 
-        wp_mail( $to, $subject, $body );
+        // Normaliza para wa.me: só dígitos + DDI 55 quando for número BR sem país.
+        $digits = preg_replace( '/\D/', '', (string) $phone );
+        if ( preg_match( '/^[1-9]{2}[89]?\d{8}$/', $digits ) ) {
+            $digits = '55' . $digits;
+        }
+        $wa_url = 'https://wa.me/' . $digits;
+
+        $first_name = trim( (string) strtok( $name, ' ' ) );
+        if ( '' === $first_name ) {
+            $first_name = $name;
+        }
+        $brand      = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+        $goal_lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $goal_label ) : strtolower( $goal_label );
+        $wa_text    = sprintf(
+            __( 'Olá %1$s! Aqui é da %2$s. Recebemos seu interesse em %3$s em %4$s. Podemos conversar?', 'imovel-parceiro-core' ),
+            $first_name,
+            $brand,
+            $goal_lower,
+            $where_short
+        );
+        $wa_url .= '?text=' . rawurlencode( $wa_text );
+
+        // Exibição amigável: (11) 99999-9999.
+        $phone_display = $phone;
+        $local         = preg_replace( '/^55/', '', $digits );
+        if ( 11 === strlen( $local ) ) {
+            $phone_display = sprintf( '(%s) %s-%s', substr( $local, 0, 2 ), substr( $local, 2, 5 ), substr( $local, 7 ) );
+        } elseif ( 10 === strlen( $local ) ) {
+            $phone_display = sprintf( '(%s) %s-%s', substr( $local, 0, 2 ), substr( $local, 2, 4 ), substr( $local, 6 ) );
+        }
+
+        $types_label = $types ? implode( ', ', $types ) : __( 'Qualquer', 'imovel-parceiro-core' );
+        $email_label = '' !== $email ? $email : __( 'não informado', 'imovel-parceiro-core' );
+
+        $link_color = class_exists( 'Imovel_Parceiro_Email_Template' ) ? Imovel_Parceiro_Email_Template::accent() : '#d72218';
+
+        $content  = '<p>' . sprintf( esc_html__( 'Novo interesse de comprador (lead #%d).', 'imovel-parceiro-core' ), $lead_id ) . '</p>';
+        $content .= '<p>'
+            . '<strong>' . esc_html__( 'Nome:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( $name ) . '<br>'
+            . '<strong>' . esc_html__( 'WhatsApp:', 'imovel-parceiro-core' ) . '</strong> '
+            . '<a href="' . esc_url( $wa_url ) . '" target="_blank" style="color:' . esc_attr( $link_color ) . ';text-decoration:none;font-weight:600;">' . esc_html( $phone_display ) . '</a><br>'
+            . '<strong>' . esc_html__( 'E-mail:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( $email_label ) . '</p>';
+        $content .= '<p>'
+            . '<strong>' . esc_html__( 'Objetivo:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( $goal_label ) . '<br>'
+            . '<strong>' . esc_html__( 'Tipos:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( $types_label ) . '<br>'
+            . '<strong>' . esc_html__( 'Região:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( $where_short ) . '<br>'
+            . '<strong>' . esc_html__( 'Origem:', 'imovel-parceiro-core' ) . '</strong> ' . esc_html( self::SOURCE ) . '</p>';
+
+        if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
+            Imovel_Parceiro_Email_Template::send(
+                $to,
+                $subject,
+                $content,
+                array(
+                    'title'     => sprintf( __( 'Novo lead express: %s', 'imovel-parceiro-core' ), $name ),
+                    'preheader' => sprintf( __( 'Lead #%1$d — %2$s quer %3$s em %4$s', 'imovel-parceiro-core' ), $lead_id, $name, $goal_lower, $where_short ),
+                    'cta_url'   => $wa_url,
+                    'cta_text'  => __( 'Conversar no WhatsApp', 'imovel-parceiro-core' ),
+                )
+            );
+        } else {
+            wp_mail( $to, $subject, wp_strip_all_tags( str_replace( '<br>', "\n", $content ) ) );
+        }
     }
 }
 
