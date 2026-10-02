@@ -97,6 +97,21 @@
         return true;
     }
 
+    function applyMatch(select, index) {
+        select.selectedIndex = index;
+        var matchedValue = select.options[index] ? select.options[index].value : '';
+        try {
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.selectpicker) {
+                // API do picker: define E renderiza o botão visível.
+                window.jQuery(select).selectpicker('val', matchedValue);
+            }
+        } catch (e) {
+            /* noop */
+        }
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        refreshPicker(select);
+    }
+
     function setSelect(select, value) {
         if (!select || !value) {
             return false;
@@ -106,9 +121,7 @@
         var i;
         for (i = 0; i < options.length; i++) {
             if (norm(options[i].text) === target || norm(options[i].value) === target) {
-                select.selectedIndex = i;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                refreshPicker(select);
+                applyMatch(select, i);
                 return true;
             }
         }
@@ -123,9 +136,7 @@
             }
         }
         if (candidates.length === 1) {
-            select.selectedIndex = candidates[0];
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-            refreshPicker(select);
+            applyMatch(select, candidates[0]);
             ipcLog('match aproximado no select:', value);
             return true;
         }
