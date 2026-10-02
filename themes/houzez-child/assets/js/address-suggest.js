@@ -142,17 +142,182 @@
         }
     }
 
-    function initAutocomplete() {
-        var input = document.getElementById('geocomplete');
-        if (!input || !window.google || !google.maps || !google.maps.places) {
-            return;
-        }
-        // Evita duplo vínculo (tema pode já ter anexado o próprio autocomplete).
-        if (input.dataset.ipcSuggestBound === '1') {
-            return;
-        }
-        input.dataset.ipcSuggestBound = '1';
+    var placesLib = null;
+    var placesLibFailed = false;
 
+    function injectStyles() {
+        if (document.getElementById('ipc-suggest-styles')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'ipc-suggest-styles';
+        style.textContent = '.ipc-suggest-list{position:absolute;top:100%;left:0;right:0;z-index:5000;margin-top:4px;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 12px 28px -8px rgba(15,23,42,.25);padding:4px;}' +
+            '.ipc-suggest-item{display:block;width:100%;text-align:left;border:none;background:transparent;padding:9px 12px;border-radius:6px;cursor:pointer;font-size:14px;color:#0f172a;}' +
+            '.ipc-suggest-item small{display:block;font-size:12px;color:#64748b;}' +
+            '.ipc-suggest-item:hover,.ipc-suggest-item.is-active{background:#fef2f2;}';
+        document.head.appendChild(style);
+    }
+
+    function ensurePlacesLib(done) {
+        if (placesLib) {
+            done(placesLib);
+            return;
+        }
+        if (placesLibFailed || !window.google || !google.maps || !google.maps.importLibrary) {
+            done(null);
+            return;
+        }
+        google.maps.importLibrary('places').then(function (lib) {
+            placesLib = lib;
+            done(lib);
+        }).catch(function () {
+            placesLibFailed = true;
+            done(null);
+        });
+    }
+
+    function closeDropdown(input) {
+        var list = input.parentElement ? input.parentElement.querySelector('.ipc-suggest-list') : null;
+        if (list) {
+            list.parentElement.removeChild(list);
+        }
+    }
+
+    function renderDropdown(input, suggestions, sessionToken, fetchPlace) {
+        closeDropdown(input);
+        if (!suggestions.length) {
+            return;
+        }
+        if (input.parentElement && getComputedStyle(input.parentElement).position === 'static') {
+            input.parentElement.style.position = 'relative';
+        }
+        var list = document.createElement('div');
+        list.className = 'ipc-suggest-list';
+        list.setAttribute('role', 'listbox');
+        var activeIndex = -1;
+        var items = [];
+
+        function highlight(index) {
+            activeIndex = index;
+            items.forEach(function (button, i) {
+                button.classList.toggle('is-active', i === index);
+            });
+        }
+
+        suggestions.forEach(function (suggestion, index) {
+            var prediction = suggestion.placePrediction;
+            if (!prediction) {
+                return;
+            }
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ipc-suggest-item';
+            button.setAttribute('role', 'option');
+            var main = document.createElement('span');
+            main.textContent = prediction.mainText ? prediction.mainText.text : '';
+            var secondary = document.createElement('small');
+            secondary.textContent = prediction.secondaryText ? prediction.secondaryText.text : '';
+            button.appendChild(main);
+            button.appendChild(secondary);
+            button.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+                fetchPlace(prediction, sessionToken);
+            });
+            button.addEventListener('mouseenter', function () {
+                highlight(index);
+            });
+            list.appendChild(button);
+            items.push(button);
+        });
+
+        input.parentElement.appendChild(list);
+
+        input.onkeydown = function (event) {
+            if (!items.length) {
+                return;
+            }
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                highlight((activeIndex + 1) % items.length);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                highlight((activeIndex - 1 + items.length) % items.length);
+            } else if (event.key === 'Enter' && activeIndex >= 0) {
+                event.preventDefault();
+                items[activeIndex].click();
+            } else if (event.key === 'Escape') {
+                closeDropdown(input);
+            }
+        };
+    }
+
+    function newSessionToken() {
+        try {
+            return new google.maps.places.AutocompleteSessionToken();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function bindNewFlow(input) {
+        var timer = null;
+        var sessionToken = newSessionToken();
+
+        function fetchPlace(prediction, token) {
+            closeDropdown(input);
+            var place = prediction.toPlace();
+            place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] }).then(function () {
+                fillFromPlace({
+                    address_components: place.addressComponents,
+                    formatted_address: place.formattedAddress
+                });
+                sessionToken = newSessionToken();
+            }).catch(function () {
+                /* mantém o texto digitado */
+            });
+        }
+
+        input.addEventListener('input', function () {
+            var query = input.value;
+            window.clearTimeout(timer);
+            if (query.trim().length < 3) {
+                closeDropdown(input);
+                return;
+            }
+            timer = window.setTimeout(function () {
+                ensurePlacesLib(function (lib) {
+                    if (!lib || !lib.AutocompleteSuggestion) {
+                        return;
+                    }
+                    var request = {
+                        input: query,
+                        language: 'pt-BR',
+                        includedRegionCodes: ['br'],
+                        includedPrimaryTypes: ['street_address', 'premise', 'route']
+                    };
+                    if (sessionToken) {
+                        request.sessionToken = sessionToken;
+                    }
+                    lib.AutocompleteSuggestion.fetchAutocompleteSuggestions(request).then(function (response) {
+                        if (input.value !== query) {
+                            return;
+                        }
+                        renderDropdown(input, response.suggestions || [], sessionToken, fetchPlace);
+                    }).catch(function () {
+                        /* ignora erros transitórios de digitação */
+                    });
+                });
+            }, 300);
+        });
+
+        input.addEventListener('blur', function () {
+            window.setTimeout(function () {
+                closeDropdown(input);
+            }, 200);
+        });
+    }
+
+    function bindLegacyFlow(input) {
         var autocomplete = new google.maps.places.Autocomplete(input, {
             types: ['address'],
             componentRestrictions: { country: 'br' },
@@ -161,6 +326,27 @@
 
         autocomplete.addListener('place_changed', function () {
             fillFromPlace(autocomplete.getPlace());
+        });
+    }
+
+    function initAutocomplete() {
+        var input = document.getElementById('geocomplete');
+        if (!input) {
+            return;
+        }
+        // Evita duplo vínculo (tema pode já ter anexado o próprio autocomplete).
+        if (input.dataset.ipcSuggestBound === '1') {
+            return;
+        }
+        input.dataset.ipcSuggestBound = '1';
+        injectStyles();
+
+        ensurePlacesLib(function (lib) {
+            if (lib && lib.AutocompleteSuggestion) {
+                bindNewFlow(input);
+            } else if (window.google && google.maps.places && google.maps.places.Autocomplete) {
+                bindLegacyFlow(input);
+            }
         });
     }
 
