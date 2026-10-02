@@ -76,17 +76,17 @@
         var city = pick(fakePlace, ['administrative_area_level_2', 'locality']);
         var neighborhood = pick(fakePlace, ['sublocality_level_1', 'sublocality', 'neighborhood']);
         if (city) {
-            setField(['city'], city.long_name);
+            setField(['city'], compText(city));
         }
         if (neighborhood) {
-            setField(['neighborhood'], neighborhood.long_name);
+            setField(['neighborhood'], compText(neighborhood));
         }
         var state = pick(fakePlace, ['administrative_area_level_1']);
         if (state) {
             var stateEl = document.getElementById('countyState') || document.querySelector('select[name="administrative_area_level_1"]');
             if (stateEl && stateEl.tagName === 'SELECT') {
-                if (!setSelect(stateEl, state.long_name)) {
-                    setSelect(stateEl, state.short_name);
+                if (!setSelect(stateEl, compText(state))) {
+                    setSelect(stateEl, compText(state, true));
                 }
             }
         }
@@ -94,11 +94,22 @@
         if (country) {
             var countryEl = document.getElementById('country');
             if (countryEl && countryEl.tagName === 'SELECT') {
-                if (!setSelect(countryEl, country.long_name)) {
-                    setSelect(countryEl, country.short_name);
+                if (!setSelect(countryEl, compText(country))) {
+                    setSelect(countryEl, compText(country, true));
                 }
             }
         }
+    }
+
+    /* Nova Places API usa longText/shortText; legada usa long_name/short_name. */
+    function compText(comp, short) {
+        if (!comp) {
+            return '';
+        }
+        if (short) {
+            return comp.shortText || comp.short_name || '';
+        }
+        return comp.longText || comp.long_name || '';
     }
 
     function norm(value) {
@@ -151,7 +162,7 @@
             return;
         }
         for (var i = 0; i < names.length; i++) {
-            var el = document.getElementById(names[i]);
+            var el = document.getElementById(names[i]) || document.querySelector('[name="' + names[i] + '"]');
             if (!el) {
                 continue;
             }
@@ -192,7 +203,7 @@
 
         var route = pick(place, ['route']);
         var number = pick(place, ['street_number']);
-        var street = [route && route.long_name, number && number.long_name].filter(Boolean).join(', ');
+        var street = [compText(route), compText(number)].filter(Boolean).join(', ');
         if (street) {
             var addressInput = document.getElementById('geocomplete');
             setText(addressInput, street);
@@ -205,32 +216,32 @@
         var country = pick(place, ['country']);
 
         if (city) {
-            setField(['city'], city.long_name);
+            setField(['city'], compText(city));
         }
         if (neighborhood) {
-            setField(['neighborhood'], neighborhood.long_name);
+            setField(['neighborhood'], compText(neighborhood));
         }
         if (state) {
             var stateEl = document.getElementById('countyState') || document.querySelector('select[name="administrative_area_level_1"]');
             if (stateEl && stateEl.tagName === 'SELECT') {
-                if (!setSelect(stateEl, state.long_name)) {
-                    setSelect(stateEl, state.short_name);
+                if (!setSelect(stateEl, compText(state))) {
+                    setSelect(stateEl, compText(state, true));
                 }
             } else {
-                setText(stateEl, state.long_name);
+                setText(stateEl, compText(state));
             }
         }
         if (zip) {
-            setField(['zip'], zip.long_name);
+            setField(['zip'], compText(zip));
         }
         if (country) {
             var countryEl = document.getElementById('country');
             if (countryEl && countryEl.tagName === 'SELECT') {
-                if (!setSelect(countryEl, country.long_name)) {
-                    setSelect(countryEl, country.short_name);
+                if (!setSelect(countryEl, compText(country))) {
+                    setSelect(countryEl, compText(country, true));
                 }
             } else {
-                setText(countryEl, country.long_name);
+                setText(countryEl, compText(country));
             }
         }
 
@@ -443,7 +454,7 @@
                 ipcLog('detalhes OK:', (place.addressComponents || []).length, 'componentes, location:', !!place.location);
                 try {
                     ipcLog('componentes:', (place.address_components || place.addressComponents || []).map(function (c) {
-                        return (c.types || []).join('+') + '=' + c.long_name;
+                        return (c.types || []).join('+') + '=' + (c.longText || c.long_name);
                     }).join(' | '));
                 } catch (e) {
                     /* noop */
