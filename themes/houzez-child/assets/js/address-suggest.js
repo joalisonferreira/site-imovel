@@ -98,6 +98,18 @@
     }
 
     function applyMatch(select, index) {
+        var option = select.options[index];
+        // A cascata do tema esconde opções com data-belong divergente
+        // (ex.: capital com belong="rj"). Match exato vale: reabilita,
+        // senão o picker exibe o placeholder e o valor não é enviado.
+        if (option) {
+            try {
+                option.removeAttribute('disabled');
+                option.removeAttribute('hidden');
+            } catch (e) {
+                /* noop */
+            }
+        }
         select.selectedIndex = index;
         var matchedValue = select.options[index] ? select.options[index].value : '';
         try {
