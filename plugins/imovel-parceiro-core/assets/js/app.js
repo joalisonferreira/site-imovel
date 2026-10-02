@@ -1,7 +1,7 @@
 jQuery(function($){
-    // Cliente e proprietário bloqueado nunca veem botão de parceria (fallback global, além do PHP).
+    // Cliente, proprietário bloqueado e visitante nunca veem botão de parceria (fallback global, além do PHP).
     // Silencioso: remove sem mensagem.
-    if (window.imovelParceiroCore && (window.imovelParceiroCore.is_client || window.imovelParceiroCore.is_owner_blocked)) {
+    if (window.imovelParceiroCore && (window.imovelParceiroCore.is_client || window.imovelParceiroCore.is_owner_blocked || !window.imovelParceiroCore.is_logged_in)) {
         $('.imovel-parceiro-request-partnership, .imovel-parceiro-request-btn, #imovel-parceiro-partnership-modal').remove();
         // Também esconde via CSS caso injetado depois
         var style = document.createElement('style');

@@ -231,6 +231,7 @@ class Imovel_Parceiro_Core {
             'is_rental_property' => false,
             'is_client' => $is_client,
             'is_owner_blocked' => $is_owner_blocked,
+            'is_logged_in' => is_user_logged_in(),
             'partnerships_url' => class_exists( 'Imovel_Parceiro_Partnerships' ) ? Imovel_Parceiro_Partnerships::dashboard_partnerships_url() : '',
             'messages' => array(
                 'acceptances_required' => __( 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.', 'imovel-parceiro-core' ),

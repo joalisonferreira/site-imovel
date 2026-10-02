@@ -184,9 +184,10 @@
         html += '<div class="ipcw-actions">';
 
         // WhatsApp action. Disabled for the property owner (cannot contact self).
-        // Proprietário bloqueado (anúncio de terceiros) e cliente (usa o fluxo
-        // "Tenho interesse neste imóvel"): não renderiza nada — silencioso, sem mensagem.
-        if (req.owner_blocked || req.is_client) {
+        // Proprietário bloqueado (anúncio de terceiros), cliente (usa o fluxo
+        // "Tenho interesse neste imóvel") e visitante (só formulários, lead
+        // vai para contato@): não renderiza nada — silencioso, sem mensagem.
+        if (req.owner_blocked || req.is_client || wa.needs_login) {
             /* botão WhatsApp oculto */
         } else if (req.is_owner) {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
@@ -218,10 +219,10 @@
             html += '</span></button>';
         }
 
-        // Partnership action. Hidden for the property owner (cannot partner with self), for clients (houzez_buyer)
-        // and for blocked owners (third-party listings) — silencioso, sem mensagem.
-        // Cada estado tem rótulo explícito: o corretor sabe antes do clique.
-        if (!req.is_owner && !req.is_client && !req.owner_blocked) {
+        // Partnership action. Hidden for the property owner (cannot partner with self), for clients (houzez_buyer),
+        // for blocked owners (third-party listings) and for visitors (login-gated CTA removed — só formulários).
+        // Silencioso, sem mensagem. Cada estado tem rótulo explícito: o corretor sabe antes do clique.
+        if (!req.is_owner && !req.is_client && !req.owner_blocked && 'needs_login' !== req.state) {
             var brokerName = b.name || '';
             var commissionLabel = (req.commission && req.commission.label) ? req.commission.label : '';
             if (ps.exists) {

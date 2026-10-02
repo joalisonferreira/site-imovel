@@ -23,6 +23,9 @@ $property_id = houzez_get_listing_data('property_id');
 $ipc_is_logged_in = is_user_logged_in();
 $ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact();
 $ipc_is_client = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::is_client();
+// Envio liberado p/ cliente, proprietário e visitante (lead vai p/ contato@);
+// só corretor/imobiliária sem plano/verificação vê o botão bloqueado.
+$ipc_can_submit = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_submit_forms();
 $ipc_login_message = __( 'Faça login como corretor ou imobiliária para ver os contatos deste imóvel.', 'imovel-parceiro-core' );
 $ipc_qualify_message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
 
@@ -32,9 +35,9 @@ if ( ! $ipc_can_see_contact && '' !== $ipc_agent_data_html && class_exists( 'Imo
 	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_nodes_by_class( $ipc_agent_data_html, array( 'agent-phone' ) );
 	$ipc_agent_data_html = preg_replace( '/<input[^>]*name="target_email\[\]"[^>]*>/', '', $ipc_agent_data_html );
 }
-// Cliente logado: só formulários — remove botões de contato direto do card
-// (ligar/WhatsApp/Telegram + modal de telefone), sem expor números.
-if ( $ipc_is_client && '' !== $ipc_agent_data_html && class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+// Cliente logado e visitante: só formulários — remove botões de contato
+// direto do card (ligar/WhatsApp/Telegram + modal de telefone), sem expor números.
+if ( ( $ipc_is_client || ! $ipc_is_logged_in ) && '' !== $ipc_agent_data_html && class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
 	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_agent_card_contact( $ipc_agent_data_html );
 }
 
@@ -168,7 +171,7 @@ if ($agent_email && $agent_display != 'none') {
 		        <div class="form_messages"></div>
 				
 				<div class="property-schedule-tour-type-form d-flex justify-content-between gap-2 mb-2">
-					<?php if ( $ipc_can_see_contact ) : ?>
+					<?php if ( $ipc_can_submit ) : ?>
 					<button type="button" class="houzez-ele-button houzez_agent_property_form btn btn-secondary w-100">
 						<?php get_template_part('template-parts/loader'); ?>
 						<span><?php echo houzez_option('spl_btn_send', 'Send Email'); ?></span>
@@ -185,7 +188,7 @@ if ($agent_email && $agent_display != 'none') {
 						<span class="hide-on-click"><?php echo houzez_option('spl_btn_call', 'Call'); ?></span>
 						<span class="show-on-click"><?php echo esc_attr($agent_number); ?></span>
 					</a>
-					<?php elseif ( ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_number) && $agent_mobile_num && !wp_is_mobile() ) : ?>
+					<?php elseif ( $ipc_is_logged_in && ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_number) && $agent_mobile_num && !wp_is_mobile() ) : ?>
 					<button type="button" class="btn btn-secondary-outlined hz-btn-call w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>>
 						<span><?php echo houzez_option('spl_btn_call', 'Call'); ?></span>
 					</button>
@@ -195,7 +198,7 @@ if ($agent_email && $agent_display != 'none') {
 
 				<?php if( $ipc_can_see_contact && ! $ipc_is_client && $return_array['is_single_agent'] == true && !empty($agent_whatsapp_call) && $agent_whatsapp_num ) { ?>
 				<a target="_blank" href="https://api.whatsapp.com/send?phone=<?php echo esc_attr( $agent_whatsapp_call ); ?>&text=<?php echo houzez_option('spl_con_interested', "Hello, I am interested in").' ['.get_the_title().'] '.get_permalink(); ?>" data-property-id="<?php echo intval($post->ID); ?>" data-agent-id="<?php echo isset($return_array['agent_id']) ? intval($return_array['agent_id']) : ''; ?>" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2"><i class="houzez-icon icon-messaging-whatsapp me-1"></i> <?php esc_html_e('WhatsApp', 'houzez'); ?></a>
-				<?php } elseif( ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_whatsapp_call) && $agent_whatsapp_num ) { ?>
+				<?php } elseif( $ipc_is_logged_in && ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_whatsapp_call) && $agent_whatsapp_num ) { ?>
 				<button type="button" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>><i class="houzez-icon icon-messaging-whatsapp me-1"></i> <?php esc_html_e('WhatsApp', 'houzez'); ?></button>
 				<?php } ?>
 
@@ -205,7 +208,7 @@ if ($agent_email && $agent_display != 'none') {
 					<?php get_template_part('template-parts/loader'); ?>
 					<?php echo houzez_option('spl_btn_message', 'Send Message'); ?>		
 				</button>
-					<?php else : ?>
+					<?php elseif ( $ipc_is_logged_in ) : ?>
 				<button type="button"<?php echo $ipc_is_logged_in ? '' : ' ' . $dataModel; ?> class="<?php echo $ipc_is_logged_in ? '' : esc_attr($login_class); ?> btn btn-secondary-outlined w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>">
 					<?php get_template_part('template-parts/loader'); ?>
 					<?php echo houzez_option('spl_btn_message', 'Send Message'); ?>

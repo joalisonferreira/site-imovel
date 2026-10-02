@@ -21,6 +21,9 @@ $agent_info = isset($ele_settings['agent_detail']) ? $ele_settings['agent_detail
 
 $ipc_is_logged_in = is_user_logged_in();
 $ipc_can_see_contact = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_see_contact();
+// Envio liberado p/ cliente, proprietário e visitante (lead vai p/ contato@);
+// só corretor/imobiliária sem plano/verificação vê o botão bloqueado.
+$ipc_can_submit = class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::viewer_can_submit_forms();
 $ipc_login_message = __( 'Faça login como corretor ou imobiliária para agendar uma visita.', 'imovel-parceiro-core' );
 $ipc_qualify_message = __( 'Agendamento disponível para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
 
@@ -29,8 +32,8 @@ if ( ! $ipc_can_see_contact && '' !== $ipc_agent_data_html && class_exists( 'Imo
 	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_nodes_by_class( $ipc_agent_data_html, array( 'agent-phone' ) );
 	$ipc_agent_data_html = preg_replace( '/<input[^>]*name="target_email\[\]"[^>]*>/', '', $ipc_agent_data_html );
 }
-// Cliente logado: só formulários — remove botões de contato direto do card.
-if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && Imovel_Parceiro_Contact_Visibility::is_client() && '' !== $ipc_agent_data_html ) {
+// Cliente logado e visitante: só formulários — remove botões de contato direto do card.
+if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) && ( Imovel_Parceiro_Contact_Visibility::is_client() || ! is_user_logged_in() ) && '' !== $ipc_agent_data_html ) {
 	$ipc_agent_data_html = Imovel_Parceiro_Contact_Visibility::strip_agent_card_contact( $ipc_agent_data_html );
 }
 
@@ -176,7 +179,7 @@ if(houzez_form_type()) {
         <?php get_template_part('template-parts/captcha'); ?>
         <div class="form_messages"></div>
 
-        <?php if ( $ipc_can_see_contact ) : ?>
+        <?php if ( $ipc_can_submit ) : ?>
         <button class="schedule_contact_form houzez-ele-button btn btn-secondary w-100">
             <?php get_template_part('template-parts/loader'); ?>
             <?php echo houzez_option('spl_btn_tour_sch', 'Submit a Tour Request'); ?> 

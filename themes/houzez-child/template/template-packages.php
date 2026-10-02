@@ -3,13 +3,12 @@
  * Override do template nativo "Packages" (frontend-submission-page)
  * com o layout de Planos & Assinaturas alimentado pelos pacotes reais
  * (houzez_packages) do projeto.
+ *
+ * NOTA: a guarda nativa do Houzez (redirect p/ home quando
+ * enable_paid_submission != 'membership') foi removida aqui de propósito:
+ * esta página vende planos via WooCommerce/assinaturas, independente do
+ * modo de submissão nativo (que segue em 'no').
  */
-
-$paid_submission_type = esc_html( houzez_option( 'enable_paid_submission', '' ) );
-if ( $paid_submission_type != 'membership' ) {
-    wp_redirect( home_url() );
-    exit;
-}
 
 get_header();
 

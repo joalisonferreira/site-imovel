@@ -23,7 +23,7 @@ class Imovel_Parceiro_Contact_Visibility {
 
     /**
      * Flag request-scoped: filtro wp_mail armado só durante o AJAX de contato
-     * enviado por cliente (ver arm_client_redirect()).
+     * enviado por cliente/proprietário/visitante (ver arm_lead_redirect()).
      *
      * @var bool
      */
@@ -72,50 +72,59 @@ class Imovel_Parceiro_Contact_Visibility {
 
     /**
      * Block contact/tour submissions from unqualified viewers.
-     * Clientes (houzez_buyer e visitantes) podem contatar o corretor;
-     * corretores precisam de plano + verificação.
+     * Quem pode enviar: corretores/imobiliárias qualificados (plano +
+     * verificação), clientes, proprietários e visitantes. Para todos exceto
+     * os qualificados, o lead é redirecionado para CLIENT_LEAD_EMAIL.
+     * Só corretores/imobiliárias NÃO qualificados são bloqueados.
+     * (Regra espelhada em viewer_can_submit_forms() para os templates.)
      */
     public function block_unqualified_ajax() {
         if ( self::viewer_can_see_contact() ) {
             return;
         }
 
-        // Proprietário não usa os formulários de contato do corretor
-        // (o canal com o próprio corretor é interno, pelo painel).
-        if ( self::viewer_is_owner_blocked( get_current_user_id() ) ) {
-            $message = __( 'Seu perfil de proprietario nao permite entrar em contato com outros corretores por este canal.', 'imovel-parceiro-core' );
-            wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'owner_contact_blocked' ) );
-        }
-
-        // Cliente logado sem plano/verificação ainda pode contatar - não bloqueia aqui,
-        // deixa o handler original do Houzez processar (ele permite com nome/email).
-        // Apenas bloqueia corretores/imobiliárias não qualificados.
-        $user_id = get_current_user_id();
-        if ( $user_id && self::is_client( $user_id ) ) {
-            // Cliente: formulários habilitados, mas o lead vai para contato@
-            // (filtro wp_mail armado só nesta requisição AJAX).
-            self::arm_client_redirect();
+        // Cliente, proprietário, visitante ou outro papel não-corretor:
+        // formulários habilitados, mas o lead vai para contato@
+        // (filtro wp_mail armado só nesta requisição AJAX).
+        if ( self::viewer_can_submit_forms() ) {
+            self::arm_lead_redirect();
             return;
         }
-        if ( $user_id ) {
-            $user = get_userdata( $user_id );
-            // Se não é corretor/imobiliária, é cliente ou outro papel - libera
-            if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
-                return;
-            }
-            $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
-            wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'broker_verification_required' ) );
-        } else {
-            // Visitante não logado: solicita login/cadastro
-            $login_url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard_profile.php' ) : home_url( '/meu-perfil/' );
-            $login_url = add_query_arg( 'hpage', 'verification', $login_url );
-            // Fallback para modal de login
-            if ( empty( $login_url ) || $login_url === home_url( '/' ) ) {
-                $login_url = home_url( '/login/' );
-            }
-            $msg = __( 'Faça login para entrar em contato.', 'imovel-parceiro-core' );
-            wp_send_json_error( array( 'msg' => $msg, 'Message' => $msg, 'message' => $msg, 'code' => 'login_required', 'login_url' => $login_url ) );
+
+        // Corretor/imobiliária sem plano ativo ou perfil verificado: bloqueado.
+        $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
+        wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'broker_verification_required' ) );
+    }
+
+    /**
+     * Whether the viewer may submit contact/tour forms (Agendar visita,
+     * Mensagem). Única fonte da regra — usada pelo gate AJAX acima e pelos
+     * templates (botão de envio habilitado/desabilitado).
+     *
+     * @param int|null $user_id Optional user id. Defaults to current user.
+     * @return bool
+     */
+    public static function viewer_can_submit_forms( $user_id = null ) {
+        if ( null === $user_id ) {
+            $user_id = get_current_user_id();
         }
+        if ( self::viewer_can_see_contact( $user_id ) ) {
+            return true;
+        }
+        if ( ! $user_id ) {
+            return true; // visitante: lead vai para contato@
+        }
+        if ( self::viewer_is_owner_blocked( $user_id ) ) {
+            return true; // proprietário: lead vai para contato@
+        }
+        if ( self::is_client( $user_id ) ) {
+            return true; // cliente: lead vai para contato@
+        }
+        $user = get_userdata( $user_id );
+        if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
+            return true; // outros papéis: lead vai para contato@
+        }
+        return false; // corretor/imobiliária não qualificado
     }
 
     /**
@@ -236,16 +245,16 @@ class Imovel_Parceiro_Contact_Visibility {
     }
 
     /**
-     * Arma o redirecionamento do lead do cliente para CLIENT_LEAD_EMAIL.
+     * Arma o redirecionamento do lead para CLIENT_LEAD_EMAIL.
      * Escopo restrito: só vale nesta requisição AJAX (o handler nativo morre
      * com wp_die logo após enviar).
      */
-    public static function arm_client_redirect() {
+    public static function arm_lead_redirect() {
         if ( self::$client_redirect_armed ) {
             return;
         }
         self::$client_redirect_armed = true;
-        add_filter( 'wp_mail', array( __CLASS__, 'redirect_client_mail' ) );
+        add_filter( 'wp_mail', array( __CLASS__, 'redirect_lead_mail' ) );
     }
 
     /**
@@ -256,7 +265,7 @@ class Imovel_Parceiro_Contact_Visibility {
      * @param array $args Argumentos do wp_mail (to, subject, message, headers, attachments).
      * @return array
      */
-    public static function redirect_client_mail( $args ) {
+    public static function redirect_lead_mail( $args ) {
         if ( empty( $args['to'] ) ) {
             return $args;
         }
