@@ -448,7 +448,16 @@ li > .ipc-menu-cta--owner:hover {
     }
 }
 @media (max-width: 575.98px) {
-    .ipc-lead-card {
+/* Modal sempre acima do header fixo/sticky do tema e do Elementor. */
+#ipc-lead-modal {
+    z-index: 200000 !important;
+}
+/* Sobe o backdrop SÓ quando o modal do lead está aberto (o de login fica intacto). */
+body:has(#ipc-lead-modal.show) > .modal-backdrop.show {
+    z-index: 199999 !important;
+}
+
+.ipc-lead-card {
         padding: 24px 18px 20px;
     }
     #ipc-lead-modal .ipc-wz-grid {
