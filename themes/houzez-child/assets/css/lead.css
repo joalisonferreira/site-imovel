@@ -282,7 +282,9 @@ li > .ipc-menu-cta--owner:hover {
     padding-right: 0;
 }
 @media (max-width: 991.98px) {
-    li.ipc-menu-li {
+    li.ipc-menu-li,
+    .offcanvas-mobile-menu-body li.ipc-menu-li,
+    .mobile-navbar-nav > li.ipc-menu-li {
         display: block !important;
         width: 100% !important;
         margin: 10px 0 0 !important;
@@ -292,6 +294,8 @@ li > .ipc-menu-cta--owner:hover {
     li.ipc-menu-li + li.ipc-menu-li {
         margin-left: 0 !important;
     }
+    .offcanvas-mobile-menu-body .ipc-menu-cta,
+    .mobile-navbar-nav .ipc-menu-cta,
     .ipc-menu-cta {
         width: 100% !important;
         height: 48px !important;
