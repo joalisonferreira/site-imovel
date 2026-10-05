@@ -1,4 +1,46 @@
-/* Lead express do comprador + botões de entrada do header. */
+/* Extras do drawer mobile (banner boas-vindas + rodapé). Idempotente. */
+(function () {
+    'use strict';
+
+    function esc(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function injectDrawerExtras() {
+        var body = document.querySelector('.offcanvas-mobile-menu-body');
+        if (!body || body.dataset.ipcDrawerExtra === '1') {
+            return;
+        }
+        body.dataset.ipcDrawerExtra = '1';
+
+        var loggedIn = window.ipcLead && window.ipcLead.is_logged_in;
+        var userName = (window.ipcLead && window.ipcLead.user_name) || '';
+        var dashboardUrl = (window.ipcLead && window.ipcLead.dashboard_url) || '/dashboard/';
+
+        var banner = document.createElement('div');
+        banner.className = 'ipc-drawer-welcome';
+        if (loggedIn) {
+            banner.innerHTML = '<span class="ipc-drawer-welcome__hello">Olá, ' + esc(userName.split(' ')[0] || 'bem-vindo') + '!</span>' +
+                '<a class="ipc-drawer-welcome__link" href="' + esc(dashboardUrl) + '">Ir para o painel →</a>';
+        } else {
+            banner.innerHTML = '<span class="ipc-drawer-welcome__hello">Olá, bem-vindo!</span>' +
+                '<a class="ipc-drawer-welcome__link" href="#" data-bs-toggle="modal" data-bs-target="#login-register-form">Entre ou cadastre-se →</a>';
+        }
+        body.insertBefore(banner, body.firstChild);
+
+        var footer = document.createElement('div');
+        footer.className = 'ipc-drawer-footer';
+        footer.innerHTML = '<span>Imóvel Parceiro © 2025</span>' +
+            '<span class="ipc-drawer-footer__links"><a href="/termos-de-uso/">Termos</a> · <a href="/politica-de-privacidade/">Privacidade</a></span>';
+        body.appendChild(footer);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectDrawerExtras);
+    } else {
+        injectDrawerExtras();
+    }
+})();
 (function () {
     'use strict';
 

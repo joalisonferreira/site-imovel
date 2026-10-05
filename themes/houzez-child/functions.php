@@ -224,8 +224,11 @@ function houzez_child_enqueue_lead_assets() {
         'houzez-child-lead',
         'ipcLead',
         array(
-            'ajaxurl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( Imovel_Parceiro_Buyer_Lead::NONCE_ACTION ),
+            'ajaxurl'       => admin_url( 'admin-ajax.php' ),
+            'nonce'         => wp_create_nonce( Imovel_Parceiro_Buyer_Lead::NONCE_ACTION ),
+            'is_logged_in'  => is_user_logged_in(),
+            'user_name'     => is_user_logged_in() ? wp_get_current_user()->display_name : '',
+            'dashboard_url' => houzez_child_ipc_page_url( 'dashboard' ),
         )
     );
 }
@@ -376,20 +379,22 @@ function houzez_child_header_ctas( $items, $args ) {
         return $items;
     }
 
+    $cta_style = ' style="display:flex;width:100%;height:48px;align-items:center;justify-content:center;"';
+
     $buyer = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
-        . '<a href="#" class="ipc-menu-cta ipc-menu-cta--buyer" data-bs-toggle="modal" data-bs-target="#ipc-lead-modal"'
+        . '<a href="#" class="ipc-menu-cta ipc-menu-cta--buyer" data-bs-toggle="modal" data-bs-target="#ipc-lead-modal"' . $cta_style
         . ' title="' . esc_attr__( 'Diga o que procura e onde', 'houzez' ) . '">'
         . esc_html__( 'Quero comprar', 'houzez' ) . '</a></li>';
 
     if ( is_user_logged_in() ) {
         $owner_url = houzez_child_ipc_page_url( 'cadastrar-imovel' );
         $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
-            . '<a href="' . esc_url( $owner_url ) . '" class="ipc-menu-cta ipc-menu-cta--owner"'
+            . '<a href="' . esc_url( $owner_url ) . '" class="ipc-menu-cta ipc-menu-cta--owner"' . $cta_style
             . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
             . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
     } else {
         $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
-            . '<a href="#" class="ipc-menu-cta ipc-menu-cta--owner" data-bs-toggle="modal" data-bs-target="#login-register-form" data-ipc-register-role="houzez_owner"'
+            . '<a href="#" class="ipc-menu-cta ipc-menu-cta--owner" data-bs-toggle="modal" data-bs-target="#login-register-form" data-ipc-register-role="houzez_owner"' . $cta_style
             . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
             . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
     }
