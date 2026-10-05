@@ -163,14 +163,19 @@
     /* Offcanvas aberto + clique que abre modal: fecha o drawer primeiro e
      * abre o modal em seguida (evita backdrop duplo e modal escondido).
      * Só intercepta quando o drawer está visível; no desktop o Bootstrap age. */
+    /* O drawer visível é do Elementor com ID dinâmico: fecha QUALQUER
+     * offcanvas aberto antes do modal (evita backdrop duplo e sobreposição). */
+    function openOffcanvas() {
+        return document.querySelector('.offcanvas.show');
+    }
+
     function isOffcanvasOpen() {
-        var off = document.getElementById('hz-offcanvas-mobile-menu');
-        return !!(off && off.classList.contains('show'));
+        return !!openOffcanvas();
     }
 
     function hideOffcanvas(done) {
-        var off = document.getElementById('hz-offcanvas-mobile-menu');
-        if (!off || !off.classList.contains('show')) {
+        var off = openOffcanvas();
+        if (!off) {
             done();
             return;
         }
