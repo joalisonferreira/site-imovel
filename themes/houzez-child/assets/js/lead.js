@@ -160,6 +160,55 @@
         box.hidden = false;
     }
 
+    /* Offcanvas aberto + clique que abre modal: fecha o drawer primeiro e
+     * abre o modal em seguida (evita backdrop duplo e modal escondido).
+     * Só intercepta quando o drawer está visível; no desktop o Bootstrap age. */
+    function isOffcanvasOpen() {
+        var off = document.getElementById('hz-offcanvas-mobile-menu');
+        return !!(off && off.classList.contains('show'));
+    }
+
+    function hideOffcanvas(done) {
+        var off = document.getElementById('hz-offcanvas-mobile-menu');
+        if (!off || !off.classList.contains('show')) {
+            done();
+            return;
+        }
+        try {
+            if (window.bootstrap && window.bootstrap.Offcanvas) {
+                var inst = window.bootstrap.Offcanvas.getInstance(off) || new window.bootstrap.Offcanvas(off);
+                inst.hide();
+            } else {
+                off.classList.remove('show');
+            }
+        } catch (e) {
+            /* noop */
+        }
+        window.setTimeout(done, 350);
+    }
+
+    document.addEventListener('click', function (event) {
+        var target = event.target && event.target.closest ? event.target : null;
+        if (!target) {
+            return;
+        }
+        var trigger = target.closest('[data-ipc-register-role], .ipc-drawer-welcome__link[data-bs-target], a[data-bs-target="#ipc-lead-modal"]');
+        if (!trigger || !isOffcanvasOpen()) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        var modalTarget = trigger.getAttribute('data-bs-target');
+        var role = trigger.getAttribute('data-ipc-register-role');
+        hideOffcanvas(function () {
+            if (role) {
+                openRegister(role);
+            } else if (modalTarget) {
+                openModal(modalTarget.replace('#', ''));
+            }
+        });
+    }, true);
+
     document.addEventListener('click', function (event) {
         var target = event.target && event.target.closest ? event.target : null;
 
