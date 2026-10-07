@@ -9,7 +9,6 @@ class Imovel_Parceiro_Owner_Workflow {
     const CAP_OWNER_DASHBOARD = 'imovel_parceiro_owner_access_dashboard';
     const CAP_OWNER_SUBMIT = 'imovel_parceiro_owner_submit_property';
     const CAP_OWNER_DOCS = 'imovel_parceiro_owner_manage_docs';
-    const CAP_OWNER_BROKER_CHANGE = 'imovel_parceiro_owner_request_broker_change';
     const CAP_OWNER_DELETE_REQUEST = 'imovel_parceiro_owner_request_deletion';
     const CAP_MANAGE_WORKFLOW = 'imovel_parceiro_manage_owner_workflow';
     const CAP_MANAGE_COMMERCIAL = 'imovel_parceiro_manage_commercial';
@@ -71,11 +70,9 @@ class Imovel_Parceiro_Owner_Workflow {
         add_action( 'wp_ajax_imovel_parceiro_owner_upload_document', array( $this, 'ajax_owner_upload_document' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_stage_document', array( $this, 'ajax_owner_stage_document' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_remove_staged_document', array( $this, 'ajax_owner_remove_staged_document' ) );
-        add_action( 'wp_ajax_imovel_parceiro_owner_search_brokers', array( $this, 'ajax_owner_search_brokers' ) );
-        add_action( 'wp_ajax_imovel_parceiro_owner_request_broker_change', array( $this, 'ajax_owner_request_broker_change' ) );
-        add_action( 'wp_ajax_imovel_parceiro_owner_process_broker_change', array( $this, 'ajax_admin_process_broker_change' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_review_document', array( $this, 'ajax_admin_review_document' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_request_property_delete', array( $this, 'ajax_owner_request_property_delete' ) );
+        add_action( 'wp_ajax_imovel_parceiro_owner_delete_property', array( $this, 'ajax_owner_delete_property' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_process_property_delete', array( $this, 'ajax_admin_process_property_delete_request' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_download_document', array( $this, 'ajax_admin_download_document' ) );
         add_action( 'wp_ajax_imovel_parceiro_owner_document_preview', array( $this, 'ajax_admin_document_preview' ) );
@@ -98,275 +95,6 @@ class Imovel_Parceiro_Owner_Workflow {
     private function get_broker_change_table() {
         global $wpdb;
         return $wpdb->prefix . 'imovel_parceiro_broker_change_requests';
-    }
-
-    private function get_partnerships_table() {
-        global $wpdb;
-        return $wpdb->prefix . 'imovel_parceiro_partnerships';
-    }
-
-    private function resolve_partnership_best_column( $table, $primary_column, $fallback_column, $columns ) {
-        global $wpdb;
-
-        $has_primary = in_array( $primary_column, $columns, true );
-        $has_fallback = in_array( $fallback_column, $columns, true );
-
-        if ( $has_primary && ! $has_fallback ) {
-            return $primary_column;
-        }
-
-        if ( $has_fallback && ! $has_primary ) {
-            return $fallback_column;
-        }
-
-        if ( ! $has_primary && ! $has_fallback ) {
-            return $primary_column;
-        }
-
-        $primary_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$primary_column} > 0" );
-        $fallback_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$fallback_column} > 0" );
-
-        return $fallback_count > $primary_count ? $fallback_column : $primary_column;
-    }
-
-    private function get_partnership_table_schema() {
-        global $wpdb;
-
-        static $schema = null;
-        if ( null !== $schema ) {
-            return $schema;
-        }
-
-        $table = $this->get_partnerships_table();
-        $exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
-        if ( $exists !== $table ) {
-            $schema = array();
-            return $schema;
-        }
-
-        $columns = $wpdb->get_col( "SHOW COLUMNS FROM {$table}" );
-        if ( empty( $columns ) ) {
-            $schema = array();
-            return $schema;
-        }
-
-        $schema = array(
-            'requester_col' => $this->resolve_partnership_best_column( $table, 'requester_id', 'captador_id', $columns ),
-            'owner_col' => $this->resolve_partnership_best_column( $table, 'owner_id', 'partner_id', $columns ),
-            'notes_col' => in_array( 'notes', $columns, true ) ? 'notes' : '',
-            'has_updated_at' => in_array( 'updated_at', $columns, true ),
-        );
-
-        return $schema;
-    }
-
-    private function get_eligible_partnership_cancel_statuses() {
-        return array( 'pending', 'solicitada', 'accepted', 'active', 'em_andamento', 'negotiating' );
-    }
-
-    private function get_partnership_status_to_apply_on_broker_change() {
-        return 'cancelled';
-    }
-
-    private function begin_database_transaction() {
-        global $wpdb;
-        return false !== $wpdb->query( 'START TRANSACTION' );
-    }
-
-    private function commit_database_transaction() {
-        global $wpdb;
-        return false !== $wpdb->query( 'COMMIT' );
-    }
-
-    private function rollback_database_transaction() {
-        global $wpdb;
-        return false !== $wpdb->query( 'ROLLBACK' );
-    }
-
-    private function cancel_property_partnerships_after_broker_approval( $property_id, $actor_user_id, $reason, $request_id, $current_broker_id, $new_broker_id ) {
-        global $wpdb;
-
-        $table = $this->get_partnerships_table();
-        $schema = $this->get_partnership_table_schema();
-        if ( empty( $schema ) || empty( $schema['requester_col'] ) || empty( $schema['owner_col'] ) ) {
-            return array(
-                'found_ids' => array(),
-                'cancelled_rows' => array(),
-                'status_applied' => $this->get_partnership_status_to_apply_on_broker_change(),
-            );
-        }
-
-        $eligible_statuses = $this->get_eligible_partnership_cancel_statuses();
-        $placeholders = implode( ',', array_fill( 0, count( $eligible_statuses ), '%s' ) );
-        $sql = "SELECT * FROM {$table} WHERE property_id = %d AND status IN ({$placeholders}) ORDER BY id ASC";
-        $params = array_merge( array( absint( $property_id ) ), $eligible_statuses );
-        $rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
-
-        if ( empty( $rows ) ) {
-            return array(
-                'found_ids' => array(),
-                'cancelled_rows' => array(),
-                'status_applied' => $this->get_partnership_status_to_apply_on_broker_change(),
-            );
-        }
-
-        $found_ids = array();
-        $cancelled_rows = array();
-        $target_status = $this->get_partnership_status_to_apply_on_broker_change();
-
-        foreach ( $rows as $row ) {
-            $partnership_id = isset( $row->id ) ? absint( $row->id ) : 0;
-            if ( ! $partnership_id ) {
-                continue;
-            }
-
-            $previous_status = isset( $row->status ) ? sanitize_key( (string) $row->status ) : '';
-            $found_ids[] = $partnership_id;
-
-            $update_data = array( 'status' => $target_status );
-            $update_format = array( '%s' );
-
-            if ( ! empty( $schema['has_updated_at'] ) ) {
-                $update_data['updated_at'] = current_time( 'mysql' );
-                $update_format[] = '%s';
-            }
-
-            if ( ! empty( $schema['notes_col'] ) ) {
-                $existing_notes = isset( $row->{$schema['notes_col']} ) ? trim( (string) $row->{$schema['notes_col']} ) : '';
-                $system_note = sprintf(
-                    'Encerrada automaticamente por troca de corretor aprovada (request_id: %d, corretor_anterior: %d, corretor_novo: %d, motivo: %s).',
-                    absint( $request_id ),
-                    absint( $current_broker_id ),
-                    absint( $new_broker_id ),
-                    sanitize_text_field( $reason )
-                );
-                $update_data[ $schema['notes_col'] ] = ! empty( $existing_notes ) ? $existing_notes . "\n\n" . $system_note : $system_note;
-                $update_format[] = '%s';
-            }
-
-            $updated = $wpdb->update( $table, $update_data, array( 'id' => $partnership_id ), $update_format, array( '%d' ) );
-            if ( false === $updated ) {
-                return new WP_Error( 'partnership_cancel_failed', __( 'Falha ao cancelar parcerias elegíveis durante a troca de corretor.', 'imovel-parceiro-core' ) );
-            }
-
-            $cancelled_rows[] = array(
-                'id' => $partnership_id,
-                'property_id' => isset( $row->property_id ) ? absint( $row->property_id ) : absint( $property_id ),
-                'requester_id' => isset( $row->{$schema['requester_col']} ) ? absint( $row->{$schema['requester_col']} ) : 0,
-                'owner_id' => isset( $row->{$schema['owner_col']} ) ? absint( $row->{$schema['owner_col']} ) : 0,
-                'previous_status' => $previous_status,
-                'new_status' => $target_status,
-            );
-        }
-
-        return array(
-            'found_ids' => array_values( array_unique( array_map( 'absint', $found_ids ) ) ),
-            'cancelled_rows' => $cancelled_rows,
-            'status_applied' => $target_status,
-        );
-    }
-
-    private function notify_partnership_cancellation_due_broker_change( $partnership_data, $property_id ) {
-        $property_id = absint( $property_id );
-        if ( $property_id <= 0 || ! class_exists( 'IPC_Notifications' ) || empty( $partnership_data['id'] ) ) {
-            return;
-        }
-
-        $targets = array_unique(
-            array_filter(
-                array(
-                    isset( $partnership_data['requester_id'] ) ? absint( $partnership_data['requester_id'] ) : 0,
-                    isset( $partnership_data['owner_id'] ) ? absint( $partnership_data['owner_id'] ) : 0,
-                )
-            )
-        );
-
-        if ( empty( $targets ) ) {
-            return;
-        }
-
-        $property_title = get_the_title( $property_id );
-        if ( empty( $property_title ) ) {
-            $property_title = sprintf( __( 'Imóvel #%d', 'imovel-parceiro-core' ), $property_id );
-        }
-
-        $message = __( 'A parceria relacionada a este imóvel foi encerrada devido à aprovação da troca do corretor responsável.', 'imovel-parceiro-core' );
-
-        foreach ( $targets as $user_id ) {
-            IPC_Notifications::send(
-                array(
-                    'user_id' => (int) $user_id,
-                    'property_id' => $property_id,
-                    'partnership_id' => absint( $partnership_data['id'] ),
-                    'type' => 'PARCERIA_CANCELADA_TROCA_CORRETOR',
-                    'category' => IPC_Notifications::CATEGORY_PARCERIAS,
-                    'title' => __( 'Parceria cancelada', 'imovel-parceiro-core' ),
-                    'message' => $message,
-                    'url' => get_permalink( $property_id ),
-                    'priority' => IPC_Notifications::PRIORITY_IMPORTANT,
-                )
-            );
-
-            $this->notify_user(
-                (int) $user_id,
-                __( 'Parceria encerrada por troca de corretor', 'imovel-parceiro-core' ),
-                sprintf( __( 'A parceria vinculada ao imóvel "%s" foi encerrada após a aprovação da troca de corretor.', 'imovel-parceiro-core' ), $property_title )
-            );
-        }
-    }
-
-    private function get_broker_roles() {
-        return apply_filters( 'imovel_parceiro_broker_roles', array( 'houzez_agent', 'houzez_agency' ) );
-    }
-
-    private function is_valid_broker_user( $user_id ) {
-        $user = get_userdata( absint( $user_id ) );
-        if ( ! $user ) {
-            return false;
-        }
-
-        if ( $this->is_proprietario_user( $user->ID ) ) {
-            return false;
-        }
-
-        if ( ! empty( $user->user_status ) && (int) $user->user_status !== 0 ) {
-            return false;
-        }
-
-        if ( empty( array_intersect( $this->get_broker_roles(), (array) $user->roles ) ) ) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function get_broker_profile_summary( $user_id ) {
-        $user = get_userdata( absint( $user_id ) );
-        if ( ! $user || ! $this->is_valid_broker_user( $user->ID ) ) {
-            return array();
-        }
-
-        $user_roles = (array) $user->roles;
-        $company = get_user_meta( $user->ID, 'fave_author_company', true );
-        $license = get_user_meta( $user->ID, 'fave_author_license', true );
-        $tax_no = get_user_meta( $user->ID, 'fave_author_tax_no', true );
-        $phone = get_user_meta( $user->ID, 'fave_author_phone', true );
-        $mobile = get_user_meta( $user->ID, 'fave_author_mobile', true );
-        $whatsapp = get_user_meta( $user->ID, 'fave_author_whatsapp', true );
-
-        return array(
-            'id' => (int) $user->ID,
-            'name' => $user->display_name,
-            'email' => $user->user_email,
-            'avatar' => get_avatar_url( $user->ID, array( 'size' => 96 ) ),
-            'company' => sanitize_text_field( $company ),
-            'license' => sanitize_text_field( $license ),
-            'tax_no' => sanitize_text_field( $tax_no ),
-            'phone' => sanitize_text_field( $phone ),
-            'mobile' => sanitize_text_field( $mobile ),
-            'whatsapp' => sanitize_text_field( $whatsapp ),
-            'roles' => array_values( array_intersect( $this->get_broker_roles(), $user_roles ) ),
-        );
     }
 
     private function get_deletion_requests_table() {
@@ -404,7 +132,6 @@ class Imovel_Parceiro_Owner_Workflow {
             self::CAP_OWNER_DASHBOARD => true,
             self::CAP_OWNER_SUBMIT => true,
             self::CAP_OWNER_DOCS => true,
-            self::CAP_OWNER_BROKER_CHANGE => true,
             self::CAP_OWNER_DELETE_REQUEST => true,
         );
 
@@ -1083,15 +810,6 @@ class Imovel_Parceiro_Owner_Workflow {
             'documentation_status' => ! empty( $relation->documentation_status ) ? sanitize_text_field( $relation->documentation_status ) : '',
             'approval_status' => ! empty( $relation->approval_status ) ? sanitize_text_field( $relation->approval_status ) : '',
         );
-    }
-
-    private function get_property_broker_id( $property_id ) {
-        $relation = $this->get_relation_by_property( $property_id );
-        if ( $relation && ! empty( $relation->broker_user_id ) ) {
-            return (int) $relation->broker_user_id;
-        }
-
-        return (int) get_post_meta( $property_id, self::META_BROKER_ID, true );
     }
 
     private function property_has_commercial_activity( $property_id ) {
@@ -1810,432 +1528,6 @@ class Imovel_Parceiro_Owner_Workflow {
         return '';
     }
 
-    public function ajax_owner_request_broker_change() {
-        check_ajax_referer( 'imovel_parceiro_core_nonce', 'nonce' );
-
-        if ( ! is_user_logged_in() || ! $this->is_proprietario_user() || ! current_user_can( self::CAP_OWNER_BROKER_CHANGE ) ) {
-            wp_send_json_error( array( 'message' => __( 'Acesso negado para solicitacao de troca de corretor.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $property_id = isset( $_POST['property_id'] ) ? absint( $_POST['property_id'] ) : 0;
-        $requested_broker_id = isset( $_POST['requested_broker_id'] ) ? absint( $_POST['requested_broker_id'] ) : 0;
-        $reason = isset( $_POST['reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) : '';
-        $owner_user_id = get_current_user_id();
-
-        if ( ! $property_id || ! $requested_broker_id ) {
-            wp_send_json_error( array( 'message' => __( 'Dados invalidos para troca de corretor.', 'imovel-parceiro-core' ) ) );
-        }
-
-        if ( ! $this->is_property_owner( $property_id, $owner_user_id ) ) {
-            wp_send_json_error( array( 'message' => __( 'Voce so pode solicitar troca de corretor dos seus imoveis.', 'imovel-parceiro-core' ) ) );
-        }
-
-        if ( ! $this->is_valid_broker_user( $requested_broker_id ) ) {
-            wp_send_json_error( array( 'message' => __( 'O corretor selecionado nao esta disponivel para essa operacao.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $current_broker_id = $this->get_property_broker_id( $property_id );
-        if ( $current_broker_id && $current_broker_id === $requested_broker_id ) {
-            wp_send_json_error( array( 'message' => __( 'O corretor informado ja esta associado a este imovel.', 'imovel-parceiro-core' ) ) );
-        }
-
-        global $wpdb;
-        $wpdb->insert(
-            $this->get_broker_change_table(),
-            array(
-                'property_id' => $property_id,
-                'owner_user_id' => $owner_user_id,
-                'current_broker_id' => $current_broker_id,
-                'requested_broker_id' => $requested_broker_id,
-                'reason' => $reason,
-                'status' => 'pendente',
-                'created_at' => current_time( 'mysql' ),
-            ),
-            array( '%d', '%d', '%d', '%d', '%s', '%s', '%s' )
-        );
-
-        $this->insert_audit_log(
-            'owner_requested_broker_change',
-            $owner_user_id,
-            $requested_broker_id,
-            $property_id,
-            array(
-                'current_broker_id' => $current_broker_id,
-                'requested_broker_id' => $requested_broker_id,
-                'reason' => $reason,
-            )
-        );
-
-        $this->notify_admins(
-            __( 'Nova solicitacao de troca de corretor', 'imovel-parceiro-core' ),
-            sprintf( __( 'Ha uma nova solicitacao de troca de corretor para o imovel #%d.', 'imovel-parceiro-core' ), $property_id )
-        );
-
-        $admin_users = get_users(
-            array(
-                'role__in' => array( 'administrator', 'houzez_manager' ),
-                'fields' => array( 'ID' ),
-                'number' => 50,
-            )
-        );
-        $this->notify_users_with_in_app_notifications(
-            wp_list_pluck( $admin_users, 'ID' ),
-            array(
-                'property_id' => $property_id,
-                'type' => 'SOLICITACAO_TROCA_CORRETOR',
-                'category' => IPC_Notifications::CATEGORY_SISTEMA,
-                'title' => __( 'Solicitação de troca de corretor', 'imovel-parceiro-core' ),
-                'message' => sprintf( __( 'Existe uma nova solicitação de troca de corretor para o imóvel #%d.', 'imovel-parceiro-core' ), $property_id ),
-                'url' => IPC_Notifications::get_dashboard_url( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'broker_changes' ) ),
-                'priority' => IPC_Notifications::PRIORITY_IMPORTANT,
-            )
-        );
-
-        if ( $current_broker_id ) {
-            $this->notify_user(
-                $current_broker_id,
-                __( 'Solicitacao de troca de corretor recebida', 'imovel-parceiro-core' ),
-                sprintf( __( 'O proprietario do imovel #%d solicitou troca de corretor. Aguarde analise administrativa.', 'imovel-parceiro-core' ), $property_id )
-            );
-
-            IPC_Notifications::send(
-                array(
-                    'user_id' => $current_broker_id,
-                    'property_id' => $property_id,
-                    'type' => 'SOLICITACAO_TROCA_CORRETOR',
-                    'category' => IPC_Notifications::CATEGORY_SISTEMA,
-                    'title' => __( 'Solicitação de troca de corretor', 'imovel-parceiro-core' ),
-                    'message' => sprintf( __( 'O proprietário do imóvel #%d solicitou troca de corretor.', 'imovel-parceiro-core' ), $property_id ),
-                    'url' => get_permalink( $property_id ),
-                    'priority' => IPC_Notifications::PRIORITY_IMPORTANT,
-                )
-            );
-        }
-
-        wp_send_json_success( array( 'message' => __( 'Solicitacao de troca enviada para analise administrativa.', 'imovel-parceiro-core' ) ) );
-    }
-
-    public function ajax_owner_search_brokers() {
-        check_ajax_referer( 'imovel_parceiro_core_nonce', 'nonce' );
-
-        if ( ! is_user_logged_in() || ! $this->is_proprietario_user() || ! current_user_can( self::CAP_OWNER_BROKER_CHANGE ) ) {
-            wp_send_json_error( array( 'message' => __( 'Acesso negado para busca de corretores.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $property_id = isset( $_POST['property_id'] ) ? absint( $_POST['property_id'] ) : 0;
-        $search_term = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-        $owner_user_id = get_current_user_id();
-
-        if ( ! $property_id || ! $this->is_property_owner( $property_id, $owner_user_id ) ) {
-            wp_send_json_error( array( 'message' => __( 'Imovel invalido para esta busca.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $query_args = array(
-            'number' => 12,
-            'orderby' => 'display_name',
-            'order' => 'ASC',
-            'role__in' => $this->get_broker_roles(),
-            'fields' => array( 'ID', 'display_name', 'user_email', 'user_login' ),
-        );
-
-        if ( '' !== $search_term ) {
-            $query_args['search'] = '*' . $search_term . '*';
-            $query_args['search_columns'] = array( 'display_name', 'user_email', 'user_login' );
-        }
-
-        $current_broker_id = (int) $this->get_property_broker_id( $property_id );
-        if ( $current_broker_id ) {
-            $query_args['exclude'] = array( $current_broker_id );
-        }
-
-        $results = array();
-        foreach ( get_users( $query_args ) as $user ) {
-            $profile = $this->get_broker_profile_summary( $user->ID );
-            if ( ! empty( $profile ) ) {
-                $results[] = $profile;
-            }
-        }
-
-        wp_send_json_success( array( 'results' => $results ) );
-    }
-
-    public function ajax_admin_process_broker_change() {
-        check_ajax_referer( 'imovel_parceiro_core_nonce', 'nonce' );
-
-        if ( ! $this->user_can_manage_workflow() ) {
-            wp_send_json_error( array( 'message' => __( 'Acesso negado para processar troca de corretor.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $request_id = isset( $_POST['request_id'] ) ? absint( $_POST['request_id'] ) : 0;
-        $decision = isset( $_POST['decision'] ) ? sanitize_key( wp_unslash( $_POST['decision'] ) ) : '';
-        $admin_note = isset( $_POST['admin_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['admin_note'] ) ) : '';
-
-        if ( ! $request_id || ! in_array( $decision, array( 'approve', 'reject' ), true ) ) {
-            wp_send_json_error( array( 'message' => __( 'Dados invalidos para processamento da troca.', 'imovel-parceiro-core' ) ) );
-        }
-
-        global $wpdb;
-        $table = $this->get_broker_change_table();
-        $request = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d LIMIT 1", $request_id ) );
-
-        if ( ! $request || 'pendente' !== $request->status ) {
-            wp_send_json_error( array( 'message' => __( 'Solicitacao nao encontrada ou ja processada.', 'imovel-parceiro-core' ) ) );
-        }
-
-        $actor_user_id = get_current_user_id();
-        $property_id = (int) $request->property_id;
-        $owner_user_id = (int) $request->owner_user_id;
-        $current_broker_id = (int) $request->current_broker_id;
-        $requested_broker_id = (int) $request->requested_broker_id;
-        $new_status = 'approve' === $decision ? 'aprovada' : 'rejeitada';
-        $cancellation_reason = 'TROCA_DE_CORRETOR_APROVADA';
-
-        if ( 'approve' === $decision ) {
-            if ( ! $property_id || ! $this->is_property_owner( $property_id, $owner_user_id ) ) {
-                wp_send_json_error( array( 'message' => __( 'Imóvel ou proprietário inválido para concluir a troca.', 'imovel-parceiro-core' ) ) );
-            }
-
-            if ( ! $this->is_valid_broker_user( $requested_broker_id ) ) {
-                wp_send_json_error( array( 'message' => __( 'Corretor solicitado inválido para concluir a troca.', 'imovel-parceiro-core' ) ) );
-            }
-
-            $tx_started = $this->begin_database_transaction();
-
-            $updated_request = $wpdb->update(
-                $table,
-                array(
-                    'status' => $new_status,
-                    'admin_user_id' => $actor_user_id,
-                    'admin_note' => $admin_note,
-                    'processed_at' => current_time( 'mysql' ),
-                ),
-                array( 'id' => $request_id ),
-                array( '%s', '%d', '%s', '%s' ),
-                array( '%d' )
-            );
-
-            if ( false === $updated_request ) {
-                if ( $tx_started ) {
-                    $this->rollback_database_transaction();
-                }
-                wp_send_json_error( array( 'message' => __( 'Falha ao atualizar a solicitação de troca de corretor.', 'imovel-parceiro-core' ) ) );
-            }
-
-            $broker_updated = $this->update_property_broker_relation( $property_id, $requested_broker_id );
-            if ( ! $broker_updated ) {
-                if ( $tx_started ) {
-                    $this->rollback_database_transaction();
-                }
-                wp_send_json_error( array( 'message' => __( 'Falha ao definir o novo corretor do imóvel.', 'imovel-parceiro-core' ) ) );
-            }
-
-            $cancel_result = $this->cancel_property_partnerships_after_broker_approval(
-                $property_id,
-                $actor_user_id,
-                $cancellation_reason,
-                $request_id,
-                $current_broker_id,
-                $requested_broker_id
-            );
-
-            if ( is_wp_error( $cancel_result ) ) {
-                if ( $tx_started ) {
-                    $this->rollback_database_transaction();
-                }
-                wp_send_json_error( array( 'message' => $cancel_result->get_error_message() ) );
-            }
-
-            if ( $tx_started && ! $this->commit_database_transaction() ) {
-                $this->rollback_database_transaction();
-                wp_send_json_error( array( 'message' => __( 'Falha ao confirmar transação da troca de corretor.', 'imovel-parceiro-core' ) ) );
-            }
-
-            $cancelled_rows = ! empty( $cancel_result['cancelled_rows'] ) && is_array( $cancel_result['cancelled_rows'] ) ? $cancel_result['cancelled_rows'] : array();
-            $found_ids = ! empty( $cancel_result['found_ids'] ) && is_array( $cancel_result['found_ids'] ) ? $cancel_result['found_ids'] : array();
-
-            $this->insert_audit_log(
-                'admin_processed_broker_change',
-                $actor_user_id,
-                $owner_user_id,
-                $property_id,
-                array(
-                    'request_id' => $request_id,
-                    'decision' => $new_status,
-                    'current_broker_id' => $current_broker_id,
-                    'requested_broker_id' => $requested_broker_id,
-                    'admin_note' => $admin_note,
-                    'partnerships_found' => array_values( array_map( 'absint', $found_ids ) ),
-                    'partnerships_cancelled' => array_values( array_map( 'absint', wp_list_pluck( $cancelled_rows, 'id' ) ) ),
-                    'partnership_cancel_reason' => $cancellation_reason,
-                )
-            );
-
-            foreach ( $cancelled_rows as $cancelled_row ) {
-                $other_user_id = isset( $cancelled_row['requester_id'] ) ? absint( $cancelled_row['requester_id'] ) : 0;
-                if ( $other_user_id === $owner_user_id ) {
-                    $other_user_id = isset( $cancelled_row['owner_id'] ) ? absint( $cancelled_row['owner_id'] ) : 0;
-                }
-
-                $this->insert_audit_log(
-                    'partnership_cancelled',
-                    $actor_user_id,
-                    $other_user_id,
-                    $property_id,
-                    array(
-                        'request_id' => $request_id,
-                        'previous_status' => isset( $cancelled_row['previous_status'] ) ? sanitize_key( $cancelled_row['previous_status'] ) : '',
-                        'new_status' => isset( $cancelled_row['new_status'] ) ? sanitize_key( $cancelled_row['new_status'] ) : $this->get_partnership_status_to_apply_on_broker_change(),
-                        'reason' => $cancellation_reason,
-                        'current_broker_id' => $current_broker_id,
-                        'requested_broker_id' => $requested_broker_id,
-                    ),
-                    isset( $cancelled_row['id'] ) ? absint( $cancelled_row['id'] ) : 0
-                );
-
-                $this->notify_partnership_cancellation_due_broker_change( $cancelled_row, $property_id );
-            }
-        } else {
-            $updated_request = $wpdb->update(
-                $table,
-                array(
-                    'status' => $new_status,
-                    'admin_user_id' => $actor_user_id,
-                    'admin_note' => $admin_note,
-                    'processed_at' => current_time( 'mysql' ),
-                ),
-                array( 'id' => $request_id ),
-                array( '%s', '%d', '%s', '%s' ),
-                array( '%d' )
-            );
-
-            if ( false === $updated_request ) {
-                wp_send_json_error( array( 'message' => __( 'Falha ao processar a rejeição da troca de corretor.', 'imovel-parceiro-core' ) ) );
-            }
-
-            $this->insert_audit_log(
-                'admin_processed_broker_change',
-                $actor_user_id,
-                $owner_user_id,
-                $property_id,
-                array(
-                    'request_id' => $request_id,
-                    'decision' => $new_status,
-                    'current_broker_id' => $current_broker_id,
-                    'requested_broker_id' => $requested_broker_id,
-                    'admin_note' => $admin_note,
-                )
-            );
-        }
-
-        $this->notify_user(
-            $owner_user_id,
-            __( 'Solicitacao de troca de corretor processada', 'imovel-parceiro-core' ),
-            'approve' === $decision
-                ? __( 'Sua solicitacao de troca foi aprovada e o novo corretor foi associado.', 'imovel-parceiro-core' )
-                : __( 'Sua solicitacao de troca foi rejeitada pela administracao.', 'imovel-parceiro-core' )
-        );
-
-        IPC_Notifications::send(
-            array(
-                'user_id' => $owner_user_id,
-                'property_id' => $property_id,
-                'type' => 'approve' === $decision ? 'TROCA_CORRETOR_APROVADA' : 'SOLICITACAO_TROCA_CORRETOR_REJEITADA',
-                'category' => IPC_Notifications::CATEGORY_SISTEMA,
-                'title' => 'approve' === $decision ? __( 'Troca de corretor aprovada', 'imovel-parceiro-core' ) : __( 'Troca de corretor rejeitada', 'imovel-parceiro-core' ),
-                'message' => 'approve' === $decision
-                    ? __( 'Sua solicitação de troca foi aprovada e o novo corretor foi associado.', 'imovel-parceiro-core' )
-                    : __( 'Sua solicitação de troca foi rejeitada pela administração.', 'imovel-parceiro-core' ),
-                'url' => IPC_Notifications::get_dashboard_url( array( 'imovel_owner_area' => 'documentacao' ) ),
-                'priority' => 'approve' === $decision ? IPC_Notifications::PRIORITY_NORMAL : IPC_Notifications::PRIORITY_IMPORTANT,
-            )
-        );
-
-        if ( ! empty( $current_broker_id ) ) {
-            $this->notify_user(
-            $current_broker_id,
-                __( 'Atualizacao de solicitacao de troca de corretor', 'imovel-parceiro-core' ),
-                'approve' === $decision
-                    ? __( 'A administracao aprovou a troca de corretor deste imovel.', 'imovel-parceiro-core' )
-                    : __( 'A administracao rejeitou a troca de corretor deste imovel.', 'imovel-parceiro-core' )
-            );
-
-            IPC_Notifications::send(
-                array(
-                    'user_id' => $current_broker_id,
-                    'property_id' => $property_id,
-                    'type' => 'approve' === $decision ? 'TROCA_CORRETOR_APROVADA' : 'SOLICITACAO_TROCA_CORRETOR_REJEITADA',
-                    'category' => IPC_Notifications::CATEGORY_SISTEMA,
-                    'title' => 'approve' === $decision ? __( 'Troca de corretor aprovada', 'imovel-parceiro-core' ) : __( 'Troca de corretor rejeitada', 'imovel-parceiro-core' ),
-                    'message' => 'approve' === $decision
-                        ? __( 'A administração aprovou a troca de corretor deste imóvel.', 'imovel-parceiro-core' )
-                        : __( 'A administração rejeitou a troca de corretor deste imóvel.', 'imovel-parceiro-core' ),
-                    'url' => get_permalink( $property_id ),
-                    'priority' => 'approve' === $decision ? IPC_Notifications::PRIORITY_NORMAL : IPC_Notifications::PRIORITY_IMPORTANT,
-                )
-            );
-        }
-
-        if ( 'approve' === $decision && ! empty( $requested_broker_id ) ) {
-            $this->notify_user(
-                $requested_broker_id,
-                __( 'Você assumiu um imóvel como corretor responsável', 'imovel-parceiro-core' ),
-                __( 'A troca de corretor foi aprovada e você foi definido como responsável pelo imóvel.', 'imovel-parceiro-core' )
-            );
-
-            if ( class_exists( 'IPC_Notifications' ) ) {
-                IPC_Notifications::send(
-                    array(
-                        'user_id' => $requested_broker_id,
-                        'property_id' => $property_id,
-                        'type' => 'TROCA_CORRETOR_APROVADA',
-                        'category' => IPC_Notifications::CATEGORY_SISTEMA,
-                        'title' => __( 'Novo imóvel sob sua responsabilidade', 'imovel-parceiro-core' ),
-                        'message' => __( 'A troca de corretor foi aprovada e este imóvel agora está sob sua responsabilidade.', 'imovel-parceiro-core' ),
-                        'url' => get_permalink( $property_id ),
-                        'priority' => IPC_Notifications::PRIORITY_IMPORTANT,
-                    )
-                );
-            }
-        }
-
-        wp_send_json_success( array( 'message' => __( 'Solicitacao processada com sucesso.', 'imovel-parceiro-core' ) ) );
-    }
-
-    private function update_property_broker_relation( $property_id, $broker_user_id ) {
-        global $wpdb;
-
-        $property_id = absint( $property_id );
-        $broker_user_id = absint( $broker_user_id );
-
-        if ( ! $property_id || ! $broker_user_id ) {
-            return false;
-        }
-
-        $table = $this->get_relations_table();
-        $existing = $this->get_relation_by_property( $property_id );
-
-        if ( $existing ) {
-            $updated = $wpdb->update(
-                $table,
-                array(
-                    'broker_user_id' => $broker_user_id,
-                    'updated_at' => current_time( 'mysql' ),
-                ),
-                array( 'property_id' => $property_id ),
-                array( '%d', '%s' ),
-                array( '%d' )
-            );
-
-            if ( false === $updated ) {
-                return false;
-            }
-        }
-
-        update_post_meta( $property_id, self::META_BROKER_ID, $broker_user_id );
-
-        return (int) get_post_meta( $property_id, self::META_BROKER_ID, true ) === $broker_user_id;
-    }
-
     public function ajax_admin_review_document() {
         check_ajax_referer( 'imovel_parceiro_core_nonce', 'nonce' );
 
@@ -2528,6 +1820,118 @@ class Imovel_Parceiro_Owner_Workflow {
             array(
                 'ID' => $property_id,
                 'post_status' => $status,
+            )
+        );
+    }
+
+    /**
+     * Exclusão direta pelo proprietário (lixeira, recuperável).
+     *
+     * Motivo opcional vai para o log. Imóvel COM histórico comercial não
+     * pode ser excluído direto: vira solicitação para análise (sem beco).
+     */
+    public function ajax_owner_delete_property() {
+        check_ajax_referer( 'imovel_parceiro_core_nonce', 'nonce' );
+
+        if ( ! is_user_logged_in() || ! $this->is_proprietario_user() ) {
+            wp_send_json_error( array( 'message' => __( 'Acesso negado para exclusão do imóvel.', 'imovel-parceiro-core' ) ) );
+        }
+
+        $property_id = isset( $_POST['property_id'] ) ? absint( $_POST['property_id'] ) : 0;
+        $reason = isset( $_POST['reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) : '';
+        $owner_user_id = get_current_user_id();
+
+        if ( ! $property_id || 'property' !== get_post_type( $property_id ) || ! $this->is_property_owner( $property_id, $owner_user_id ) ) {
+            wp_send_json_error( array( 'message' => __( 'Exclusão inválida para este imóvel.', 'imovel-parceiro-core' ) ) );
+        }
+
+        // Com histórico comercial: não exclui direto, registra solicitação.
+        if ( $this->property_has_commercial_activity( $property_id ) ) {
+            global $wpdb;
+            $wpdb->insert(
+                $this->get_deletion_requests_table(),
+                array(
+                    'property_id' => $property_id,
+                    'owner_user_id' => $owner_user_id,
+                    'reason' => $reason,
+                    'has_commercial_history' => 1,
+                    'status' => 'pendente',
+                    'created_at' => current_time( 'mysql' ),
+                ),
+                array( '%d', '%d', '%s', '%d', '%s', '%s' )
+            );
+
+            $this->insert_audit_log(
+                'owner_requested_property_deletion',
+                $owner_user_id,
+                0,
+                $property_id,
+                array(
+                    'has_commercial_history' => 1,
+                    'reason' => $reason,
+                    'via' => 'direct_delete_blocked',
+                )
+            );
+
+            $this->notify_admins(
+                __( 'Nova solicitação de exclusão de imóvel', 'imovel-parceiro-core' ),
+                sprintf( __( 'O proprietário #%1$d solicitou exclusão do imóvel #%2$d (com histórico comercial).', 'imovel-parceiro-core' ), $owner_user_id, $property_id )
+            );
+
+            wp_send_json_success(
+                array(
+                    'mode' => 'requested',
+                    'message' => __( 'Este imóvel tem histórico comercial e não pode ser excluído diretamente. Sua solicitação foi enviada para análise administrativa.', 'imovel-parceiro-core' ),
+                )
+            );
+        }
+
+        $trashed = wp_trash_post( $property_id );
+        if ( ! $trashed ) {
+            wp_send_json_error( array( 'message' => __( 'Não foi possível excluir o imóvel. Tente novamente.', 'imovel-parceiro-core' ) ) );
+        }
+
+        $this->encerrar_parcerias_do_imovel( $property_id );
+
+        $this->insert_audit_log(
+            'owner_deleted_property',
+            $owner_user_id,
+            0,
+            $property_id,
+            array(
+                'has_commercial_history' => 0,
+                'reason' => $reason,
+            )
+        );
+
+        $this->notify_admins(
+            __( 'Imóvel excluído pelo proprietário', 'imovel-parceiro-core' ),
+            sprintf( __( 'O proprietário #%1$d excluiu o imóvel #%2$d (movido para a lixeira).', 'imovel-parceiro-core' ), $owner_user_id, $property_id )
+        );
+
+        wp_send_json_success(
+            array(
+                'mode' => 'deleted',
+                'message' => __( 'Imóvel excluído com sucesso.', 'imovel-parceiro-core' ),
+            )
+        );
+    }
+
+    /**
+     * Encerra parcerias ativas do imóvel excluído (não deixa órfãs).
+     */
+    private function encerrar_parcerias_do_imovel( $property_id ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'imovel_parceiro_partnerships';
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table} SET status='encerrada', notes = CASE WHEN notes IS NULL OR notes='' THEN %s ELSE CONCAT(notes,' | ',%s) END WHERE property_id=%d AND status NOT IN ('encerrada','closed','cancelled','rejected','won','lost')",
+                __( 'imóvel excluído pelo proprietário', 'imovel-parceiro-core' ),
+                __( 'imóvel excluído pelo proprietário', 'imovel-parceiro-core' ),
+                absint( $property_id )
             )
         );
     }

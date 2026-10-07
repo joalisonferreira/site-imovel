@@ -151,13 +151,9 @@ $ipc_admin_pending_badge = 0;
 if ( $is_admin_user ) {
     global $wpdb;
     $ipc_docs_table = $wpdb->prefix . 'imovel_parceiro_owner_documents';
-    $ipc_broker_table = $wpdb->prefix . 'imovel_parceiro_broker_change_requests';
 
     if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $ipc_docs_table ) ) ) {
         $ipc_admin_pending_badge += (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ipc_docs_table} WHERE status IN ('enviado','aguardando_informacoes')" );
-    }
-    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $ipc_broker_table ) ) ) {
-        $ipc_admin_pending_badge += (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ipc_broker_table} WHERE status = 'pendente'" );
     }
 }
 

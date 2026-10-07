@@ -558,8 +558,6 @@ function houzez_child_audit_event_labels() {
         // Fluxo do proprietário.
         'owner_property_registered' => __( 'Imóvel cadastrado pelo proprietário (fluxo do proprietário)', 'imovel-parceiro-core' ),
         'owner_document_submitted' => __( 'Documento enviado pelo proprietário (análise de documentação)', 'imovel-parceiro-core' ),
-        'owner_requested_broker_change' => __( 'Troca de corretor solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
-        'admin_processed_broker_change' => __( 'Troca de corretor analisada (gestão administrativa)', 'imovel-parceiro-core' ),
         'admin_reviewed_property_document' => __( 'Documento do imóvel analisado (gestão administrativa)', 'imovel-parceiro-core' ),
         'owner_requested_property_deletion' => __( 'Exclusão de imóvel solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
         'admin_processed_property_deletion_request' => __( 'Exclusão de imóvel analisada (gestão administrativa)', 'imovel-parceiro-core' ),

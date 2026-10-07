@@ -614,6 +614,207 @@ function imovel_parceiro_welcome_no_password( $args ) {
 }
 add_filter( 'wp_mail', 'imovel_parceiro_welcome_no_password', 6 );
 
+/**
+ * Padroniza os e-mails de sistema do Houzez sobre anúncios (envio,
+ * aprovação, reprovação, expiração): hoje saem com a URL crua do site no
+ * assunto e no corpo. Reescreve para PT-BR amigável com o template premium
+ * e botão de ação, sem editar o tema.
+ *
+ * Espelha a reescrita in-app de IPC_Notifications::friendly_houzez_copy().
+ *
+ * @param array $args Argumentos do wp_mail.
+ * @return array
+ */
+function imovel_parceiro_standardize_houzez_listing_emails( $args ) {
+	if ( empty( $args['subject'] ) || empty( $args['message'] ) || ! class_exists( 'Imovel_Parceiro_Email_Template' ) ) {
+		return $args;
+	}
+
+	$subject = (string) $args['subject'];
+	$message = (string) $args['message'];
+
+	$kind = '';
+	if ( preg_match( '/(seu novo an[úu]ncio|your new listing|new .*submission|featured upgrade|nova submiss[aã]o|novo envio)/iu', $subject ) ) {
+		$kind = 'submitted';
+	} elseif ( preg_match( '/(listing approved|an[úu]ncio aprovado)/iu', $subject )
+		&& preg_match( '/(T[íi]tulo do an[úu]ncio|Listins? Title|Listing Url|URL do an[úu]ncio)/iu', $message ) ) {
+		$kind = 'approved';
+	} elseif ( preg_match( '/(listing disapproved|an[úu]ncio (precisa de ajustes|reprovado|recusado|n[ãa]o aprovado))/iu', $subject )
+		&& preg_match( '/(T[íi]tulo do an[úu]ncio|Listins? Title|Listing Url|URL do an[úu]ncio)/iu', $message ) ) {
+		$kind = 'disapproved';
+	} elseif ( preg_match( '/(listing expired|an[úu]ncio expirado)/iu', $subject )
+		&& preg_match( '/(T[íi]tulo do an[úu]ncio|Listins? Title|Listing Url|URL do an[úu]ncio)/iu', $message ) ) {
+		$kind = 'expired';
+	}
+
+	if ( '' === $kind ) {
+		return $args;
+	}
+
+	$to      = $args['to'];
+	$to_mail = is_array( $to ) ? (string) reset( $to ) : (string) $to;
+	$is_admin = is_email( $to_mail ) && $to_mail === get_option( 'admin_email' );
+
+	$plain = wp_strip_all_tags( $message );
+	$listing_title = '';
+	if ( preg_match( '/(?:T[íi]tulo do an[úu]ncio|Listins? Title)\s*:?\s*(.+)/iu', $plain, $m ) ) {
+		$listing_title = trim( (string) preg_replace( '/\s+URL do an[úu]ncio:.*/iu', '', $m[1] ) );
+		$listing_title = trim( (string) preg_replace( '/\s+Listing [Uu]rl:.*/u', '', $listing_title ) );
+		$listing_title = trim( (string) preg_replace( '/\s+(ID do an[úu]ncio|Listing ID)\s*:.*/iu', '', $listing_title ) );
+	}
+	$listing_url = '';
+	if ( preg_match_all( '~https?://\S+~i', $plain, $m ) ) {
+		foreach ( $m[0] as $candidate ) {
+			$candidate = rtrim( $candidate, '.,;:!?)]}\'"' );
+			if ( preg_match( '/[?&]p=\d+|\/(property|imovel|imoveis)\//i', $candidate ) ) {
+				$listing_url = $candidate;
+				break;
+			}
+			$listing_url = $candidate;
+		}
+		if ( '' !== $listing_url ) {
+			$host = wp_parse_url( home_url(), PHP_URL_HOST );
+			if ( ! $host || false === stripos( $listing_url, $host ) ) {
+				$listing_url = '';
+			}
+		}
+	}
+	$listing_id = 0;
+	if ( preg_match( '/(?:ID do an[úu]ncio|Listing ID)\s*:\s*(\d+)/iu', $plain, $m ) ) {
+		$listing_id = absint( $m[1] );
+	}
+	if ( ! $listing_id && '' !== $listing_url && preg_match( '/[?&]p=(\d+)/', $listing_url, $m ) ) {
+		$listing_id = absint( $m[1] );
+	}
+	$invoice = '';
+	if ( preg_match( '/(?:fatura|invoice)[^:\n]*:\s*(\S+)/iu', $plain, $m ) ) {
+		$invoice = trim( $m[1], '.,;:!?)]}\'"' );
+	}
+
+	// Corpo já em HTML (template legado): só limpa o assunto e troca o
+	// texto dos links crus do próprio site por "Ver anúncio" (o href fica).
+	if ( false !== stripos( $message, '<a ' ) || false !== stripos( $message, '<html' ) ) {
+		$brand = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$host  = wp_parse_url( home_url(), PHP_URL_HOST );
+		if ( $host ) {
+			$message = preg_replace_callback(
+				'~<a([^>]*href="https?://(www\.)?' . preg_quote( $host, '~' ) . '[^"]*")[^>]*>(.*?)</a>~is',
+				function ( $matches ) {
+					$label = trim( wp_strip_all_tags( $matches[3] ) );
+					if ( 0 === stripos( $label, 'http' ) || 0 === stripos( $label, 'www.' ) ) {
+						return '<a' . $matches[1] . '>' . esc_html__( 'Ver anúncio', 'imovel-parceiro-core' ) . '</a>';
+					}
+					return $matches[0];
+				},
+				$message
+			);
+		}
+		$args['subject'] = imovel_parceiro_listing_email_subject( $kind, $is_admin, $listing_title, $brand );
+		$args['message'] = $message;
+		return $args;
+	}
+
+	$brand = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	$code  = $listing_id ? sprintf( __( ' (código %d)', 'imovel-parceiro-core' ), $listing_id ) : '';
+	$lines = array( __( 'Olá!', 'imovel-parceiro-core' ), '' );
+	$render_args = array();
+
+	if ( 'submitted' === $kind && $is_admin ) {
+		$render_args['title'] = __( 'Novo anúncio para revisar', 'imovel-parceiro-core' );
+		$lines[] = __( 'Um novo anúncio foi enviado para análise.', 'imovel-parceiro-core' );
+		$lines[] = '';
+		if ( '' !== $listing_title ) {
+			$lines[] = sprintf( __( 'Título: %1$s%2$s', 'imovel-parceiro-core' ), $listing_title, $code );
+		} elseif ( $listing_id ) {
+			$lines[] = sprintf( __( 'Código: %d', 'imovel-parceiro-core' ), $listing_id );
+		}
+		if ( '' !== $invoice ) {
+			$lines[] = sprintf( __( 'Fatura: %s', 'imovel-parceiro-core' ), $invoice );
+		}
+		if ( '' !== $listing_url ) {
+			$render_args['cta_url']  = $listing_url;
+			$render_args['cta_text'] = __( 'Revisar anúncio', 'imovel-parceiro-core' );
+		}
+	} elseif ( 'submitted' === $kind ) {
+		$render_args['title'] = __( 'Anúncio enviado!', 'imovel-parceiro-core' );
+		$lines[] = $listing_title
+			? sprintf( __( 'Recebemos o seu anúncio "%1$s"%2$s e ele já está em análise.', 'imovel-parceiro-core' ), $listing_title, $code )
+			: __( 'Recebemos o seu anúncio e ele já está em análise.', 'imovel-parceiro-core' );
+		$lines[] = '';
+		$lines[] = __( 'Você será avisado assim que for publicado.', 'imovel-parceiro-core' );
+		if ( '' !== $invoice ) {
+			$lines[] = '';
+			$lines[] = sprintf( __( 'Fatura: %s', 'imovel-parceiro-core' ), $invoice );
+		}
+		if ( '' !== $listing_url ) {
+			$render_args['cta_url']  = $listing_url;
+			$render_args['cta_text'] = __( 'Ver anúncio', 'imovel-parceiro-core' );
+		}
+	} elseif ( 'approved' === $kind ) {
+		$render_args['title'] = __( 'Anúncio aprovado', 'imovel-parceiro-core' );
+		$lines[] = $listing_title
+			? sprintf( __( 'Boas notícias! Seu anúncio "%s" já está publicado.', 'imovel-parceiro-core' ), $listing_title )
+			: __( 'Boas notícias! Seu anúncio já está publicado.', 'imovel-parceiro-core' );
+		if ( '' !== $listing_url ) {
+			$render_args['cta_url']  = $listing_url;
+			$render_args['cta_text'] = __( 'Ver anúncio', 'imovel-parceiro-core' );
+		}
+	} elseif ( 'disapproved' === $kind ) {
+		$render_args['title'] = __( 'Anúncio precisa de ajustes', 'imovel-parceiro-core' );
+		$lines[] = $listing_title
+			? sprintf( __( 'Seu anúncio "%s" ainda não foi aprovado. Ajuste as informações e envie novamente pelo painel.', 'imovel-parceiro-core' ), $listing_title )
+			: __( 'Seu anúncio ainda não foi aprovado. Ajuste as informações e envie novamente pelo painel.', 'imovel-parceiro-core' );
+	} else {
+		$render_args['title'] = __( 'Anúncio expirado', 'imovel-parceiro-core' );
+		$lines[] = $listing_title
+			? sprintf( __( 'Seu anúncio "%s" expirou. Atualize as informações no painel para republicar.', 'imovel-parceiro-core' ), $listing_title )
+			: __( 'Seu anúncio expirou. Atualize as informações no painel para republicar.', 'imovel-parceiro-core' );
+	}
+
+	$args['subject'] = imovel_parceiro_listing_email_subject( $kind, $is_admin, $listing_title, $brand );
+	$args['message'] = Imovel_Parceiro_Email_Template::render(
+		Imovel_Parceiro_Email_Template::text_to_html( implode( "\n", $lines ) ),
+		$render_args
+	);
+	$args['headers'] = array( 'Content-Type: text/html; charset=UTF-8' );
+
+	return $args;
+}
+
+/**
+ * Assunto PT-BR dos e-mails de sistema do Houzez sobre anúncios (sem URL).
+ *
+ * @param string $kind          submitted|approved|disapproved|expired.
+ * @param bool   $is_admin      Cópia do administrador.
+ * @param string $listing_title Título do anúncio (pode ser vazio).
+ * @param string $brand         Nome do site.
+ * @return string
+ */
+function imovel_parceiro_listing_email_subject( $kind, $is_admin, $listing_title, $brand ) {
+	if ( 'submitted' === $kind && $is_admin ) {
+		return sprintf( __( '[%s] Novo anúncio para revisar', 'imovel-parceiro-core' ), $brand );
+	}
+	if ( 'submitted' === $kind ) {
+		return '' !== $listing_title
+			? sprintf( __( '[%1$s] Seu anúncio "%2$s" foi enviado', 'imovel-parceiro-core' ), $brand, $listing_title )
+			: sprintf( __( '[%s] Seu novo anúncio foi enviado', 'imovel-parceiro-core' ), $brand );
+	}
+	if ( 'approved' === $kind ) {
+		return '' !== $listing_title
+			? sprintf( __( '[%1$s] Seu anúncio "%2$s" foi aprovado', 'imovel-parceiro-core' ), $brand, $listing_title )
+			: sprintf( __( '[%s] Seu anúncio foi aprovado', 'imovel-parceiro-core' ), $brand );
+	}
+	if ( 'disapproved' === $kind ) {
+		return '' !== $listing_title
+			? sprintf( __( '[%1$s] Seu anúncio "%2$s" precisa de ajustes', 'imovel-parceiro-core' ), $brand, $listing_title )
+			: sprintf( __( '[%s] Seu anúncio precisa de ajustes', 'imovel-parceiro-core' ), $brand );
+	}
+	return '' !== $listing_title
+		? sprintf( __( '[%1$s] Seu anúncio "%2$s" expirou', 'imovel-parceiro-core' ), $brand, $listing_title )
+		: sprintf( __( '[%s] Seu anúncio expirou', 'imovel-parceiro-core' ), $brand );
+}
+add_filter( 'wp_mail', 'imovel_parceiro_standardize_houzez_listing_emails', 7 );
+
 if ( ! function_exists( 'houzez_send_emails_with_reply' ) ) {
 	function houzez_send_emails_with_reply( $user_email, $subject, $message, $sender_name = '', $sender_email = '', $cc_email = '', $bcc_email = '' ) {
 		if ( class_exists( 'Imovel_Parceiro_Email_Template' ) ) {

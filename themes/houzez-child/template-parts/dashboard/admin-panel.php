@@ -19,10 +19,8 @@ $current_management_section = isset( $_GET['imovel_admin_section'] ) ? sanitize_
 
 $audit_table = $wpdb->prefix . 'imovel_parceiro_audit_logs';
 $partnership_table = $wpdb->prefix . 'imovel_parceiro_partnerships';
-$broker_change_table = $wpdb->prefix . 'imovel_parceiro_broker_change_requests';
 $documents_table = $wpdb->prefix . 'imovel_parceiro_owner_documents';
 $audit_table_exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $audit_table ) );
-$broker_change_table_exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $broker_change_table ) );
 $documents_table_exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $documents_table ) );
 
 $audit_user_filter = isset( $_GET['audit_user_search'] ) ? sanitize_text_field( wp_unslash( $_GET['audit_user_search'] ) ) : '';
@@ -95,13 +93,6 @@ $cancelled_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$partnership_tab
 $summary_cards[0]['value'] = $pending_count;
 $summary_cards[1]['value'] = $accepted_count;
 $summary_cards[2]['value'] = $cancelled_count;
-
-$broker_change_pending_count = 0;
-$broker_change_requests = array();
-if ( $broker_change_table_exists ) {
-    $broker_change_pending_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$broker_change_table} WHERE status = 'pendente'" );
-    $broker_change_requests = $wpdb->get_results( "SELECT * FROM {$broker_change_table} ORDER BY created_at DESC, id DESC LIMIT 20" );
-}
 
 $doc_status_labels = array(
     'all' => __( 'Todos', 'imovel-parceiro-core' ),
@@ -296,8 +287,6 @@ $event_labels = array(
     // Fluxo do proprietário.
     'owner_property_registered' => __( 'Imóvel cadastrado pelo proprietário (fluxo do proprietário)', 'imovel-parceiro-core' ),
     'owner_document_submitted' => __( 'Documento enviado pelo proprietário (análise de documentação)', 'imovel-parceiro-core' ),
-    'owner_requested_broker_change' => __( 'Troca de corretor solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
-    'admin_processed_broker_change' => __( 'Troca de corretor analisada (gestão administrativa)', 'imovel-parceiro-core' ),
     'admin_reviewed_property_document' => __( 'Documento do imóvel analisado (gestão administrativa)', 'imovel-parceiro-core' ),
     'owner_requested_property_deletion' => __( 'Exclusão de imóvel solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
     'admin_processed_property_deletion_request' => __( 'Exclusão de imóvel analisada (gestão administrativa)', 'imovel-parceiro-core' ),
@@ -328,12 +317,6 @@ $management_tabs = array(
         'icon' => 'dashicons-media-document',
         'description' => __( 'Visualizar e analisar documentação enviada pelos proprietários.', 'imovel-parceiro-core' ),
     ),
-    'broker_changes' => array(
-        'label' => __( 'Trocas de corretor', 'imovel-parceiro-core' ),
-        'section' => 'broker_changes',
-        'icon' => 'dashicons-randomize',
-        'description' => __( 'Revisar solicitações de troca de corretor enviadas pelos proprietários.', 'imovel-parceiro-core' ),
-    ),
     'testimonials' => array(
         'label' => __( 'Depoimentos', 'imovel-parceiro-core' ),
         'section' => 'testimonials',
@@ -357,7 +340,6 @@ $management_tabs = array(
 $admin_management_sections = array( 'agents', 'clients', 'owners', 'agencies', 'packages', 'reviews', 'testimonials', 'approval', 'verification_requests' );
 $child_management_sections = array(
     'owner_documents' => __( 'Documentação', 'imovel-parceiro-core' ),
-    'broker_changes' => __( 'Trocas de corretor', 'imovel-parceiro-core' ),
     'watermark' => __( 'Marca d\'água', 'imovel-parceiro-core' ),
     'inatividade' => __( 'Inatividade', 'imovel-parceiro-core' ),
 );
@@ -594,7 +576,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             'testimonials' => __( 'Depoimentos', 'imovel-parceiro-core' ),
             'approval' => __( 'Aprovações', 'imovel-parceiro-core' ),
             'owner_documents' => __( 'Documentação', 'imovel-parceiro-core' ),
-            'broker_changes' => __( 'Trocas de corretor', 'imovel-parceiro-core' ),
             'watermark' => __( 'Marca d\'água', 'imovel-parceiro-core' ),
             'inatividade' => __( 'Inatividade', 'imovel-parceiro-core' ),
             'duplicados' => __( 'Imóveis duplicados', 'imovel-parceiro-core' ),
@@ -625,7 +606,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             ),
             __( 'Operação', 'imovel-parceiro-core' ) => array(
                 'owner_documents' => array( 'file-text' ),
-                'broker_changes' => array( 'arrow-left-right' ),
                 'inatividade' => array( 'timer' ),
                 'duplicados' => array( 'copy' ),
             ),
@@ -636,7 +616,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
 
         $ipc_rail_badges = array(
             'owner_documents' => (int) $doc_counts['enviado'] + (int) $doc_counts['aguardando_informacoes'],
-            'broker_changes' => $broker_change_pending_count,
             'approval' => $ipc_pending_property_count,
         );
 
@@ -675,8 +654,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                     <p class="mt-1 text-sm text-slate-500">
                         <?php if ( 'owner_documents' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Visualize e analise a documentação enviada pelos proprietários, revise o status e decida com segurança.', 'imovel-parceiro-core' ); ?>
-                        <?php elseif ( 'broker_changes' === $current_management_section ) : ?>
-                            <?php esc_html_e( 'Analise e processe as solicitações enviadas pelos proprietários antes de alterar o corretor do imóvel.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'watermark' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Configure a marca d\'água para aplicar automaticamente em novas fotos de imóveis.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'inatividade' === $current_management_section ) : ?>
@@ -700,7 +677,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 </div>
             </div>
 
-            <?php if ( (int) $doc_counts['enviado'] > 0 || $broker_change_pending_count > 0 ) : ?>
+            <?php if ( (int) $doc_counts['enviado'] > 0 ) : ?>
                 <div class="mb-5 rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
@@ -708,21 +685,13 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                         </span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-bold text-amber-900"><?php esc_html_e( 'Atenções pendentes aguardando ação', 'imovel-parceiro-core' ); ?></p>
-                            <p class="text-xs text-amber-700"><?php esc_html_e( 'Resolva as pendências de documentação e trocas de corretor.', 'imovel-parceiro-core' ); ?></p>
+                            <p class="text-xs text-amber-700"><?php esc_html_e( 'Resolva as pendências de documentação.', 'imovel-parceiro-core' ); ?></p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <?php if ( (int) $doc_counts['enviado'] > 0 ) : ?>
-                                <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'owner_documents' ), $dashboard_url ) ); ?>" class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100">
-                                    <?php echo houzez_dash_icon( 'file-text', 'h-3.5 w-3.5' ); ?>
-                                    <?php echo esc_html( sprintf( __( 'Documentação: %d', 'imovel-parceiro-core' ), (int) $doc_counts['enviado'] ) ); ?>
-                                </a>
-                            <?php endif; ?>
-                            <?php if ( $broker_change_pending_count > 0 ) : ?>
-                                <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'broker_changes' ), $dashboard_url ) ); ?>" class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100">
-                                    <?php echo houzez_dash_icon( 'arrow-left-right', 'h-3.5 w-3.5' ); ?>
-                                    <?php echo esc_html( sprintf( __( 'Trocas: %d', 'imovel-parceiro-core' ), $broker_change_pending_count ) ); ?>
-                                </a>
-                            <?php endif; ?>
+                            <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'owner_documents' ), $dashboard_url ) ); ?>" class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100">
+                                <?php echo houzez_dash_icon( 'file-text', 'h-3.5 w-3.5' ); ?>
+                                <?php echo esc_html( sprintf( __( 'Documentação: %d', 'imovel-parceiro-core' ), (int) $doc_counts['enviado'] ) ); ?>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -919,78 +888,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
-            <?php elseif ( 'broker_changes' === $current_management_section ) : ?>
-                <div class="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
-                        <div>
-                            <h5 style="margin:0 0 4px;"><?php esc_html_e( 'Trocas de corretor', 'imovel-parceiro-core' ); ?></h5>
-                            <p style="margin:0; color:#666;"><?php esc_html_e( 'Analise e processe as solicitações enviadas pelos proprietários antes de alterar o corretor do imóvel.', 'imovel-parceiro-core' ); ?></p>
-                        </div>
-                        <div class="badge bg-warning text-dark" style="font-size:14px; padding:10px 12px;"><?php echo esc_html( sprintf( __( '%d pendentes', 'imovel-parceiro-core' ), $broker_change_pending_count ) ); ?></div>
-                    </div>
-
-                    <?php if ( ! $broker_change_table_exists ) : ?>
-                        <div style="padding:12px 14px; border:1px solid #ffe08a; background:#fff8db; border-radius:8px; color:#6b5200;">
-                            <?php esc_html_e( 'A tabela de solicitações de troca de corretor ainda não foi criada.', 'imovel-parceiro-core' ); ?>
-                        </div>
-                    <?php elseif ( empty( $broker_change_requests ) ) : ?>
-                        <p class="mb-0 text-muted"><?php esc_html_e( 'Nenhuma solicitação de troca registrada ainda.', 'imovel-parceiro-core' ); ?></p>
-                    <?php else : ?>
-                        <div class="table-responsive">
-                            <table class="ipc-table table dashboard-table table-lined responsive-table">
-                                <thead>
-                                    <tr>
-                                        <th><?php esc_html_e( 'Imóvel', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Proprietário', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Corretor atual', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Corretor solicitado', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Motivo', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Data', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ( $broker_change_requests as $request ) : ?>
-                                        <?php
-                                        $property_title = get_the_title( $request->property_id );
-                                        if ( empty( $property_title ) ) {
-                                            $property_title = sprintf( __( 'Imóvel #%d', 'imovel-parceiro-core' ), absint( $request->property_id ) );
-                                        }
-                                        $owner_user = get_userdata( (int) $request->owner_user_id );
-                                        $current_broker_user = ! empty( $request->current_broker_id ) ? get_userdata( (int) $request->current_broker_id ) : false;
-                                        $requested_broker_user = ! empty( $request->requested_broker_id ) ? get_userdata( (int) $request->requested_broker_id ) : false;
-                                        $owner_label = $owner_user && ! empty( $owner_user->display_name ) ? $owner_user->display_name : sprintf( __( 'Usuário #%d', 'imovel-parceiro-core' ), absint( $request->owner_user_id ) );
-                                        $current_broker_label = $current_broker_user && ! empty( $current_broker_user->display_name ) ? $current_broker_user->display_name : '-';
-                                        $requested_broker_label = $requested_broker_user && ! empty( $requested_broker_user->display_name ) ? $requested_broker_user->display_name : '-';
-                                        $status_label = ! empty( $request->status ) ? ucfirst( str_replace( '_', ' ', $request->status ) ) : '-';
-                                        $created_at = ! empty( $request->created_at ) ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $request->created_at ) ) : '-';
-                                        ?>
-                                        <tr>
-                                            <td><?php echo esc_html( $property_title ); ?></td>
-                                            <td><?php echo esc_html( $owner_label ); ?></td>
-                                            <td><?php echo esc_html( $current_broker_label ); ?></td>
-                                            <td><?php echo esc_html( $requested_broker_label ); ?></td>
-                                            <td><?php echo esc_html( ! empty( $request->reason ) ? $request->reason : __( 'Sem observações.', 'imovel-parceiro-core' ) ); ?></td>
-                                            <td><?php echo esc_html( $status_label ); ?></td>
-                                            <td><?php echo esc_html( $created_at ); ?></td>
-                                            <td>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <?php if ( 'pendente' === $request->status ) : ?>
-                                                        <button type="button" class="btn btn-success btn-sm imovel-broker-change-action" data-decision="approve" data-request-id="<?php echo esc_attr( $request->id ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
-                                                        <button type="button" class="btn btn-danger btn-sm imovel-broker-change-action" data-decision="reject" data-request-id="<?php echo esc_attr( $request->id ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
-                                                    <?php else : ?>
-                                                        <span class="text-muted"><?php esc_html_e( 'Processada', 'imovel-parceiro-core' ); ?></span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
             <?php elseif ( 'watermark' === $current_management_section && class_exists( 'Imovel_Parceiro_Watermark' ) ) : ?>
                 <?php get_template_part( 'template-parts/dashboard/admin-watermark' ); ?>
             <?php elseif ( 'inatividade' === $current_management_section && class_exists( 'Imovel_Parceiro_Property_Visibility' ) ) : ?>
@@ -1114,11 +1011,6 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                     <?php echo houzez_dash_icon( 'file-text', 'h-3.5 w-3.5' ); ?>
                     <?php esc_html_e( 'Documentação', 'imovel-parceiro-core' ); ?>
                     <?php if ( (int) $doc_counts['enviado'] > 0 ) : ?><span class="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-700"><?php echo esc_html( number_format_i18n( (int) $doc_counts['enviado'] ) ); ?></span><?php endif; ?>
-                </a>
-                <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'broker_changes' ), $dashboard_url ) ); ?>" class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-200">
-                    <?php echo houzez_dash_icon( 'arrow-left-right', 'h-3.5 w-3.5' ); ?>
-                    <?php esc_html_e( 'Trocas de corretor', 'imovel-parceiro-core' ); ?>
-                    <?php if ( $broker_change_pending_count > 0 ) : ?><span class="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-700"><?php echo esc_html( number_format_i18n( $broker_change_pending_count ) ); ?></span><?php endif; ?>
                 </a>
                 <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'watermark' ), $dashboard_url ) ); ?>" class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-200">
                     <?php echo houzez_dash_icon( 'droplets', 'h-3.5 w-3.5' ); ?>

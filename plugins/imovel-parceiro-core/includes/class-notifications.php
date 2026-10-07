@@ -603,6 +603,11 @@ class IPC_Notifications {
         $title   = str_replace( $bare_keys, $bare_values, $title );
         $message = str_replace( $bare_keys, $bare_values, $message );
 
+        // E-mails de sistema do Houzez chegam com URL crua do site no título
+        // e no corpo (ex.: "Seu novo anúncio em https://..."). Reescreve de
+        // forma amigável em PT-BR: o cartão já linka o imóvel via `url`.
+        list( $title, $message ) = self::friendly_houzez_copy( $title, $message, $type, $args, $property_id );
+
         self::send(
             array(
                 'user_id' => (int) $user->ID,
@@ -616,6 +621,130 @@ class IPC_Notifications {
                 'meta' => array( 'source' => 'houzez_send_notification', 'houzez_type' => $type ),
             )
         );
+    }
+
+    /**
+     * Reescreve título/mensagem dos e-mails de sistema do Houzez espelhados
+     * no app (envio, aprovação, reprovação e expiração de anúncio): texto
+     * amigável em PT-BR, sem URL crua do site.
+     *
+     * Tipos gerados pelo usuário (mensagens de contato, agendamentos etc.)
+     * passam intactos — só os tipos de sistema do tema são tocados.
+     *
+     * @param string $title       Título com tokens já resolvidos.
+     * @param string $message     Mensagem com tokens já resolvidos.
+     * @param string $type        Tipo Houzez (ex.: listing_submitted).
+     * @param array  $args        Argumentos do houzez_send_notification.
+     * @param int    $property_id ID do imóvel, quando resolvido.
+     * @return array {0: title, 1: message}
+     */
+    public static function friendly_houzez_copy( $title, $message, $type, $args = array(), $property_id = 0 ) {
+        if ( ! preg_match( '/^(listing_|paid_submission|featured_submission|free_submission|admin_)/', (string) $type ) ) {
+            return array( $title, $message );
+        }
+
+        $is_admin = 0 === strpos( (string) $type, 'admin_' );
+        $kind     = 'submitted';
+        if ( false !== strpos( (string) $type, 'approved' ) ) {
+            $kind = 'approved';
+        } elseif ( false !== strpos( (string) $type, 'disapproved' ) ) {
+            $kind = 'disapproved';
+        } elseif ( false !== strpos( (string) $type, 'expired' ) ) {
+            $kind = 'expired';
+        }
+
+        $listing_title = isset( $args['listing_title'] ) ? trim( (string) $args['listing_title'] ) : '';
+        $listing_url   = isset( $args['listing_url'] ) ? trim( (string) $args['listing_url'] ) : '';
+        $listing_id    = isset( $args['listing_id'] ) ? absint( $args['listing_id'] ) : 0;
+
+        if ( '' === $listing_title && preg_match( '/(?:T[íi]tulo do an[úu]ncio|Listing Title)\s*:?\s*(.+)/iu', (string) $message, $m ) ) {
+            $listing_title = trim( wp_strip_all_tags( $m[1] ) );
+            // O template emenda "URL do anúncio:" e "ID do anúncio:" na mesma
+            // linha — corta esses trechos para ficar só com o título.
+            $listing_title = trim( (string) preg_replace( '/\s+URL do an[úu]ncio:.*/iu', '', $listing_title ) );
+            $listing_title = trim( (string) preg_replace( '/\s+Listing [Uu]rl:.*/u', '', $listing_title ) );
+            $listing_title = trim( (string) preg_replace( '/\s+(ID do an[úu]ncio|Listing ID)\s*:.*/iu', '', $listing_title ) );
+        }
+        if ( ! $listing_id && preg_match( '/(?:ID do an[úu]ncio|Listing ID)\s*:\s*(\d+)/iu', (string) $message, $m ) ) {
+            $listing_id = absint( $m[1] );
+        }
+        if ( '' === $listing_url && preg_match_all( '~https?://\S+~i', (string) $message, $m ) ) {
+            foreach ( $m[0] as $candidate ) {
+                $candidate = rtrim( $candidate, '.,;:!?)]}\'"' );
+                if ( preg_match( '/[?&]p=\d+|\/(property|imovel|imoveis)\//i', $candidate ) ) {
+                    $listing_url = $candidate;
+                    break;
+                }
+                $listing_url = $candidate;
+            }
+        }
+        if ( ! $listing_id && '' !== $listing_url && preg_match( '/[?&]p=(\d+)/', $listing_url, $m ) ) {
+            $listing_id = absint( $m[1] );
+        }
+        if ( ! $listing_id && (int) $property_id > 0 ) {
+            $listing_id = (int) $property_id;
+        }
+
+        $code = $listing_id ? sprintf( __( ' (código %d)', 'imovel-parceiro-core' ), $listing_id ) : '';
+
+        if ( 'submitted' === $kind && $is_admin ) {
+            $title   = __( 'Novo anúncio para revisar', 'imovel-parceiro-core' );
+            $message = $listing_title
+                ? sprintf( __( 'Um novo anúncio foi enviado para análise: "%1$s"%2$s. Abra o painel para revisar.', 'imovel-parceiro-core' ), $listing_title, $code )
+                : __( 'Um novo anúncio foi enviado para análise. Abra o painel para revisar.', 'imovel-parceiro-core' );
+        } elseif ( 'submitted' === $kind ) {
+            $title   = __( 'Seu novo anúncio foi enviado', 'imovel-parceiro-core' );
+            $message = $listing_title
+                ? sprintf( __( 'Olá! Você acabou de enviar o anúncio "%1$s"%2$s. Ele está em análise e será publicado em breve.', 'imovel-parceiro-core' ), $listing_title, $code )
+                : __( 'Olá! Seu novo anúncio foi enviado e está em análise. Ele será publicado em breve.', 'imovel-parceiro-core' );
+        } elseif ( 'approved' === $kind ) {
+            $title   = __( 'Anúncio aprovado', 'imovel-parceiro-core' );
+            $message = $listing_title
+                ? sprintf( __( 'Boas notícias! Seu anúncio "%1$s" foi aprovado e já está publicado.', 'imovel-parceiro-core' ), $listing_title )
+                : __( 'Boas notícias! Seu anúncio foi aprovado e já está publicado.', 'imovel-parceiro-core' );
+        } elseif ( 'disapproved' === $kind ) {
+            $title   = __( 'Anúncio precisa de ajustes', 'imovel-parceiro-core' );
+            $message = $listing_title
+                ? sprintf( __( 'Seu anúncio "%1$s" ainda não foi aprovado. Ajuste as informações e envie novamente pelo painel.', 'imovel-parceiro-core' ), $listing_title )
+                : __( 'Seu anúncio ainda não foi aprovado. Ajuste as informações e envie novamente pelo painel.', 'imovel-parceiro-core' );
+        } elseif ( 'expired' === $kind ) {
+            $title   = __( 'Anúncio expirado', 'imovel-parceiro-core' );
+            $message = $listing_title
+                ? sprintf( __( 'Seu anúncio "%1$s" expirou. Atualize as informações no painel para republicar.', 'imovel-parceiro-core' ), $listing_title )
+                : __( 'Seu anúncio expirou. Atualize as informações no painel para republicar.', 'imovel-parceiro-core' );
+        } else {
+            $title   = self::strip_site_urls( $title );
+            $message = self::strip_site_urls( $message );
+        }
+
+        return array( self::strip_site_urls( $title ), self::strip_site_urls( $message ) );
+    }
+
+    /**
+     * Troca URLs cruas do próprio site pelo nome da marca (título e corpo de
+     * notificações e e-mails nunca devem exibir o endereço cru).
+     *
+     * @param string $text Texto a limpar.
+     * @return string
+     */
+    public static function strip_site_urls( $text ) {
+        $text = (string) $text;
+        if ( '' === $text ) {
+            return $text;
+        }
+
+        $brand = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+        $host  = wp_parse_url( home_url(), PHP_URL_HOST );
+        if ( $host ) {
+            $text = preg_replace( '~https?://(www\.)?' . preg_quote( $host, '~' ) . '\S*~i', $brand, $text );
+            $text = preg_replace( '~(?<![\w@])www\.' . preg_quote( $host, '~' ) . '\S*~i', $brand, $text );
+        }
+        $siteurl = get_option( 'siteurl' );
+        if ( $siteurl && false !== strpos( $text, $siteurl ) ) {
+            $text = str_replace( $siteurl, $brand, $text );
+        }
+
+        return trim( preg_replace( '/[ \t]{2,}/', ' ', $text ) );
     }
 
     public function format_notification( $item ) {
