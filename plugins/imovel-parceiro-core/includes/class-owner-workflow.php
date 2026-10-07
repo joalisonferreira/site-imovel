@@ -743,6 +743,17 @@ class Imovel_Parceiro_Owner_Workflow {
     }
 
     private function get_default_broker_user_id() {
+        // Regra da plataforma: o corretor responsável padrão é o usuário
+        // contato@ (mesmo e-mail central de Imovel_Parceiro_Partnerships).
+        $platform_email = apply_filters( 'imovel_parceiro_platform_admin_email', 'contato@imovelparceiro.com.br' );
+        if ( is_string( $platform_email ) && '' !== $platform_email ) {
+            $platform_user = get_user_by( 'email', $platform_email );
+            if ( $platform_user ) {
+                return absint( $platform_user->ID );
+            }
+        }
+
+        // Fallback legado: primeiro administrator por ID.
         $admins = get_users(
             array(
                 'role' => 'administrator',
