@@ -1737,3 +1737,36 @@ body.ipc-sidebar-open .ipc-sidebar-overlay {
     min-width: 0;
   }
 }
+
+/* ============================================================
+   Barra de ações do cadastro de imóvel (Cancelar/Voltar/Próximo):
+   empilha em coluna no mobile, botões full-width 48px.
+   ============================================================ */
+@media (max-width: 575.98px) {
+  .add-new-listing-bottom-nav-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .add-new-listing-bottom-nav-wrap > .d-flex.gap-2 {
+    flex-direction: column;
+    width: 100%;
+  }
+  .add-new-listing-bottom-nav-wrap .btn {
+    width: 100%;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .add-new-listing-bottom-nav-wrap .btn.houzez-hidden,
+  .add-new-listing-bottom-nav-wrap .btn-step-submit[style*="display: none"] {
+    display: none;
+  }
+  .add-new-listing-bottom-nav-wrap .btn-step-submit {
+    width: 100%;
+  }
+  .add-new-listing-bottom-nav-wrap .btn-step-submit .btn {
+    width: 100%;
+  }
+}
