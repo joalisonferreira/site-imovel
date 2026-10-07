@@ -11,6 +11,11 @@ global $property_data;
 
 $required_types = Imovel_Parceiro_Owner_Workflow::owner_required_document_types();
 
+// Nenhum documento exigido: não renderiza a seção.
+if ( empty( $required_types ) ) {
+    return;
+}
+
 $existing_by_type = array();
 $editing_id       = 0;
 if ( houzez_edit_property() && ! empty( $property_data->ID ) ) {

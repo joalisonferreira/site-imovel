@@ -865,6 +865,11 @@ class Imovel_Parceiro_Owner_Workflow {
             return $data;
         }
 
+        // Sem documentos exigidos, não há barreira de documentação — segue o fluxo normal.
+        if ( empty( self::owner_required_document_types() ) ) {
+            return $data;
+        }
+
         $submission_action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
         $is_draft = isset( $_POST['houzez_draft'] ) ? sanitize_key( wp_unslash( $_POST['houzez_draft'] ) ) : '';
         if ( 'save_as_draft' === $submission_action || 'draft' === $is_draft ) {
@@ -911,7 +916,18 @@ class Imovel_Parceiro_Owner_Workflow {
         }
 
         $status = get_post_status( $property_id );
-        $workflow_status = 'draft' === $status ? self::WORKFLOW_RASCUNHO : self::WORKFLOW_DOCUMENTACAO_PENDENTE;
+        $is_draft = 'draft' === $status;
+        // Sem documentos exigidos, a documentação nasce aprovada (rascunhos continuam rascunho).
+        $auto_approve_docs = empty( self::owner_required_document_types() ) && ! $is_draft;
+        if ( $is_draft ) {
+            $workflow_status = self::WORKFLOW_RASCUNHO;
+        } elseif ( $auto_approve_docs ) {
+            $workflow_status = self::WORKFLOW_APROVADO;
+        } else {
+            $workflow_status = self::WORKFLOW_DOCUMENTACAO_PENDENTE;
+        }
+        $doc_status = $auto_approve_docs ? self::DOC_STATUS_APROVADA : self::DOC_STATUS_PENDENTE;
+        $approval_status = $auto_approve_docs ? self::APPROVAL_STATUS_APROVADO : self::APPROVAL_STATUS_PENDENTE;
 
         $now = current_time( 'mysql' );
 
@@ -920,15 +936,25 @@ class Imovel_Parceiro_Owner_Workflow {
 
         $existing = $this->get_relation_by_property( $property_id );
         if ( $existing ) {
+            $update_data = array(
+                'owner_user_id' => $owner_user_id,
+                'broker_user_id' => absint( $broker_id ),
+                'updated_at' => $now,
+            );
+            $update_formats = array( '%d', '%d', '%s' );
+            if ( $auto_approve_docs ) {
+                $update_data['workflow_status'] = $workflow_status;
+                $update_data['documentation_status'] = $doc_status;
+                $update_data['approval_status'] = $approval_status;
+                $update_formats[] = '%s';
+                $update_formats[] = '%s';
+                $update_formats[] = '%s';
+            }
             $wpdb->update(
                 $table,
-                array(
-                    'owner_user_id' => $owner_user_id,
-                    'broker_user_id' => absint( $broker_id ),
-                    'updated_at' => $now,
-                ),
+                $update_data,
                 array( 'property_id' => $property_id ),
-                array( '%d', '%d', '%s' ),
+                $update_formats,
                 array( '%d' )
             );
         } else {
@@ -939,8 +965,8 @@ class Imovel_Parceiro_Owner_Workflow {
                     'owner_user_id' => $owner_user_id,
                     'broker_user_id' => absint( $broker_id ),
                     'workflow_status' => $workflow_status,
-                    'documentation_status' => self::DOC_STATUS_PENDENTE,
-                    'approval_status' => self::APPROVAL_STATUS_PENDENTE,
+                    'documentation_status' => $doc_status,
+                    'approval_status' => $approval_status,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ),
@@ -951,8 +977,8 @@ class Imovel_Parceiro_Owner_Workflow {
         update_post_meta( $property_id, self::META_OWNER_ID, $owner_user_id );
         update_post_meta( $property_id, self::META_BROKER_ID, absint( $broker_id ) );
         update_post_meta( $property_id, self::META_WORKFLOW_STATUS, $workflow_status );
-        update_post_meta( $property_id, self::META_DOC_STATUS, self::DOC_STATUS_PENDENTE );
-        update_post_meta( $property_id, self::META_APPROVAL_STATUS, self::APPROVAL_STATUS_PENDENTE );
+        update_post_meta( $property_id, self::META_DOC_STATUS, $doc_status );
+        update_post_meta( $property_id, self::META_APPROVAL_STATUS, $approval_status );
 
         if ( ! empty( $_POST['imovel_parceiro_owner_authorization_term'] ) || ! empty( $_POST['imovel_parceiro_acceptance']['authorization'] ) ) {
             update_post_meta( $property_id, self::META_OWNER_TERM_ACCEPTED, 1 );
@@ -1731,9 +1757,9 @@ class Imovel_Parceiro_Owner_Workflow {
     }
 
     public static function owner_required_document_types() {
-        return array(
-            'matricula' => __( 'Matrícula/documentação do imóvel', 'imovel-parceiro-core' ),
-        );
+        // Nenhum documento exigido no cadastro do proprietário: a documentação
+        // nasce aprovada (auto-aprovação) e o form não pede nada.
+        return array();
     }
 
     public static function get_property_documents( $property_id ) {
@@ -2633,6 +2659,11 @@ class Imovel_Parceiro_Owner_Workflow {
         $property_id = absint( $property_id );
         if ( ! $property_id ) {
             return false;
+        }
+
+        // Sem tipos exigidos, a documentação nasce aprovada.
+        if ( empty( self::owner_required_document_types() ) ) {
+            return true;
         }
 
         $docs = $wpdb->get_results(
