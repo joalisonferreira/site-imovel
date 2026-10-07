@@ -281,6 +281,22 @@ li > .ipc-menu-cta--owner:hover {
     text-align: center;
     padding-right: 0;
 }
+/* ---- Header responsivo: CTAs só quando há espaço -------------------------- */
+/* Menu desktop do Elementor: links sem quebra + container flexível. */
+.houzez-nav-menu-main-desktop-wrap .houzez-elementor-menu > li > a {
+    white-space: nowrap !important;
+}
+.houzez-nav-menu-main-desktop-wrap {
+    min-width: 0 !important;
+}
+/* Larguras médias: esconde os 2 CTAs do menu desktop (drawer mantém).
+   Evita sobreposição com avatar/ANUNCIAR. */
+@media (max-width: 1300px) {
+    .houzez-nav-menu-main-desktop-wrap li.ipc-menu-li {
+        display: none !important;
+    }
+}
+
 /* ---- Drawer mobile no padrão stitch (SÓ offcanvas) ------------------------ */
 .offcanvas-mobile-menu {
     border-radius: 0 24px 24px 0 !important;
