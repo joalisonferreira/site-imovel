@@ -400,6 +400,14 @@ class Imovel_Parceiro_Contact_Visibility {
             }
         }
 
+        // Mesmo caso no widget de cartão do agente avulso: remove tudo.
+        if ( 'houzez_elementor_agent_card' === $widget->get_name() && is_singular( 'property' ) ) {
+            $context_id = get_the_ID();
+            if ( $context_id && self::is_owner_registered_property( $context_id ) ) {
+                return '';
+            }
+        }
+
         // Contexto do próprio anúncio (preserva o canal do proprietário com seu corretor).
         $context_property = is_singular( 'property' ) ? get_the_ID() : 0;
         if ( self::viewer_can_see_contact( 0, $context_property ) ) {
