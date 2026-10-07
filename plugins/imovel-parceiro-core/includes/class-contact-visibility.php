@@ -22,6 +22,22 @@ class Imovel_Parceiro_Contact_Visibility {
     const CLIENT_LEAD_EMAIL = 'contato@imovelparceiro.com.br';
 
     /**
+     * Normaliza telefone para links wa.me: só dígitos + DDI 55 quando for
+     * número BR sem código do país. Números já com 55 (ou não-BR) voltam
+     * só com dígitos (wa.me não aceita '+', espaços ou máscara).
+     *
+     * @param string $phone Telefone em qualquer formato.
+     * @return string Dígitos prontos para wa.me.
+     */
+    public static function normalize_whatsapp_number( $phone ) {
+        $digits = preg_replace( '/\D/', '', (string) $phone );
+        if ( '' !== $digits && preg_match( '/^[1-9]{2}[89]?\d{8}$/', $digits ) ) {
+            $digits = '55' . $digits;
+        }
+        return $digits;
+    }
+
+    /**
      * Flag request-scoped: filtro wp_mail armado só durante o AJAX de contato
      * enviado por cliente/proprietário/visitante (ver arm_lead_redirect()).
      *
@@ -374,6 +390,16 @@ class Imovel_Parceiro_Contact_Visibility {
             return $content;
         }
 
+        // Imóvel de proprietário: o cartão do agente (foto/nome/links) é
+        // fictício — remove para todo visitante, logado ou não. Os
+        // formulários (Agendar/Mensagem) são preservados.
+        if ( 'houzez-property-section-contact-form2' === $widget->get_name() && is_singular( 'property' ) ) {
+            $context_id = get_the_ID();
+            if ( $context_id && self::is_owner_registered_property( $context_id ) ) {
+                return self::strip_nodes_by_class( $content, array( 'agent-details' ) );
+            }
+        }
+
         // Contexto do próprio anúncio (preserva o canal do proprietário com seu corretor).
         $context_property = is_singular( 'property' ) ? get_the_ID() : 0;
         if ( self::viewer_can_see_contact( 0, $context_property ) ) {
@@ -400,6 +426,25 @@ class Imovel_Parceiro_Contact_Visibility {
         }
 
         return $content;
+    }
+
+    /**
+     * Whether the property was registered by a proprietário (owner flow).
+     *
+     * @param int $property_id Property post ID.
+     * @return bool
+     */
+    public static function is_owner_registered_property( $property_id ) {
+        $property_id = absint( $property_id );
+        if ( ! $property_id || ! class_exists( 'Imovel_Parceiro_Partnerships' ) ) {
+            return false;
+        }
+        $owner_id = (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id );
+        if ( ! $owner_id ) {
+            return false;
+        }
+        $user = get_userdata( $owner_id );
+        return $user && in_array( 'houzez_owner', (array) $user->roles, true );
     }
 
     /**
