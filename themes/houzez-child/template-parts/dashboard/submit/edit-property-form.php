@@ -210,10 +210,17 @@ if (is_page_template('template/user_dashboard_submit.php')) {
                     $ipc_save_label = houzez_option( 'fal_save_changes', esc_html__( 'Save Changes', 'houzez' ) );
                     if ( '' === trim( (string) $ipc_save_label ) ) { $ipc_save_label = 'Salvar alterações'; }
                     ?>
-                    <div class="d-flex justify-content-between p-2 add-new-listing-bottom-nav-wrap">
-                        <a href="<?php echo esc_url( $ipc_cancel_link ); ?>" class="btn-cancel btn btn-primary-outlined">
-                            <?php echo esc_html( $ipc_cancel_label ); ?>
-                        </a>
+                    <div class="d-flex justify-content-between align-items-center gap-2 p-2 add-new-listing-bottom-nav-wrap">
+                        <div class="d-flex gap-2 align-items-center">
+                            <a href="<?php echo esc_url( $ipc_cancel_link ); ?>" class="btn-cancel btn btn-primary-outlined">
+                                <?php echo esc_html( $ipc_cancel_label ); ?>
+                            </a>
+                            <?php if ( $show_submit_btn != 'one_step' ) { ?>
+                                <button type="button" class="btn-back houzez-hidden btn btn-primary-outlined">
+                                    <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php echo esc_html( $ipc_back_label ); ?>
+                                </button>
+                            <?php } ?>
+                        </div>
                         <?php if ( $show_submit_btn == 'one_step' ) { ?>
                             <button type="submit" class="btn btn-success houzez-submit-js">
                                 <?php get_template_part('template-parts/loader'); ?>
@@ -221,9 +228,6 @@ if (is_page_template('template/user_dashboard_submit.php')) {
                             </button>
                         <?php } else { ?>
                             <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn-back houzez-hidden btn btn-primary-outlined">
-                                    <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php echo esc_html( $ipc_back_label ); ?>
-                                </button>
                                 <button type="button" class="btn-next btn btn-primary">
                                     <?php echo esc_html( $ipc_next_label ); ?> <i class="houzez-icon icon-arrow-right-1 ms-2"></i>
                                 </button>

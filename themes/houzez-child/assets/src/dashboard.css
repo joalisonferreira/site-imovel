@@ -1741,7 +1741,18 @@ body.ipc-sidebar-open .ipc-sidebar-overlay {
 /* ============================================================
    Barra de ações do cadastro de imóvel (Cancelar/Voltar/Próximo):
    empilha em coluna no mobile, botões full-width 48px.
+   Slots explícitos: esquerda = Cancelar/Voltar, direita = Próximo/Salvar.
    ============================================================ */
+.add-new-listing-bottom-nav-wrap {
+  min-width: 0;
+}
+.add-new-listing-bottom-nav-wrap > .d-flex {
+  min-width: 0;
+}
+.add-new-listing-bottom-nav-wrap .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 @media (max-width: 575.98px) {
   .add-new-listing-bottom-nav-wrap {
     flex-direction: column;
