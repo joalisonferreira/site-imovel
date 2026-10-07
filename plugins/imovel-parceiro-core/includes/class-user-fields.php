@@ -445,8 +445,12 @@ class Imovel_Parceiro_User_Fields {
         }
 
         // Se o número é WhatsApp, preenche também o campo de WhatsApp.
+        // Normalizado com DDI 55 (formato exigido pelo wa.me).
         $phone = isset( $_POST['phone_number'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['phone_number'] ) ) ) : '';
         if ( '' !== $phone && ! empty( $_POST['phone_is_whatsapp'] ) ) {
+            if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+                $phone = Imovel_Parceiro_Contact_Visibility::normalize_whatsapp_number( $phone );
+            }
             update_user_meta( $user_id, 'fave_author_whatsapp', $phone );
         }
 

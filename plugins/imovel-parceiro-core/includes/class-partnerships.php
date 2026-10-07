@@ -775,6 +775,11 @@ class Imovel_Parceiro_Partnerships {
         $mobile = (string) get_user_meta( $user->ID, 'fave_author_mobile', true );
         $whatsapp = (string) get_user_meta( $user->ID, 'fave_author_whatsapp', true );
 
+        // wa.me exige DDI: normaliza números BR legados salvos sem 55.
+        $whatsapp_call = class_exists( 'Imovel_Parceiro_Contact_Visibility' )
+            ? Imovel_Parceiro_Contact_Visibility::normalize_whatsapp_number( $whatsapp )
+            : ( function_exists( 'houzez_clean_phone_number' ) ? houzez_clean_phone_number( $whatsapp ) : preg_replace( '/[^0-9+]/', '', $whatsapp ) );
+
         return array(
             'user_id' => (int) $user->ID,
             'display_name' => $user->display_name,
@@ -784,7 +789,7 @@ class Imovel_Parceiro_Partnerships {
             'mobile' => $mobile,
             'mobile_call' => function_exists( 'houzez_clean_phone_number' ) ? houzez_clean_phone_number( $mobile ) : preg_replace( '/[^0-9+]/', '', $mobile ),
             'whatsapp' => $whatsapp,
-            'whatsapp_call' => function_exists( 'houzez_clean_phone_number' ) ? houzez_clean_phone_number( $whatsapp ) : preg_replace( '/[^0-9+]/', '', $whatsapp ),
+            'whatsapp_call' => $whatsapp_call,
         );
     }
 
