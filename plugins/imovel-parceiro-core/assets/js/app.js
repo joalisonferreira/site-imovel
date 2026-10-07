@@ -1142,6 +1142,13 @@ jQuery(function($){
         });
     });
 
+    // O modal abre de forma manual (sem instancia Bootstrap), entao o
+    // data-bs-dismiss="modal" nativo nao funciona — fecha via hideBrokerChangeModal().
+    $(document).on('click', '#imovel-parceiro-broker-change-modal [data-bs-dismiss="modal"]', function(e){
+        e.preventDefault();
+        hideBrokerChangeModal();
+    });
+
     $(document).on('click', '.imovel-parceiro-save-acceptance', function(e){
         e.preventDefault();
         if ($(this).data('busy')) {
