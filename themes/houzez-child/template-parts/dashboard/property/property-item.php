@@ -79,8 +79,8 @@ $approval_status = ! empty( $context['approval_status'] ) ? $context['approval_s
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item imovel-owner-request-delete" href="javascript:void(0)" data-property-id="<?php echo esc_attr( $post_id ); ?>">
-                        <i class="houzez-icon icon-bin"></i> <?php esc_html_e( 'Solicitar exclusão', 'imovel-parceiro-core' ); ?>
+                    <a class="dropdown-item imovel-owner-delete" href="javascript:void(0)" data-property-id="<?php echo esc_attr( $post_id ); ?>" data-property-title="<?php echo esc_attr( get_the_title( $post_id ) ); ?>">
+                        <i class="houzez-icon icon-bin"></i> <?php esc_html_e( 'Excluir imóvel', 'imovel-parceiro-core' ); ?>
                     </a>
                 </li>
             </ul>

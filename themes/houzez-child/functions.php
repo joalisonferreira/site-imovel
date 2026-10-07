@@ -336,6 +336,10 @@ function houzez_child_print_lead_modal() {
     }
 
     get_template_part( 'template-parts/lead/buyer-lead-modal' );
+
+    if ( is_user_logged_in() && class_exists( 'Imovel_Parceiro_Owner_Workflow' ) && Imovel_Parceiro_Owner_Workflow::is_current_user_proprietario() ) {
+        get_template_part( 'template-parts/dashboard/owner-delete-modal' );
+    }
 }
 
 /**
