@@ -59,9 +59,6 @@ $approval_status = ! empty( $context['approval_status'] ) ? $context['approval_s
             <a class="fw-bold" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>"><?php the_title(); ?></a><br>
             <address class="mb-1"><?php echo houzez_get_listing_data( 'property_map_address' ); ?></address>
             <small class="d-block text-muted"><?php esc_html_e( 'Corretor responsável:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $broker_name ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Fluxo:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $workflow_status ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Documentação:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $doc_status ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Aprovação:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $approval_status ); ?></small>
         </div>
     </td>
     <td data-label="<?php echo esc_html__( 'Status', 'houzez' ); ?>"><?php echo houzez_taxonomy_simple( 'property_status' ); ?></td>

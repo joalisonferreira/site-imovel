@@ -26,21 +26,6 @@ if ( isset( $_GET['imovel-parceiro'] ) && 'dashboard' === sanitize_key( wp_unsla
     return;
 }
 
-if ( $is_proprietario && isset( $_GET['imovel_owner_area'] ) && 'documentacao' === sanitize_key( wp_unslash( $_GET['imovel_owner_area'] ) ) ) {
-    get_header( 'dashboard' );
-    get_template_part( 'template-parts/dashboard/sidebar' );
-    ?>
-    <div class="dashboard-right">
-        <?php get_template_part( 'template-parts/dashboard/topbar' ); ?>
-        <div class="dashboard-content">
-            <?php get_template_part( 'template-parts/dashboard/owner-documentation' ); ?>
-        </div>
-    </div>
-    <?php
-    get_footer( 'dashboard' );
-    return;
-}
-
 if ( $is_proprietario && isset( $_GET['imovel_owner_area'] ) && 'perfil' === sanitize_key( wp_unslash( $_GET['imovel_owner_area'] ) ) ) {
     get_header( 'dashboard' );
     get_template_part( 'template-parts/dashboard/sidebar' );

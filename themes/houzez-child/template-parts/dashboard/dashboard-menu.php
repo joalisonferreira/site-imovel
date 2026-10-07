@@ -17,7 +17,6 @@ $dashboard_verification = add_query_arg( 'hpage', 'verification', $dash_profile_
 $dashboard_partnerships = add_query_arg( 'imovel-parceiro', 'dashboard', $dashboard_link );
 $dashboard_admin_audit = add_query_arg( 'imovel_admin_area', 'auditoria', $dashboard_link );
 $dashboard_admin_management = add_query_arg( 'imovel_admin_area', 'gestao', $dashboard_link );
-$dashboard_owner_docs = add_query_arg( 'imovel_owner_area', 'documentacao', $dashboard_link );
 $dashboard_owner_profile = add_query_arg( 'imovel_owner_area', 'perfil', $dashboard_link );
 
 $dashboard_crm = houzez_get_template_link_2('template/user_dashboard_crm.php');
@@ -35,7 +34,6 @@ $ac_crm = $ac_insight = $ac_profile = $ac_props = $ac_add_prop = $ac_fav = $ac_s
 $ac_dashboard = $ac_activities = $ac_deals = $ac_leads = $ac_inquiries = '';
 $ac_partnerships = '';
 $ac_admin_audit = $ac_admin_management = '';
-$ac_owner_docs = '';
 $ac_owner_profile = '';
 
 // Set active states based on current page
@@ -54,10 +52,7 @@ if( is_page_template( 'template/user_dashboard.php' ) ) {
             $ac_admin_management = 'active';
         }
     }
-    if ( isset( $_GET['imovel_owner_area'] ) && 'documentacao' === sanitize_key( wp_unslash( $_GET['imovel_owner_area'] ) ) ) {
-        $ac_dashboard = '';
-        $ac_owner_docs = 'active';
-    } elseif ( isset( $_GET['imovel_owner_area'] ) && 'perfil' === sanitize_key( wp_unslash( $_GET['imovel_owner_area'] ) ) ) {
+    if ( isset( $_GET['imovel_owner_area'] ) && 'perfil' === sanitize_key( wp_unslash( $_GET['imovel_owner_area'] ) ) ) {
         $ac_dashboard = '';
         $ac_owner_profile = 'active';
     }
@@ -223,12 +218,6 @@ $ipc_icon = function( $name, $class = 'ipc-nav-icon' ) {
                         <a href="<?php echo esc_url( $dashboard_add_listing ); ?>" class="ipc-nav-item <?php echo $ipc_is_active( $ac_add_prop ) ? 'is-active' : ''; ?>">
                             <?php echo $ipc_icon( 'house-plus' ); ?>
                             <span class="flex-1 truncate"><?php esc_html_e( 'Cadastrar imóvel', 'imovel-parceiro-core' ); ?></span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="<?php echo esc_url( $dashboard_owner_docs ); ?>" class="ipc-nav-item <?php echo $ipc_is_active( $ac_owner_docs ) ? 'is-active' : ''; ?>">
-                            <?php echo $ipc_icon( 'file-text' ); ?>
-                            <span class="flex-1 truncate"><?php esc_html_e( 'Documentação', 'imovel-parceiro-core' ); ?></span>
                         </a>
                     </li>
                 </ul>
