@@ -44,7 +44,7 @@ $status_labels = array(
         <h2><?php esc_html_e( 'Documentação do imóvel (obrigatório)', 'imovel-parceiro-core' ); ?></h2>
     </div>
     <div class="block-content-wrap">
-        <p class="text-muted mb-3"><?php esc_html_e( 'Envie abaixo os documentos do imóvel. É obrigatório anexar os três documentos para concluir o cadastro. Você poderá corrigi-los depois na edição do imóvel.', 'imovel-parceiro-core' ); ?></p>
+        <p class="text-muted mb-3"><?php esc_html_e( 'Envie abaixo a matrícula/documentação do imóvel. É obrigatório anexar o documento para concluir o cadastro. Você poderá corrigi-lo depois na edição do imóvel.', 'imovel-parceiro-core' ); ?></p>
 
         <div class="row g-3">
             <?php foreach ( $required_types as $doc_type => $doc_label ) : ?>
@@ -175,7 +175,7 @@ $status_labels = array(
     var section = document.getElementById('owner-documents-section');
     if (!section) { return; }
 
-    var MSG_REQUIRED = <?php echo wp_json_encode( __( 'Anexe os três documentos obrigatórios antes de continuar.', 'imovel-parceiro-core' ) ); ?>;
+    var MSG_REQUIRED = <?php echo wp_json_encode( __( 'Anexe a matrícula/documentação do imóvel antes de continuar.', 'imovel-parceiro-core' ) ); ?>;
     var MSG_FAIL = <?php echo wp_json_encode( __( 'Falha no envio do documento.', 'imovel-parceiro-core' ) ); ?>;
     var MSG_SENT = <?php echo wp_json_encode( __( 'Enviado — aguardando análise', 'imovel-parceiro-core' ) ); ?>;
 

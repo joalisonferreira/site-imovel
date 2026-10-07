@@ -1732,9 +1732,7 @@ class Imovel_Parceiro_Owner_Workflow {
 
     public static function owner_required_document_types() {
         return array(
-            'identificacao' => __( 'Documento de identificação', 'imovel-parceiro-core' ),
             'matricula' => __( 'Matrícula/documentação do imóvel', 'imovel-parceiro-core' ),
-            'comprovante_propriedade' => __( 'Comprovante de propriedade', 'imovel-parceiro-core' ),
         );
     }
 
@@ -2648,7 +2646,7 @@ class Imovel_Parceiro_Owner_Workflow {
             return false;
         }
 
-        $required_types = array( 'identificacao', 'matricula', 'comprovante_propriedade' );
+        $required_types = array_keys( self::owner_required_document_types() );
         $approved_types = array();
         foreach ( $docs as $doc ) {
             if ( 'aprovado' !== sanitize_key( (string) $doc->status ) ) {
