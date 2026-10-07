@@ -707,6 +707,11 @@ class Imovel_Parceiro_Owner_Workflow {
         update_post_meta( $property_id, self::META_DOC_STATUS, $doc_status );
         update_post_meta( $property_id, self::META_APPROVAL_STATUS, $approval_status );
 
+        // Evento "admin virou corretor responsável": avisa o atribuído uma única vez.
+        if ( class_exists( 'Imovel_Parceiro_Broker_Portfolio' ) ) {
+            Imovel_Parceiro_Broker_Portfolio::maybe_notify_broker_assigned( $property_id, absint( $broker_id ), $owner_user_id );
+        }
+
         if ( ! empty( $_POST['imovel_parceiro_owner_authorization_term'] ) || ! empty( $_POST['imovel_parceiro_acceptance']['authorization'] ) ) {
             update_post_meta( $property_id, self::META_OWNER_TERM_ACCEPTED, 1 );
             update_post_meta( $property_id, self::META_OWNER_TERM_VERSION, $this->get_owner_term_version() );
