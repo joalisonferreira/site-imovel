@@ -311,6 +311,12 @@ $management_tabs = array(
         'icon' => 'dashicons-yes-alt',
         'description' => __( 'Analisar solicitações de verificação de usuários.', 'imovel-parceiro-core' ),
     ),
+    'imobisec' => array(
+        'label' => __( 'CRECI/Cofeci', 'imovel-parceiro-core' ),
+        'section' => 'imobisec',
+        'icon' => 'dashicons-shield',
+        'description' => __( 'Validar CRECI automaticamente via ImobiSec e configurar a revalidação.', 'imovel-parceiro-core' ),
+    ),
     'owner_documents' => array(
         'label' => __( 'Análise de Documentação', 'imovel-parceiro-core' ),
         'section' => 'owner_documents',
@@ -342,6 +348,7 @@ $child_management_sections = array(
     'owner_documents' => __( 'Documentação', 'imovel-parceiro-core' ),
     'watermark' => __( 'Marca d\'água', 'imovel-parceiro-core' ),
     'inatividade' => __( 'Inatividade', 'imovel-parceiro-core' ),
+    'imobisec' => __( 'CRECI/Cofeci', 'imovel-parceiro-core' ),
 );
 $cadastros_active = ( '' === $current_management_section ) || in_array( $current_management_section, $admin_management_sections, true );
 
@@ -569,6 +576,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             'owners' => __( 'Proprietários', 'imovel-parceiro-core' ),
             'agencies' => __( 'Imobiliárias', 'imovel-parceiro-core' ),
             'verification_requests' => __( 'Verificação', 'imovel-parceiro-core' ),
+            'imobisec' => __( 'CRECI/Cofeci', 'imovel-parceiro-core' ),
             'packages' => __( 'Planos', 'imovel-parceiro-core' ),
             'coupons' => __( 'Cupons', 'imovel-parceiro-core' ),
             'orcamentos' => __( 'Orçamentos', 'imovel-parceiro-core' ),
@@ -608,6 +616,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 'owner_documents' => array( 'file-text' ),
                 'inatividade' => array( 'timer' ),
                 'duplicados' => array( 'copy' ),
+                'imobisec' => array( 'shield-check' ),
             ),
             __( 'Design', 'imovel-parceiro-core' ) => array(
                 'watermark' => array( 'droplets' ),
@@ -660,6 +669,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                             <?php esc_html_e( 'Configure o aviso e a desativação automática de imóveis sem atualização.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'duplicados' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Ative ou desative o bloqueio de cadastro de imóveis duplicados.', 'imovel-parceiro-core' ); ?>
+                        <?php elseif ( 'imobisec' === $current_management_section ) : ?>
+                            <?php esc_html_e( 'Validação automática de CRECI via ImobiSec e revalidação periódica.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'orcamentos' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Acompanhe as solicitações de personalização enviadas pelos interessados em planos sob consulta.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'coupons' === $current_management_section ) : ?>
@@ -896,6 +907,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 <?php Imovel_Parceiro_Property_Duplicates::render_dashboard_section(); ?>
             <?php elseif ( 'orcamentos' === $current_management_section && class_exists( 'Imovel_Parceiro_Package_Extras' ) ) : ?>
                 <?php Imovel_Parceiro_Package_Extras::render_dashboard_section(); ?>
+            <?php elseif ( 'imobisec' === $current_management_section && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) : ?>
+                <?php Imovel_Parceiro_ImobiSec::render_dashboard_section(); ?>
             <?php else : ?>
                 <?php get_template_part( 'template-parts/dashboard/admin-management' ); ?>
             <?php endif; ?>
