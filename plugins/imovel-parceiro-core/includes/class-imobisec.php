@@ -440,6 +440,15 @@ class Imovel_Parceiro_ImobiSec {
         return ( false !== strpos( $a, $b ) ) || ( false !== strpos( $b, $a ) );
     }
 
+    /**
+     * Status ativo na base: a API retorna ATIVO (real) ou ACTIVE (mock).
+     */
+    public static function is_active_status( $status ) {
+        $s = strtoupper( trim( (string) $status ) );
+        $s = str_replace( array( 'Á', 'Â' ), 'A', $s );
+        return ( 'ATIVO' === $s || 'ACTIVE' === $s );
+    }
+
     public static function result_summary( $data ) {
         if ( ! is_array( $data ) ) {
             return '-';
@@ -565,7 +574,7 @@ class Imovel_Parceiro_ImobiSec {
         $status = strtoupper( trim( (string) ( isset( $data['status'] ) ? $data['status'] : '' ) ) );
         $api_name = isset( $data['name'] ) ? (string) $data['name'] : '';
 
-        if ( 'ATIVO' !== $status && 'ATIVO' !== str_replace( array( 'Á', 'Â' ), 'A', $status ) ) {
+        if ( ! self::is_active_status( $status ) ) {
             $this->set_note( $user_id, sprintf( __( 'CRECI com status %s na base.', 'imovel-parceiro-core' ), $status ) );
             $this->notify_admin_review(
                 $user_id,
@@ -827,7 +836,7 @@ class Imovel_Parceiro_ImobiSec {
         if ( '' !== $status ) {
             $this->persist_basic( $user_id, array( 'status' => $status, 'name' => isset( $result['name'] ) ? $result['name'] : '' ) );
         }
-        if ( 'ATIVO' === $status || 'ATIVO' === str_replace( array( 'Á', 'Â' ), 'A', $status ) ) {
+        if ( self::is_active_status( $status ) ) {
             $this->set_note( $user_id, __( 'Revalidação ImobiSec: CRECI segue ativo.', 'imovel-parceiro-core' ) );
             return array( 'ok' => true );
         }
@@ -869,7 +878,7 @@ class Imovel_Parceiro_ImobiSec {
         $label = __( 'Não consultado', 'imovel-parceiro-core' );
         if ( '' !== $status ) {
             $label = $status . ( '' !== $name ? ' — ' . $name : '' );
-            if ( false !== strpos( str_replace( array( 'Á', 'Â' ), 'A', $status ), 'ATIVO' ) ) {
+            if ( false !== strpos( str_replace( array( 'Á', 'Â' ), 'A', $status ), 'ATIVO' ) || false !== strpos( $status, 'ACTIVE' ) ) {
                 $badge = 'success';
             } elseif ( false !== strpos( $status, 'SUSPENSO' ) || false !== strpos( $status, 'CANCEL' ) || false !== strpos( $status, 'INATIVO' ) ) {
                 $badge = 'danger';
