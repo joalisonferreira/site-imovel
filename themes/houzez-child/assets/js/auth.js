@@ -331,11 +331,15 @@
         }
         if (AGENT_ROLES.indexOf(checkedRole(form)) !== -1) {
             var creci = form.querySelector('input[name="creci"]');
-            if (!creci || creci.value.trim().length < 3) {
+            var creciDigits = creci ? digits(creci.value).slice(0, 12) : '';
+            if (creci && creciDigits !== creci.value) {
+                creci.value = creciDigits;
+            }
+            if (creciDigits.length < 4) {
                 if (creci) {
                     creci.classList.add('is-invalid');
                 }
-                return 'Informe seu CRECI.';
+                return 'Informe um CRECI válido (somente números).';
             }
         }
         return '';
@@ -706,6 +710,12 @@
                 var maskedDoc = maskDoc(target.value, docType(form));
                 if (maskedDoc !== target.value) {
                     target.value = maskedDoc;
+                }
+            }
+            if (target.matches('input[name="creci"]')) {
+                var creciDigits = digits(target.value).slice(0, 12);
+                if (creciDigits !== target.value) {
+                    target.value = creciDigits;
                 }
             }
             if (target.matches('input[name="register_pass"]')) {

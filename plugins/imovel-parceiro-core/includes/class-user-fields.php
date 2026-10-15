@@ -179,7 +179,7 @@ class Imovel_Parceiro_User_Fields {
             </div>
             <div class="form-group"<?php echo $ipc_show_role_slot ? '' : ' style="grid-column:1/-1"'; ?>>
                 <div class="form-group-field">
-                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI (somente números)', 'imovel-parceiro-core' ); ?>" inputmode="numeric" maxlength="12" autocomplete="off" />
                 </div>
             </div>
             <?php if ( $ipc_show_role_slot ) : ?>
@@ -259,7 +259,7 @@ class Imovel_Parceiro_User_Fields {
         }
 
         if ( in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true ) ) {
-            $creci = isset( $_POST['creci'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
+            $creci = isset( $_POST['creci'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
             if ( '' === $creci ) {
                 $this->registration_error( __( 'O CRECI é obrigatório para corretores e imobiliárias.', 'imovel-parceiro-core' ) );
             }
@@ -270,12 +270,11 @@ class Imovel_Parceiro_User_Fields {
     }
 
     /**
-     * Normalize a CRECI/license value for comparison.
+     * Normalize a CRECI/license value for comparison (digits only —
+     * the ImobiSec lookup also strips non-digits).
      */
     public static function normalize_license( $value ) {
-        $value = strtoupper( trim( (string) $value ) );
-
-        return preg_replace( '/[^A-Z0-9]/', '', $value );
+        return preg_replace( '/\D/', '', (string) $value );
     }
 
     /**
@@ -426,7 +425,7 @@ class Imovel_Parceiro_User_Fields {
 
         $document       = isset( $_POST['person_document'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['person_document'] ) ) ) : '';
         $document_store = '';
-        $creci          = isset( $_POST['creci'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
+        $creci          = isset( $_POST['creci'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
 
         if ( '' !== $person_type ) {
             update_user_meta( $user_id, self::PERSON_TYPE_META, $person_type );
@@ -748,6 +747,12 @@ class Imovel_Parceiro_User_Fields {
                         if (masked !== target.value) {
                             target.value = masked;
                         }
+                    }
+                }
+                if (target && target.matches && target.matches('input[name="creci"]')) {
+                    var creciDigits = target.value.replace(/\D+/g, '').slice(0, 12);
+                    if (creciDigits !== target.value) {
+                        target.value = creciDigits;
                     }
                 }
                 if (target && target.matches && target.matches('input[name="phone_number"]')) {

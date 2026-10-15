@@ -136,7 +136,7 @@ if ( ! $privacy_url ) {
         </div>
         <div class="ipc-wz-field" data-ipc-wz-creci-wrap="1" hidden>
             <label for="ipc_wz_creci"><?php esc_html_e('CRECI', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
-            <input id="ipc_wz_creci" type="text" name="creci" autocomplete="off" placeholder="<?php esc_attr_e('Ex: 123456-F', 'houzez'); ?>" />
+            <input id="ipc_wz_creci" type="text" name="creci" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="<?php esc_attr_e('Ex: 123456', 'houzez'); ?>" />
         </div>
         </div>
 
