@@ -37,11 +37,11 @@ $allowed_html = array(
     )
 );
 
-$gallery_error_label   = wp_strip_all_tags( __( 'Error!', 'houzez' ) );
-$gallery_error_message = wp_strip_all_tags( __( 'Upload at least one image.', 'houzez' ) );
+$gallery_error_label   = wp_strip_all_tags( __( 'Erro!', 'imovel-parceiro-core' ) );
+$gallery_error_message = wp_strip_all_tags( __( 'Envie ao menos uma imagem do imóvel.', 'imovel-parceiro-core' ) );
 
-$required_error_label   = wp_strip_all_tags( __( 'Error!', 'houzez' ) );
-$required_error_message = wp_strip_all_tags( __( 'Please fill out the following required fields.', 'houzez' ) );
+$required_error_label   = wp_strip_all_tags( __( 'Erro!', 'imovel-parceiro-core' ) );
+$required_error_message = wp_strip_all_tags( __( 'Preencha os campos obrigatórios destacados abaixo.', 'imovel-parceiro-core' ) );
 
 if( is_page_template( 'template/user_dashboard_submit.php' ) ) {
 
@@ -50,11 +50,11 @@ if( is_page_template( 'template/user_dashboard_submit.php' ) ) {
         echo '<div class="block-wrap">
                 <div class="block-content-wrap">';
         if (!houzez_user_has_membership($userID)) {
-            print '<p class="mb-3">' . esc_html__("You don't have any package! You need to buy your package.", 'houzez') . '</p>
-                    <a class="btn btn-primary" href="' . $select_packages_link . '">' . esc_html__('Get Package', 'houzez') . '</a>';
+            print '<p class="mb-3">' . esc_html__("Você não tem um plano ativo. Escolha um plano para publicar seu imóvel.", 'imovel-parceiro-core') . '</p>
+                    <a class="btn btn-success" href="' . $select_packages_link . '">' . esc_html__('Ver planos', 'imovel-parceiro-core') . '</a>';
         } else {
-            print '<p class="mb-3">' . esc_html__("Your current package doesn't let you publish more properties! You need to upgrade your membership.", 'houzez') . '</p>
-            <a class="btn btn-primary" href="' . $select_packages_link . '">' . esc_html__('Upgrade Package', 'houzez') . '</a>';
+            print '<p class="mb-3">' . esc_html__("Seu plano atual não permite publicar mais imóveis. Troque de plano para continuar.", 'imovel-parceiro-core') . '</p>
+            <a class="btn btn-success" href="' . $select_packages_link . '">' . esc_html__('Trocar de plano', 'imovel-parceiro-core') . '</a>';
         }
         echo '</div>
         </div>';
@@ -185,32 +185,33 @@ if( is_page_template( 'template/user_dashboard_submit.php' ) ) {
             // intacta. Se o pai atualizar este arquivo, replicar o bloco abaixo.
             ?>
             <div class="d-flex justify-content-between align-items-center gap-2 p-2 add-new-listing-bottom-nav-wrap">
+                <p class="ipc-form-step-hint text-muted small m-0" aria-live="polite"><?php esc_html_e('Preencha as etapas com atenção — os erros ficam destacados em vermelho.', 'imovel-parceiro-core'); ?></p>
                 <div class="d-flex gap-2 align-items-center">
-                    <a href="<?php echo esc_url($cancel_link ); ?>" class="btn-cancel btn btn-primary-outlined">
-                        <?php echo houzez_option('fal_cancel', esc_html__('Cancel', 'houzez')); ?>
+                    <a href="<?php echo esc_url($cancel_link ); ?>" class="btn-cancel btn btn-danger">
+                        <?php echo esc_html__('Cancelar', 'imovel-parceiro-core'); ?>
                     </a>
                     <?php if($show_submit_btn != 'one_step') { ?>
-                        <button class="btn-back houzez-hidden btn btn-primary-outlined">
-                            <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php houzez_option('fal_back', esc_html_e('Back', 'houzez')); ?>
+                        <button class="btn-back houzez-hidden btn btn-danger" aria-label="<?php esc_attr_e('Voltar etapa', 'imovel-parceiro-core'); ?>">
+                            <i class="houzez-icon icon-arrow-left-1 me-2"></i> <?php esc_html_e('Voltar', 'imovel-parceiro-core'); ?>
                         </button>
                     <?php } ?>
                 </div>
 
             <?php if($show_submit_btn == 'one_step') { ?>
-                <button id="add_new_property" type="submit" class="btn houzez-submit-js btn-primary">
+                <button id="add_new_property" type="submit" class="btn houzez-submit-js btn-success">
                     <?php get_template_part('template-parts/loader'); ?>
-                    <?php echo houzez_option('fal_submit_property', esc_html__('Submit Property', 'houzez') ); ?>        
+                    <?php echo esc_html__('Publicar imóvel', 'imovel-parceiro-core'); ?>        
                 </button>
             <?php } else { ?>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn-next btn btn-primary">
-                        <?php echo houzez_option('fal_next', esc_html__('Next', 'houzez')); ?> <i class="houzez-icon icon-arrow-right-1 ms-2"></i>
+                    <button class="btn-next btn btn-success" aria-label="<?php esc_attr_e('Avançar etapa', 'imovel-parceiro-core'); ?>">
+                        <?php echo esc_html__('Avançar', 'imovel-parceiro-core'); ?> <i class="houzez-icon icon-arrow-right-1 ms-2"></i>
                     </button>
 
                     <div class="btn-step-submit" style="display: none;">
-                        <button id="add_new_property" type="submit" class="btn houzez-submit-js btn-primary">
+                        <button id="add_new_property" type="submit" class="btn houzez-submit-js btn-success">
                             <?php get_template_part('template-parts/loader'); ?>
-                            <?php echo houzez_option('fal_submit_property', esc_html__('Submit Property', 'houzez') ); ?>
+                            <?php echo esc_html__('Publicar imóvel', 'imovel-parceiro-core'); ?>
                         </button>
                     </div>
                 </div>

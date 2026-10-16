@@ -26,7 +26,15 @@
       if(pfBtn) pfBtn.addEventListener('click', function(){ sel.value='1'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
       if(pjBtn) pjBtn.addEventListener('click', function(){ sel.value='2'; sel.dispatchEvent(new Event('change',{bubbles:true})); });
     }
-    // Coupon toggle (classe própria p/ não conflitar com o handler nativo do Woo)
+    // Fallback p/ :has() — marca método de pagamento selecionado (Firefox antigo, etc).
+    var payInputs = document.querySelectorAll('#payment ul.payment_methods li > input.input-radio');
+    function syncPay(){
+      document.querySelectorAll('#payment ul.payment_methods li').forEach(function(li){ li.classList.remove('ipc-pay-selected'); });
+      var checked = document.querySelector('#payment ul.payment_methods li > input.input-radio:checked');
+      if (checked && checked.closest) { var li = checked.closest('li'); if (li) { li.classList.add('ipc-pay-selected'); } }
+    }
+    payInputs.forEach(function(r){ r.addEventListener('change', syncPay); });
+    syncPay();
     var couponToggle = document.querySelector('.ipc-showcoupon');
     var couponForm = document.querySelector('form.checkout_coupon');
     if(couponToggle && couponForm){

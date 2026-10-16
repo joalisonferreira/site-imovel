@@ -61,9 +61,9 @@ $status_labels = array(
                 ?>
                 <div class="col-md-4 ipc-owner-doc" data-type="<?php echo esc_attr( $doc_type ); ?>">
                     <label class="form-label"><?php echo esc_html( $doc_label ); ?> <span class="text-danger">*</span></label>
-                    <div class="ipc-owner-doc-dropzone" tabindex="0" role="button" aria-label="<?php echo esc_attr( sprintf( __( 'Enviar %s', 'imovel-parceiro-core' ), $doc_label ) ); ?>">
+                    <div class="ipc-owner-doc-dropzone" tabindex="0" role="button" aria-label="<?php echo esc_attr( sprintf( __( 'Enviar %s. Pressione Enter para selecionar o arquivo.', 'imovel-parceiro-core' ), $doc_label ) ); ?>">
                         <div class="ipc-owner-doc-drop-icon"><i class="houzez-icon icon-upload-button" aria-hidden="true"></i></div>
-                        <div class="ipc-owner-doc-drop-cta"><?php esc_html_e( 'Arraste o arquivo aqui ou', 'imovel-parceiro-core' ); ?> <a href="javascript:;" class="ipc-owner-doc-browse"><?php esc_html_e( 'selecione', 'imovel-parceiro-core' ); ?></a></div>
+                        <div class="ipc-owner-doc-drop-cta"><?php esc_html_e( 'Arraste o arquivo aqui ou', 'imovel-parceiro-core' ); ?> <span class="ipc-owner-doc-browse"><?php esc_html_e( 'selecione', 'imovel-parceiro-core' ); ?></span></div>
                         <div class="ipc-owner-doc-drop-hint"><?php esc_html_e( 'PDF, JPG ou PNG', 'imovel-parceiro-core' ); ?></div>
                         <input type="file" class="ipc-owner-doc-input" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" hidden>
                     </div>
@@ -100,9 +100,12 @@ $status_labels = array(
         gap: .35rem;
     }
     .ipc-owner-doc-dropzone:hover,
-    .ipc-owner-doc-dropzone.ipc-owner-doc-dragover {
+    .ipc-owner-doc-dropzone.ipc-owner-doc-dragover,
+    .ipc-owner-doc-dropzone:focus-visible {
         border-color: #00aeef;
         background: #f0faff;
+        outline: 3px solid rgba(0, 174, 239, .35);
+        outline-offset: 2px;
     }
     .ipc-owner-doc-dropzone.ipc-owner-doc-error {
         border-color: #dc3545;
@@ -117,13 +120,14 @@ $status_labels = array(
         font-size: .9rem;
         color: #475467;
     }
-    .ipc-owner-doc-drop-cta a {
-        color: #00aeef;
+    .ipc-owner-doc-drop-cta .ipc-owner-doc-browse {
+        color: #0077a8;
         font-weight: 600;
+        text-decoration: underline;
     }
     .ipc-owner-doc-drop-hint {
         font-size: .75rem;
-        color: #98a2b3;
+        color: #667085;
     }
     .ipc-owner-doc-file {
         display: flex;
@@ -267,7 +271,12 @@ $status_labels = array(
         var removeBtn = box.querySelector('.ipc-owner-doc-remove');
 
         function openPicker() { if (input) { input.click(); } }
-        if (dropzone) { dropzone.addEventListener('click', openPicker); }
+        if (dropzone) {
+            dropzone.addEventListener('click', openPicker);
+            dropzone.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+            });
+        }
         if (browse) { browse.addEventListener('click', function (e) { e.stopPropagation(); openPicker(); }); }
         if (input) {
             input.addEventListener('change', function () {

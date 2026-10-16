@@ -13,7 +13,7 @@ $current_action = isset( $_GET['imovel_admin_action'] ) ? sanitize_key( wp_unsla
 $current_id = isset( $_GET['imovel_admin_id'] ) ? absint( wp_unslash( $_GET['imovel_admin_id'] ) ) : 0;
 $current_page = max( 1, isset( $_GET['imovel_admin_paged'] ) ? absint( wp_unslash( $_GET['imovel_admin_paged'] ) ) : 1 );
 $per_page = isset( $_GET['imovel_admin_per_page'] ) ? absint( wp_unslash( $_GET['imovel_admin_per_page'] ) ) : 20;
-if ( $per_page < 1 || ! in_array( $per_page, array( 10, 25, 50, 100 ), true ) ) {
+if ( ! in_array( $per_page, array( 10, 20, 25, 50, 100 ), true ) ) {
     $per_page = 20;
 }
 
@@ -104,7 +104,8 @@ if ( empty( $current_section ) ) {
 
 if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
     if ( ! isset( $_POST['_imovel_admin_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_imovel_admin_nonce'] ) ), 'imovel_admin_update' ) ) {
-        wp_die( esc_html__( 'Operação não autorizada.', 'imovel-parceiro-core' ) );
+        wp_safe_redirect( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'list', 'imovel_admin_msg' => 'unauthorized' ), $dashboard_url ) );
+        exit;
     }
 
     // Handle verification request actions
@@ -114,7 +115,8 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
         $notes = isset( $_POST['imovel_admin_notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['imovel_admin_notes'] ) ) : '';
 
         if ( in_array( $verification_action, array( 'reject', 'additional_info', 'revoke' ), true ) && '' === trim( $notes ) ) {
-            wp_die( esc_html__( 'Informe uma justificativa para esta ação.', 'imovel-parceiro-core' ) );
+            wp_safe_redirect( add_query_arg( array( 'imovel_admin_section' => 'verification_requests', 'imovel_admin_action' => 'view', 'imovel_admin_id' => $user_id, 'imovel_admin_msg' => 'notes_required' ), $dashboard_url ) );
+            exit;
         }
 
         if ( $user_id && class_exists( 'Houzez_User_Verification' ) && isset( $GLOBALS['houzez_user_verification'] ) ) {
@@ -213,7 +215,8 @@ if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
 
         if ( $post_id ) {
             if ( $entity['post_type'] !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
-                wp_die( esc_html__( 'Registro inválido para esta seção.', 'imovel-parceiro-core' ) );
+                wp_safe_redirect( add_query_arg( array( 'imovel_admin_section' => $section, 'imovel_admin_action' => 'list', 'imovel_admin_msg' => 'invalid_record' ), $dashboard_url ) );
+                exit;
             }
             $post_data['ID'] = $post_id;
             wp_update_post( $post_data );
@@ -344,7 +347,8 @@ if ( 'approve' === $current_action && $current_id ) {
     if ( $post && 'property' === $post->post_type && current_user_can( 'edit_post', $post->ID ) ) {
         $context = class_exists( 'Imovel_Parceiro_Owner_Workflow' ) ? Imovel_Parceiro_Owner_Workflow::get_property_owner_context( $post->ID ) : array();
         if ( ! empty( $context ) && ( 'aprovada' !== $context['documentation_status'] || 'aprovado' !== $context['approval_status'] ) ) {
-            wp_die( esc_html__( 'A documentação do imóvel precisa ser aprovada antes da publicação.', 'imovel-parceiro-core' ) );
+            wp_safe_redirect( add_query_arg( array( 'imovel_admin_section' => $current_section, 'imovel_admin_action' => 'list', 'imovel_admin_msg' => 'docs_pending' ), $dashboard_url ) );
+            exit;
         }
         wp_update_post( array( 'ID' => $post->ID, 'post_status' => 'publish' ) );
         if ( class_exists( 'Imovel_Parceiro_Admin_Action_Notifications' ) ) {
@@ -574,6 +578,18 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
     <?php endif; ?>
 
     <?php if ( ! $is_hub ) : ?>
+    <?php
+    $imovel_admin_msg = isset( $_GET['imovel_admin_msg'] ) ? sanitize_key( wp_unslash( $_GET['imovel_admin_msg'] ) ) : '';
+    $imovel_admin_notices = array(
+        'unauthorized'   => __( 'Operação não autorizada. Tente novamente.', 'imovel-parceiro-core' ),
+        'notes_required' => __( 'Informe uma justificativa para esta ação.', 'imovel-parceiro-core' ),
+        'invalid_record' => __( 'Registro inválido para esta seção.', 'imovel-parceiro-core' ),
+        'docs_pending'   => __( 'A documentação do imóvel precisa ser aprovada antes da publicação.', 'imovel-parceiro-core' ),
+    );
+    if ( isset( $imovel_admin_notices[ $imovel_admin_msg ] ) ) :
+    ?>
+        <div class="alert alert-danger" role="alert" style="border-radius:10px; margin-top:16px;"><?php echo esc_html( $imovel_admin_notices[ $imovel_admin_msg ] ); ?></div>
+    <?php endif; ?>
 
     <?php if ( 'edit' === $current_action && $edit_post ) : ?>
         <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
@@ -1094,7 +1110,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             ? __( 'Ação ImobiSec não executada. Verifique a chave de API em Gestão → CRECI/Cofeci.', 'imovel-parceiro-core' )
                             : __( 'Ação ImobiSec executada — veja o resultado na coluna CRECI (API).', 'imovel-parceiro-core' );
                     ?>
-                    <div class="alert <?php echo 'imobisec_error' === $imobisec_msg ? 'alert-danger' : 'alert-success'; ?>" style="border-radius:10px;"><?php echo esc_html( $imobisec_text ); ?></div>
+                    <div class="alert <?php echo 'imobisec_error' === $imobisec_msg ? 'alert-danger' : 'alert-success'; ?>" role="alert" style="border-radius:10px;"><?php echo esc_html( $imobisec_text ); ?></div>
                     <?php endif; ?>
 
                     <!-- Main Content Card -->

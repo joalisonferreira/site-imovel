@@ -255,6 +255,7 @@
         var chip = target && target.closest ? target.closest('[data-ipc-lead-chips] .ipc-wz-chip') : null;
         if (chip) {
             chip.classList.toggle('is-on');
+            chip.setAttribute('aria-pressed', chip.classList.contains('is-on') ? 'true' : 'false');
         }
     });
 

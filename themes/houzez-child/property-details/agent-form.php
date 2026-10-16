@@ -95,44 +95,44 @@ if ($agent_email && $agent_display != 'none') {
 
 				<?php if( isset($hide_form_fields['name']) && $hide_form_fields['name'] != 1 ) { ?>
 				<div class="form-group mb-2 mt-3">
-					<input class="form-control" name="name" value="<?php echo esc_attr($user_name); ?>" type="text" placeholder="<?php echo houzez_option('spl_con_name', 'Name'); ?>">
+					<input class="form-control" name="name" value="<?php echo esc_attr($user_name); ?>" type="text" placeholder="<?php echo esc_attr( houzez_option('spl_con_name', 'Nome') ); ?>" aria-label="<?php esc_attr_e('Seu nome', 'imovel-parceiro-core'); ?>">
 				</div><!-- form-group -->
 				<?php } ?>
 
 				<?php if( isset($hide_form_fields['phone']) && $hide_form_fields['phone'] != 1 ) { ?>	
 				<div class="form-group mb-2">
-					<input class="form-control" name="mobile" value="" type="text" placeholder="<?php echo houzez_option('spl_con_phone', 'Phone'); ?>">
+					<input class="form-control" name="mobile" value="" type="tel" inputmode="tel" placeholder="<?php echo esc_attr( houzez_option('spl_con_phone', 'Telefone / WhatsApp') ); ?>" aria-label="<?php esc_attr_e('Seu telefone', 'imovel-parceiro-core'); ?>">
 				</div><!-- form-group -->
 				<?php } ?>
 
 				<div class="form-group mb-2">
-					<input class="form-control" name="email" value="<?php echo esc_attr($user_email); ?>" type="email" placeholder="<?php echo houzez_option('spl_con_email', 'Email'); ?>">
+					<input class="form-control" name="email" value="<?php echo esc_attr($user_email); ?>" type="email" placeholder="<?php echo esc_attr( houzez_option('spl_con_email', 'E-mail') ); ?>" aria-label="<?php esc_attr_e('Seu e-mail', 'imovel-parceiro-core'); ?>">
 				</div><!-- form-group -->
 
 				<?php if( isset($hide_form_fields['message']) && $hide_form_fields['message'] != 1 ) { ?>	
 				<div class="form-group form-group-textarea mb-2">
-					<textarea class="form-control hz-form-message" name="message" rows="4" placeholder="<?php echo houzez_option('spl_con_message', 'Message'); ?>"><?php echo houzez_option('spl_con_interested', "Hello, I am interested in"); ?> [<?php echo get_the_title(); ?>]</textarea>
+					<textarea class="form-control hz-form-message" name="message" rows="4" placeholder="<?php echo esc_attr( houzez_option('spl_con_message', 'Mensagem') ); ?>" aria-label="<?php esc_attr_e('Sua mensagem', 'imovel-parceiro-core'); ?>"><?php echo esc_html( houzez_option('spl_con_interested', "Olá, tenho interesse em") ); ?> [<?php echo get_the_title(); ?>]</textarea>
 				</div><!-- form-group -->	
 				<?php } ?>
 
 				<?php if( isset($hide_form_fields['usertype']) && $hide_form_fields['usertype'] != 1 ) { ?>	
 				<div class="form-group mb-2">
-					<select name="user_type" class="selectpicker form-control bs-select-hidden" title="<?php echo houzez_option('spl_con_select', 'Select'); ?>">
+					<select name="user_type" class="selectpicker form-control bs-select-hidden" title="<?php echo esc_attr( houzez_option('spl_con_select', 'Selecione') ); ?>" aria-label="<?php esc_attr_e('Você é', 'imovel-parceiro-core'); ?>">
 
 						<?php if( houzez_option('spl_con_buyer') != "" ) { ?>
-						<option value="buyer"><?php echo houzez_option('spl_con_buyer', "I'm a buyer"); ?></option>
+						<option value="buyer"><?php echo esc_html( houzez_option('spl_con_buyer', "Sou comprador") ); ?></option>
 						<?php } ?>
 
 						<?php if( houzez_option('spl_con_tennant') != "" ) { ?>
-						<option value="tennant"><?php echo houzez_option('spl_con_tennant', "I'm a tennant"); ?></option>
+						<option value="tennant"><?php echo esc_html( houzez_option('spl_con_tennant', "Sou inquilino") ); ?></option>
 						<?php } ?>
 
 						<?php if( houzez_option('spl_con_agent') != "" ) { ?>
-						<option value="agent"><?php echo houzez_option('spl_con_agent', "I'm an agent"); ?></option>
+						<option value="agent"><?php echo esc_html( houzez_option('spl_con_agent', "Sou corretor") ); ?></option>
 						<?php } ?>
 
 						<?php if( houzez_option('spl_con_other') != "" ) { ?>
-						<option value="other"><?php echo houzez_option('spl_con_other', 'Other'); ?></option>
+						<option value="other"><?php echo esc_html( houzez_option('spl_con_other', 'Outro') ); ?></option>
 						<?php } ?>
 					</select><!-- selectpicker -->
 				</div><!-- form-group -->
@@ -168,50 +168,50 @@ if ($agent_email && $agent_display != 'none') {
 		        <?php do_action('houzez_after_property_agent_form_fields'); ?>
 
 		        <?php get_template_part('template-parts/captcha'); ?>
-		        <div class="form_messages"></div>
+		        <div class="form_messages" role="alert" aria-live="polite"></div>
 				
 				<div class="property-schedule-tour-type-form d-flex justify-content-between gap-2 mb-2">
 					<?php if ( $ipc_can_submit ) : ?>
-					<button type="button" class="houzez-ele-button houzez_agent_property_form btn btn-secondary w-100">
+					<button type="button" class="houzez-ele-button houzez_agent_property_form btn btn-success w-100">
 						<?php get_template_part('template-parts/loader'); ?>
-						<span><?php echo houzez_option('spl_btn_send', 'Send Email'); ?></span>
+						<span><?php echo esc_html( houzez_option('spl_btn_send', 'Enviar mensagem') ); ?></span>
 					</button>
 					<?php else : ?>
-					<button type="button" class="houzez-ele-button btn btn-secondary w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>>
+					<button type="button" class="houzez-ele-button btn btn-success w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>>
 						<?php get_template_part('template-parts/loader'); ?>
-						<span><?php echo houzez_option('spl_btn_send', 'Send Email'); ?></span>
+						<span><?php echo esc_html( houzez_option('spl_btn_send', 'Enviar mensagem') ); ?></span>
 					</button>
 					<?php endif; ?>
 					
 					<?php if ( $ipc_can_see_contact && ! $ipc_is_client && $return_array['is_single_agent'] == true && !empty($agent_number) && $agent_mobile_num && !wp_is_mobile() ) : ?>
-					<a href="tel:<?php echo esc_attr($agent_mobile_call); ?>" data-property-id="<?php echo intval($post->ID); ?>" data-agent-id="<?php echo isset($return_array['agent_id']) ? intval($return_array['agent_id']) : ''; ?>" class="btn btn-secondary-outlined hz-btn-call w-100">
-						<span class="hide-on-click"><?php echo houzez_option('spl_btn_call', 'Call'); ?></span>
+					<a href="tel:<?php echo esc_attr($agent_mobile_call); ?>" data-property-id="<?php echo intval($post->ID); ?>" data-agent-id="<?php echo isset($return_array['agent_id']) ? intval($return_array['agent_id']) : ''; ?>" class="btn btn-secondary-outlined hz-btn-call w-100" aria-label="<?php esc_attr_e('Ligar agora', 'imovel-parceiro-core'); ?>">
+						<span class="hide-on-click"><?php echo esc_html( houzez_option('spl_btn_call', 'Ligar') ); ?></span>
 						<span class="show-on-click"><?php echo esc_attr($agent_number); ?></span>
 					</a>
 					<?php elseif ( $ipc_is_logged_in && ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_number) && $agent_mobile_num && !wp_is_mobile() ) : ?>
 					<button type="button" class="btn btn-secondary-outlined hz-btn-call w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>>
-						<span><?php echo houzez_option('spl_btn_call', 'Call'); ?></span>
+						<span><?php echo esc_html( houzez_option('spl_btn_call', 'Ligar') ); ?></span>
 					</button>
 					<?php endif; ?>
 				</div>
 
 
 				<?php if( $ipc_can_see_contact && ! $ipc_is_client && $return_array['is_single_agent'] == true && !empty($agent_whatsapp_call) && $agent_whatsapp_num ) { ?>
-				<a target="_blank" href="https://api.whatsapp.com/send?phone=<?php echo esc_attr( $agent_whatsapp_call ); ?>&text=<?php echo houzez_option('spl_con_interested', "Hello, I am interested in").' ['.get_the_title().'] '.get_permalink(); ?>" data-property-id="<?php echo intval($post->ID); ?>" data-agent-id="<?php echo isset($return_array['agent_id']) ? intval($return_array['agent_id']) : ''; ?>" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2"><i class="houzez-icon icon-messaging-whatsapp me-1"></i> <?php esc_html_e('WhatsApp', 'houzez'); ?></a>
+				<a target="_blank" href="https://wa.me/<?php echo esc_attr( class_exists('Imovel_Parceiro_Contact_Visibility') ? Imovel_Parceiro_Contact_Visibility::normalize_whatsapp_number($agent_whatsapp_call) : esc_attr($agent_whatsapp_call) ); ?>?text=<?php echo rawurlencode( houzez_option('spl_con_interested', "Olá, tenho interesse em").' ['.get_the_title().'] '.get_permalink() ); ?>" data-property-id="<?php echo intval($post->ID); ?>" data-agent-id="<?php echo isset($return_array['agent_id']) ? intval($return_array['agent_id']) : ''; ?>" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2" aria-label="<?php esc_attr_e('Conversar no WhatsApp', 'imovel-parceiro-core'); ?>"><i class="houzez-icon icon-messaging-whatsapp me-1" aria-hidden="true"></i> <?php esc_html_e('WhatsApp', 'imovel-parceiro-core'); ?></a>
 				<?php } elseif( $ipc_is_logged_in && ! $ipc_can_see_contact && $return_array['is_single_agent'] == true && !empty($agent_whatsapp_call) && $agent_whatsapp_num ) { ?>
-				<button type="button" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>><i class="houzez-icon icon-messaging-whatsapp me-1"></i> <?php esc_html_e('WhatsApp', 'houzez'); ?></button>
+				<button type="button" class="btn btn-secondary-outlined w-100 hz-btn-whatsapp mb-2 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>"<?php echo $ipc_is_logged_in ? '' : ' data-bs-toggle="modal" data-bs-target="#login-register-form"'; ?>><i class="houzez-icon icon-messaging-whatsapp me-1" aria-hidden="true"></i> <?php esc_html_e('WhatsApp', 'imovel-parceiro-core'); ?></button>
 				<?php } ?>
 
 				<?php if( $return_array['is_single_agent'] == true && houzez_option('agent_direct_messages', 0) ) { ?>
 					<?php if ( $ipc_can_see_contact && ! $ipc_is_client ) : ?>
-				<button type="button" <?php echo $dataModel; ?> class="<?php echo esc_attr($action_class).' '.esc_attr($login_class); ?> btn btn-secondary-outlined w-100">
+				<button type="button" <?php echo $dataModel; ?> class="<?php echo esc_attr($action_class).' '.esc_attr($login_class); ?> btn btn-secondary-outlined w-100" aria-label="<?php esc_attr_e('Enviar mensagem direta', 'imovel-parceiro-core'); ?>">
 					<?php get_template_part('template-parts/loader'); ?>
-					<?php echo houzez_option('spl_btn_message', 'Send Message'); ?>		
+					<?php echo esc_html( houzez_option('spl_btn_message', 'Enviar mensagem direta') ); ?>		
 				</button>
 					<?php elseif ( $ipc_is_logged_in ) : ?>
 				<button type="button"<?php echo $ipc_is_logged_in ? '' : ' ' . $dataModel; ?> class="<?php echo $ipc_is_logged_in ? '' : esc_attr($login_class); ?> btn btn-secondary-outlined w-100 ipc-contact-locked" aria-disabled="true" data-ipc-message="<?php echo esc_attr( $ipc_is_logged_in ? $ipc_qualify_message : $ipc_login_message ); ?>">
 					<?php get_template_part('template-parts/loader'); ?>
-					<?php echo houzez_option('spl_btn_message', 'Send Message'); ?>
+					<?php echo esc_html( houzez_option('spl_btn_message', 'Enviar mensagem direta') ); ?>
 				</button>
 					<?php endif; ?>
 				<?php } ?>
@@ -226,7 +226,7 @@ if ($agent_email && $agent_display != 'none') {
 if ( empty( $GLOBALS['ipc_contact_locked_assets'] ) ) :
 	$GLOBALS['ipc_contact_locked_assets'] = true;
 	?>
-<style>.ipc-contact-locked{opacity:.65;cursor:not-allowed}#ipc-contact-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:10060;max-width:min(92vw,480px);background:#0f172a;color:#fff;border-radius:12px;padding:12px 18px;font-size:14px;font-weight:500;box-shadow:0 12px 32px rgba(2,6,23,.35);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center}#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}</style>
+<style>.ipc-contact-locked{opacity:.9;cursor:not-allowed;border-style:dashed}#ipc-contact-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:10060;max-width:min(92vw,480px);background:#0f172a;color:#fff;border-radius:12px;padding:12px 18px;font-size:14px;font-weight:500;box-shadow:0 12px 32px rgba(2,6,23,.35);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center}#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}#ipc-contact-toast button{margin-left:12px;background:transparent;border:1px solid #fff;border-radius:8px;color:#fff;padding:6px 12px;min-height:44px;pointer-events:auto;cursor:pointer}</style>
 <div id="ipc-contact-toast" role="status" aria-live="polite"></div>
 <script>
 (function(){
@@ -236,10 +236,18 @@ if ( empty( $GLOBALS['ipc_contact_locked_assets'] ) ) :
 	function showToast(msg){
 		var toast = document.getElementById('ipc-contact-toast');
 		if (!toast) { return; }
-		toast.textContent = msg;
+		toast.innerHTML = '';
+		var span = document.createElement('span');
+		span.textContent = msg;
+		toast.appendChild(span);
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.textContent = 'Entendi';
+		btn.addEventListener('click', function(){ toast.classList.remove('ipc-show'); if (toastTimer) { clearTimeout(toastTimer); } });
+		toast.appendChild(btn);
 		toast.classList.add('ipc-show');
 		if (toastTimer) { clearTimeout(toastTimer); }
-		toastTimer = setTimeout(function(){ toast.classList.remove('ipc-show'); }, 4500);
+		toastTimer = setTimeout(function(){ toast.classList.remove('ipc-show'); }, 6000);
 	}
 	document.addEventListener('click', function(e){
 		var btn = e.target && e.target.closest ? e.target.closest('.ipc-contact-locked') : null;

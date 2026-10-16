@@ -66,6 +66,10 @@ if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
             $ipc_hide_direct = true;
         }
     }
+    // Padroniza WhatsApp para wa.me com DDI 55 (evita link quebrado).
+    if ( ! empty( $agent_whatsapp_call ) ) {
+        $agent_whatsapp_call = Imovel_Parceiro_Contact_Visibility::normalize_whatsapp_number( $agent_whatsapp_call );
+    }
 }
 ?>
 <div class="mobile-property-contact w-100 d-block d-lg-none" role="complementary">
@@ -83,17 +87,20 @@ if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
             </div><!-- d-flex -->
         </div><!-- agent-details -->
         <?php if ( $ipc_can_see_contact ) : ?>
-        <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mobile-property-form">
+        <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mobile-property-form" aria-label="<?php esc_attr_e('Enviar mensagem para a equipe', 'imovel-parceiro-core'); ?>" style="min-width:44px;min-height:44px;">
             <i class="houzez-icon icon-envelope" aria-hidden="true"></i>
         </button>
         <?php endif; ?>
+        <?php if ( $ipc_hide_direct && $ipc_can_see_contact ) : ?>
+        <span class="ipc-mobile-hint text-muted small ms-1"><?php esc_html_e('Fale com nossa equipe pelo formulário', 'imovel-parceiro-core'); ?></span>
+        <?php endif; ?>
         <?php if ( $ipc_can_see_contact && ! $ipc_hide_direct && !empty( $agent_whatsapp_call ) && houzez_option('agent_whatsapp_num', 1) ) { ?>
-        <a href="https://api.whatsapp.com/send?phone=<?php echo esc_attr( $agent_whatsapp_call ); ?>&text=<?php echo houzez_option('spl_con_interested', 'Hello, I am interested in').' ['.get_the_title().'] '.get_permalink(); ?> " class="btn btn-secondary-outlined">
+        <a href="https://wa.me/<?php echo esc_attr( $agent_whatsapp_call ); ?>?text=<?php echo rawurlencode( houzez_option('spl_con_interested', 'Olá, tenho interesse em').' ['.get_the_title().'] '.get_permalink() ); ?>" class="btn btn-secondary-outlined" aria-label="<?php esc_attr_e('Conversar no WhatsApp', 'imovel-parceiro-core'); ?>" style="min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;">
             <i class="houzez-icon icon-messaging-whatsapp" aria-hidden="true"></i>
         </a>
         <?php } ?>
         <?php if ( $ipc_can_see_contact && ! $ipc_hide_direct && ! empty($agent_number_call) && houzez_option('agent_mobile_num', 1) ) { ?>
-        <a href="tel:<?php echo esc_attr($agent_number_call); ?>" class="btn btn-secondary-outlined">
+        <a href="tel:<?php echo esc_attr($agent_number_call); ?>" class="btn btn-secondary-outlined" aria-label="<?php esc_attr_e('Ligar para o anunciante', 'imovel-parceiro-core'); ?>" style="min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;">
             <i class="houzez-icon icon-phone" aria-hidden="true"></i>
         </a>
         <?php } ?>
@@ -105,12 +112,12 @@ if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
     </div><!-- d-flex -->
 </div><!-- mobile-property-contact -->
 
-<div class="modal fade mobile-property-form" id="mobile-property-form" role="dialog" aria-labelledby="propertyFormTitle" aria-modal="true">
+<div class="modal fade mobile-property-form" id="mobile-property-form" role="dialog" aria-labelledby="mobilePropertyFormTitle" aria-modal="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="phoneNumberModalLabel"><?php esc_html_e('Contact me', 'houzez'); ?></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="mobilePropertyFormTitle"><?php esc_html_e('Falar com a equipe', 'imovel-parceiro-core'); ?></h5>
+                <button type="button" class="btn-close btn-danger" data-bs-dismiss="modal" aria-label="<?php esc_attr_e('Fechar', 'imovel-parceiro-core'); ?>" style="min-width:44px;min-height:44px;"></button>
             </div><!-- modal-header -->
             <div class="modal-body">
                 <?php get_template_part('property-details/agent-form'); ?>

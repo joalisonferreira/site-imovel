@@ -748,7 +748,7 @@ jQuery(function($){
                 var propertyTitle = contactData.property_title || '';
                 var propertyUrl = contactData.property_permalink || window.location.href;
                 var whatsappText = encodeURIComponent('Olá, tenho interesse no imóvel ' + propertyTitle + ' - ' + propertyUrl);
-                $whatsapp.attr('href', 'https://api.whatsapp.com/send?phone=' + contactData.owner_whatsapp_call + '&text=' + whatsappText);
+                $whatsapp.attr('href', 'https://wa.me/' + contactData.owner_whatsapp_call + '?text=' + whatsappText);
                 $whatsapp.attr('target', '_blank');
             } else {
                 $whatsapp.removeAttr('href').removeAttr('target');

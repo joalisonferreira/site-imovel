@@ -38,7 +38,7 @@ $total_packages = $first_pkg_column = '';
 $total_packages = $fave_qry->found_posts;
 
 if ( $total_packages == 3 ) {
-	$pkg_classes = 'col-md-4 col-sm-4 col-xs-12';
+	$pkg_classes = 'col-md-4 col-sm-4 col-12';
 } elseif ( $total_packages == 4 ) {
 	$pkg_classes = 'col-md-3 col-sm-6';
 } elseif ( $total_packages == 2 ) {
@@ -86,9 +86,16 @@ while ( $fave_qry->have_posts() ) :
 	}
 
 	if ( $is_free_plan ) {
-		$package_price = '<span class="price-table-price">' . esc_html__( 'Grátis', 'houzez' ) . '</span>';
+		$package_price = '<span class="price-table-price">' . esc_html__( 'Grátis', 'imovel-parceiro-core' ) . '</span>';
 	} elseif ( $price_on_request ) {
-		$package_price = '<span class="price-table-price">' . esc_html__( 'Sob consulta', 'houzez' ) . '</span>';
+		$package_price = '<span class="price-table-price">' . esc_html__( 'Sob consulta', 'imovel-parceiro-core' ) . '</span>';
+	} elseif ( is_numeric( $pack_price ) && '' !== $pack_price ) {
+		$pack_price_fmt = number_format_i18n( (float) $pack_price, 2 );
+		if ( $where_currency == 'before' ) {
+			$package_price = '<span class="price-table-currency">R$</span><span class="price-table-price">' . esc_html( $pack_price_fmt ) . '</span>';
+		} else {
+			$package_price = '<span class="price-table-price">' . esc_html( $pack_price_fmt ) . '</span><span class="price-table-currency">R$</span>';
+		}
 	} elseif ( $where_currency == 'before' ) {
 		$package_price = '<span class="price-table-currency">' . $currency_symbol . '</span><span class="price-table-price">' . $pack_price . '</span>';
 	} else {
@@ -158,7 +165,7 @@ while ( $fave_qry->have_posts() ) :
 					<?php if ( $fave_package_images != '' ) { ?>
 					<li class="border-top py-3">
 						<i class="houzez-icon icon-check-circle-1 primary-text me-1"></i>
-						<?php esc_html_e( 'Images', 'houzez' ); ?>:
+						<?php esc_html_e( 'Fotos', 'imovel-parceiro-core' ); ?>:
 						<strong><?php echo esc_attr( $fave_package_images ); ?></strong>
 					</li>
 					<?php } ?>
@@ -166,7 +173,7 @@ while ( $fave_qry->have_posts() ) :
 					<?php if ( $pack_package_tax != '' ) { ?>
 					<li class="border-top py-3">
 						<i class="houzez-icon icon-check-circle-1 primary-text me-1"></i>
-						<?php esc_html_e( 'Taxes', 'houzez' ); ?>:
+						<?php esc_html_e( 'Taxas', 'imovel-parceiro-core' ); ?>:
 						<strong><?php echo esc_attr( $pack_package_tax ) . '%'; ?></strong>
 					</li>
 					<?php } ?>

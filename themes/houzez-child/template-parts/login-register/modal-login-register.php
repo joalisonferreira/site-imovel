@@ -15,17 +15,17 @@ $ipc_auth_primary = houzez_option( 'houzez_primary_color', '#d72218' );
                 <div class="login-register-tabs">
                     <ul class="nav nav-tabs" id="loginRegisterTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="modal-toggle-1 nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-form-tab" type="button" role="tab" aria-controls="login-form-tab" aria-selected="true"><?php esc_html_e('Login', 'houzez'); ?></button>
+                            <button class="modal-toggle-1 nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-form-tab" type="button" role="tab" aria-controls="login-form-tab" aria-selected="true"><?php esc_html_e('Entrar', 'imovel-parceiro-core'); ?></button>
                         </li>
 
                         <?php if( houzez_option('header_register') ) { ?>
                         <li class="nav-item" role="presentation">
-                            <button class="modal-toggle-2 nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-form-tab" type="button" role="tab" aria-controls="register-form-tab" aria-selected="false"><?php esc_html_e('Register', 'houzez'); ?></button>
+                            <button class="modal-toggle-2 nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-form-tab" type="button" role="tab" aria-controls="register-form-tab" aria-selected="false"><?php esc_html_e('Criar conta', 'imovel-parceiro-core'); ?></button>
                         </li>
                         <?php } ?>
                     </ul>    
                 </div>
-                <button type="button" class="btn close ms-auto" data-bs-dismiss="modal" aria-label="Close">
+                <button type="button" class="btn btn-danger close ms-auto ipc-auth-close" data-bs-dismiss="modal" aria-label="<?php esc_attr_e('Fechar', 'imovel-parceiro-core'); ?>" style="min-width:44px;min-height:44px;">
                     <span aria-hidden="true">×</span>
                 </button>
             </div>
