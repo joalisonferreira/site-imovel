@@ -8,6 +8,19 @@ jQuery(function($){
         style.textContent = '.imovel-parceiro-request-partnership{display:none !important} #imovel-parceiro-partnership-modal{display:none !important}';
         document.head.appendChild(style);
     }
+    // Visitante: botões de contato no perfil do corretor (Enviar e-mail, Chamar) mostram toast
+    if (window.imovelParceiroCore && !window.imovelParceiroCore.is_logged_in) {
+        // Enviar e-mail (abre modal #realtor-form)
+        $(document).on('click', 'button[data-bs-target="#realtor-form"], a[data-bs-target="#realtor-form"]', function (e) {
+            e.preventDefault();
+            showFeedback('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.', 'error');
+        });
+        // Chamar (tel:)
+        $(document).on('click', 'a.btn-call, a[href^="tel:"]', function (e) {
+            e.preventDefault();
+            showFeedback('Cadastre-se e tenha um plano ativo para ligar para o corretor.', 'error');
+        });
+    }
     // Fallback IPCW is_client (do widget)
     if (window.ipcwData && window.ipcwData.is_client) {
         $('.imovel-parceiro-request-partnership').hide();
