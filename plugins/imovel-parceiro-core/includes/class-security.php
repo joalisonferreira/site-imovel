@@ -7,8 +7,6 @@ class Imovel_Parceiro_Security {
     private $protected_ajax_actions = array(
         'imovel_parceiro_accept_terms',
         'imovel_parceiro_owner_upload_document',
-        'imovel_parceiro_owner_request_broker_change',
-        'imovel_parceiro_owner_process_broker_change',
         'imovel_parceiro_owner_review_document',
         'imovel_parceiro_owner_request_property_delete',
         'imovel_parceiro_owner_process_property_delete',
@@ -66,10 +64,8 @@ class Imovel_Parceiro_Security {
 
     private $capability_map = array(
         'imovel_parceiro_owner_upload_document' => 'imovel_parceiro_owner_manage_docs',
-        'imovel_parceiro_owner_request_broker_change' => 'imovel_parceiro_owner_request_broker_change',
         'imovel_parceiro_owner_request_property_delete' => 'imovel_parceiro_owner_request_deletion',
         'imovel_parceiro_owner_property_context' => 'imovel_parceiro_owner_manage_docs',
-        'imovel_parceiro_owner_process_broker_change' => 'imovel_parceiro_manage_owner_workflow',
         'imovel_parceiro_owner_review_document' => 'imovel_parceiro_manage_owner_workflow',
         'imovel_parceiro_owner_process_property_delete' => 'imovel_parceiro_manage_owner_workflow',
         'imovel_parceiro_owner_download_document' => 'imovel_parceiro_manage_owner_workflow',

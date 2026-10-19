@@ -59,9 +59,6 @@ $approval_status = ! empty( $context['approval_status'] ) ? $context['approval_s
             <a class="fw-bold" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>"><?php the_title(); ?></a><br>
             <address class="mb-1"><?php echo houzez_get_listing_data( 'property_map_address' ); ?></address>
             <small class="d-block text-muted"><?php esc_html_e( 'Corretor responsável:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $broker_name ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Fluxo:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $workflow_status ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Documentação:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $doc_status ); ?></small>
-            <small class="d-block text-muted"><?php esc_html_e( 'Aprovação:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( $approval_status ); ?></small>
         </div>
     </td>
     <td data-label="<?php echo esc_html__( 'Status', 'houzez' ); ?>"><?php echo houzez_taxonomy_simple( 'property_status' ); ?></td>
@@ -82,13 +79,8 @@ $approval_status = ! empty( $context['approval_status'] ) ? $context['approval_s
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item imovel-owner-request-broker-change" href="javascript:void(0)" data-property-id="<?php echo esc_attr( $post_id ); ?>" data-property-title="<?php echo esc_attr( get_the_title( $post_id ) ); ?>">
-                        <i class="houzez-icon icon-single-neutral-actions-text"></i> <?php esc_html_e( 'Solicitar troca de corretor', 'imovel-parceiro-core' ); ?>
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item imovel-owner-request-delete" href="javascript:void(0)" data-property-id="<?php echo esc_attr( $post_id ); ?>">
-                        <i class="houzez-icon icon-bin"></i> <?php esc_html_e( 'Solicitar exclusão', 'imovel-parceiro-core' ); ?>
+                    <a class="dropdown-item imovel-owner-delete" href="javascript:void(0)" data-property-id="<?php echo esc_attr( $post_id ); ?>" data-property-title="<?php echo esc_attr( get_the_title( $post_id ) ); ?>">
+                        <i class="houzez-icon icon-bin"></i> <?php esc_html_e( 'Excluir imóvel', 'imovel-parceiro-core' ); ?>
                     </a>
                 </li>
             </ul>

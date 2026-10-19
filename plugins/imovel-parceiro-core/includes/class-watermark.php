@@ -21,6 +21,8 @@ class Imovel_Parceiro_Watermark {
     }
 
     const BULK_BATCH = 5;
+    const ASYNC_ACTION = 'imovel_parceiro_watermark_process';
+    const ASYNC_GROUP = 'imovel-parceiro-watermark';
 
     private function __construct() {
         add_action( 'init', array( $this, 'handle_dashboard_request' ) );
@@ -28,6 +30,7 @@ class Imovel_Parceiro_Watermark {
         add_action( 'added_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
         add_action( 'updated_post_meta', array( $this, 'maybe_process_on_property_gallery_meta' ), 10, 4 );
         add_action( 'wp_ajax_imovel_parceiro_watermark_bulk', array( $this, 'ajax_bulk_apply' ) );
+        add_action( self::ASYNC_ACTION, array( $this, 'handle_async_process' ), 10, 2 );
     }
 
     public static function get_settings() {
@@ -249,7 +252,11 @@ class Imovel_Parceiro_Watermark {
             return $metadata;
         }
 
-        $this->process_attachment_watermark( $attachment_id, $metadata );
+        // P0: nao bloquear o upload — agenda processamento async (Action Scheduler / WP-Cron).
+        // Fallback sincrono so se o agendamento falhar.
+        if ( ! $this->schedule_async_process( $attachment_id, false ) ) {
+            $this->process_attachment_watermark( $attachment_id, $metadata );
+        }
 
         return $metadata;
     }
@@ -273,6 +280,124 @@ class Imovel_Parceiro_Watermark {
         return 'houzez_property_img_upload' === $action;
     }
 
+    /**
+     * Agenda processamento async da marca d'agua (nao bloqueia o upload).
+     * Tenta Action Scheduler -> WP-Cron -> false se nada disponivel.
+     *
+     * @param int  $attachment_id
+     * @param bool $scaled_only
+     * @return bool True se agendado, false se precisa fallback sincrono.
+     */
+    private function schedule_async_process( $attachment_id, $scaled_only = false ) {
+        $attachment_id = absint( $attachment_id );
+        if ( ! $attachment_id ) {
+            return false;
+        }
+        // Evita re-agendar o mesmo job pendente.
+        $scaled_flag = $scaled_only ? 1 : 0;
+
+        // Action Scheduler (WooCommerce) — preferido.
+        if ( function_exists( 'as_next_scheduled_action' ) && function_exists( 'as_schedule_single_action' ) ) {
+            $pending = as_next_scheduled_action( self::ASYNC_ACTION, array( $attachment_id, $scaled_flag ), self::ASYNC_GROUP );
+            if ( $pending ) {
+                return true;
+            }
+            try {
+                as_schedule_single_action( time() + 5, self::ASYNC_ACTION, array( $attachment_id, $scaled_flag ), self::ASYNC_GROUP );
+                return true;
+            } catch ( Exception $e ) {
+                // cai para WP-Cron
+            }
+        }
+
+        // WP-Cron fallback.
+        if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_schedule_single_event' ) ) {
+            if ( wp_next_scheduled( self::ASYNC_ACTION, array( $attachment_id, $scaled_flag ) ) ) {
+                return true;
+            }
+            $scheduled = wp_schedule_single_event( time() + 5, self::ASYNC_ACTION, array( $attachment_id, $scaled_flag ) );
+            if ( false !== $scheduled ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Worker async: busca metadata fresca e aplica a marca.
+     *
+     * @param int $attachment_id
+     * @param int $scaled_only
+     */
+    public function handle_async_process( $attachment_id, $scaled_only = 0 ) {
+        $attachment_id = absint( $attachment_id );
+        $scaled_only = ! empty( $scaled_only );
+        if ( ! $attachment_id || ! $this->is_watermark_enabled() ) {
+            return;
+        }
+        // Se ja processado e nao e repair, sai (dedupe).
+        if ( ! $scaled_only && 1 === (int) get_post_meta( $attachment_id, self::META_PROCESSED, true ) ) {
+            return;
+        }
+        if ( $scaled_only && 1 === (int) get_post_meta( $attachment_id, self::META_SCALED, true ) ) {
+            return;
+        }
+        $metadata = wp_get_attachment_metadata( $attachment_id );
+        if ( ! is_array( $metadata ) ) {
+            return;
+        }
+        // Levanta limites so no worker, nao na request do usuario.
+        @set_time_limit( 90 );
+        if ( function_exists( 'wp_raise_memory_limit' ) ) {
+            wp_raise_memory_limit( 'image' );
+        }
+        $this->process_attachment_watermark( $attachment_id, $metadata, $scaled_only );
+    }
+
+    /**
+     * Extrai IDs de anexo de fave_property_images (array, string comma, scalar).
+     *
+     * @param mixed $meta_value Valor do postmeta.
+     * @return int[]
+     */
+    private static function parse_gallery_ids( $meta_value ) {
+        $ids = array();
+        if ( is_array( $meta_value ) ) {
+            // Houzez as vezes salva array de arrays.
+            $flat = array();
+            array_walk_recursive( $meta_value, function( $v ) use ( &$flat ) { $flat[] = $v; } );
+            foreach ( $flat as $v ) {
+                if ( is_scalar( $v ) ) {
+                    $id = absint( $v );
+                    if ( $id ) {
+                        $ids[] = $id;
+                    }
+                } elseif ( is_string( $v ) && false !== strpos( $v, ',' ) ) {
+                    foreach ( explode( ',', $v ) as $part ) {
+                        $id = absint( trim( $part ) );
+                        if ( $id ) {
+                            $ids[] = $id;
+                        }
+                    }
+                }
+            }
+        } elseif ( is_string( $meta_value ) && false !== strpos( $meta_value, ',' ) ) {
+            foreach ( explode( ',', $meta_value ) as $part ) {
+                $id = absint( trim( $part ) );
+                if ( $id ) {
+                    $ids[] = $id;
+                }
+            }
+        } elseif ( is_scalar( $meta_value ) ) {
+            $id = absint( $meta_value );
+            if ( $id ) {
+                $ids[] = $id;
+            }
+        }
+        return array_values( array_unique( array_filter( $ids ) ) );
+    }
+
     public function maybe_process_on_property_gallery_meta( $meta_id, $object_id, $meta_key, $meta_value ) {
         if ( 'fave_property_images' !== $meta_key && '_thumbnail_id' !== $meta_key ) {
             return;
@@ -287,17 +412,20 @@ class Imovel_Parceiro_Watermark {
             return;
         }
 
-        $attachment_id = is_scalar( $meta_value ) ? absint( $meta_value ) : 0;
-        if ( ! $attachment_id ) {
+        $attachment_ids = self::parse_gallery_ids( $meta_value );
+        if ( empty( $attachment_ids ) ) {
             return;
         }
 
-        $metadata = wp_get_attachment_metadata( $attachment_id );
-        if ( ! is_array( $metadata ) ) {
-            return;
+        foreach ( $attachment_ids as $attachment_id ) {
+            // Cada ID é enfileirado individualmente; worker busca metadata fresca.
+            if ( ! $this->schedule_async_process( $attachment_id, false ) ) {
+                $metadata = wp_get_attachment_metadata( $attachment_id );
+                if ( is_array( $metadata ) ) {
+                    $this->process_attachment_watermark( $attachment_id, $metadata );
+                }
+            }
         }
-
-        $this->process_attachment_watermark( $attachment_id, $metadata );
     }
 
     private function is_watermark_enabled() {

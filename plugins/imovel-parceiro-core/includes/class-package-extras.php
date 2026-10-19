@@ -339,20 +339,16 @@ class Imovel_Parceiro_Package_Extras {
 									$base_url
 								);
 								?>
-							<?php
-							$plan_label = get_post_meta( $lead->ID, self::LEAD_PACKAGE_NAME_META, true );
-							$type_label = get_post_meta( $lead->ID, self::LEAD_TYPE_META, true );
-							?>
-							<tr class="border-b border-slate-50 align-top">
-								<td class="py-3 pr-4 text-slate-500"><?php echo esc_html( get_the_date( 'd/m/Y H:i', $lead ) ); ?></td>
-								<td class="py-3 pr-4">
-									<div class="font-semibold text-slate-800"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_NAME_META, true ) ); ?></div>
-									<div class="text-slate-500"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_EMAIL_META, true ) ); ?></div>
-									<div class="text-slate-500"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_PHONE_META, true ) ); ?></div>
-								</td>
-								<td class="py-3 pr-4 text-slate-600"><?php echo esc_html( $plan_label ); ?></td>
-								<td class="py-3 pr-4 text-slate-600">
-									<div class="font-semibold text-slate-700"><?php echo esc_html( $type_label ); ?></div>
+								<tr class="border-b border-slate-50 align-top">
+									<td class="py-3 pr-4 text-slate-500"><?php echo esc_html( get_the_date( 'd/m/Y H:i', $lead ) ); ?></td>
+									<td class="py-3 pr-4">
+										<div class="font-semibold text-slate-800"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_NAME_META, true ) ); ?></div>
+										<div class="text-slate-500"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_EMAIL_META, true ) ); ?></div>
+										<div class="text-slate-500"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_PHONE_META, true ) ); ?></div>
+									</td>
+									<td class="py-3 pr-4 text-slate-600"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_PACKAGE_NAME_META, true ) ); ?></td>
+									<td class="py-3 pr-4 text-slate-600">
+										<div class="font-semibold text-slate-700"><?php echo esc_html( get_post_meta( $lead->ID, self::LEAD_TYPE_META, true ) ); ?></div>
 										<?php $msg = get_post_meta( $lead->ID, self::LEAD_MESSAGE_META, true ); ?>
 										<?php if ( $msg ) : ?>
 											<div class="mt-1 max-w-xs whitespace-pre-line text-slate-500"><?php echo esc_html( $msg ); ?></div>

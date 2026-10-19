@@ -140,6 +140,12 @@ class Imovel_Parceiro_User_Fields {
     public function render_register_fields() {
         ?>
         <input type="hidden" name="ipc_user_fields" value="1" />
+        <?php
+        // Modo wizard (template próprio com os mesmos names): só o marcador.
+        if ( ! empty( $GLOBALS['ipc_register_wizard'] ) ) {
+            return;
+        }
+        ?>
         <?php if ( empty( $GLOBALS['ipc_register_full_name_rendered'] ) ) : ?>
         <div class="form-group">
             <div class="form-group-field">
@@ -173,7 +179,7 @@ class Imovel_Parceiro_User_Fields {
             </div>
             <div class="form-group"<?php echo $ipc_show_role_slot ? '' : ' style="grid-column:1/-1"'; ?>>
                 <div class="form-group-field">
-                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI', 'imovel-parceiro-core' ); ?>" autocomplete="off" />
+                    <input type="text" class="form-control ipc-creci" name="creci" placeholder="<?php esc_attr_e( 'CRECI (somente números)', 'imovel-parceiro-core' ); ?>" inputmode="numeric" maxlength="12" autocomplete="off" />
                 </div>
             </div>
             <?php if ( $ipc_show_role_slot ) : ?>
@@ -226,11 +232,15 @@ class Imovel_Parceiro_User_Fields {
 
         $document = isset( $_POST['person_document'] ) ? preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['person_document'] ) ) ) : '';
 
-        if ( ! in_array( $person_type, array( 'cpf', 'cnpj' ), true ) ) {
+        // Conta mínima: CPF/CNPJ obrigatório só para corretor/imobiliária.
+        // Proprietário/cliente completam depois, no contexto (perfil progressivo).
+        $is_agent_agency = in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true );
+
+        if ( $is_agent_agency && ! in_array( $person_type, array( 'cpf', 'cnpj' ), true ) ) {
             $this->registration_error( __( 'Selecione o tipo de pessoa (CPF ou CNPJ).', 'imovel-parceiro-core' ) );
         }
 
-        if ( '' === $document ) {
+        if ( $is_agent_agency && '' === $document ) {
             $this->registration_error(
                 'cnpj' === $person_type
                     ? __( 'Informe o CNPJ.', 'imovel-parceiro-core' )
@@ -238,16 +248,18 @@ class Imovel_Parceiro_User_Fields {
             );
         }
 
-        if ( 'cnpj' === $person_type ) {
-            if ( ! self::validate_cnpj( $document ) ) {
-                $this->registration_error( __( 'O CNPJ informado é inválido.', 'imovel-parceiro-core' ) );
+        if ( '' !== $document && '' !== $person_type ) {
+            if ( 'cnpj' === $person_type ) {
+                if ( ! self::validate_cnpj( $document ) ) {
+                    $this->registration_error( __( 'O CNPJ informado é inválido.', 'imovel-parceiro-core' ) );
+                }
+            } elseif ( ! self::validate_cpf( $document ) ) {
+                $this->registration_error( __( 'O CPF informado é inválido.', 'imovel-parceiro-core' ) );
             }
-        } elseif ( ! self::validate_cpf( $document ) ) {
-            $this->registration_error( __( 'O CPF informado é inválido.', 'imovel-parceiro-core' ) );
         }
 
         if ( in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true ) ) {
-            $creci = isset( $_POST['creci'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
+            $creci = isset( $_POST['creci'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
             if ( '' === $creci ) {
                 $this->registration_error( __( 'O CRECI é obrigatório para corretores e imobiliárias.', 'imovel-parceiro-core' ) );
             }
@@ -258,12 +270,11 @@ class Imovel_Parceiro_User_Fields {
     }
 
     /**
-     * Normalize a CRECI/license value for comparison.
+     * Normalize a CRECI/license value for comparison (digits only —
+     * the ImobiSec lookup also strips non-digits).
      */
     public static function normalize_license( $value ) {
-        $value = strtoupper( trim( (string) $value ) );
-
-        return preg_replace( '/[^A-Z0-9]/', '', $value );
+        return preg_replace( '/\D/', '', (string) $value );
     }
 
     /**
@@ -414,7 +425,7 @@ class Imovel_Parceiro_User_Fields {
 
         $document       = isset( $_POST['person_document'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['person_document'] ) ) ) : '';
         $document_store = '';
-        $creci          = isset( $_POST['creci'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
+        $creci          = isset( $_POST['creci'] ) ? self::only_digits( sanitize_text_field( wp_unslash( $_POST['creci'] ) ) ) : '';
 
         if ( '' !== $person_type ) {
             update_user_meta( $user_id, self::PERSON_TYPE_META, $person_type );
@@ -433,14 +444,49 @@ class Imovel_Parceiro_User_Fields {
         }
 
         // Se o número é WhatsApp, preenche também o campo de WhatsApp.
+        // Normalizado com DDI 55 (formato exigido pelo wa.me).
         $phone = isset( $_POST['phone_number'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['phone_number'] ) ) ) : '';
         if ( '' !== $phone && ! empty( $_POST['phone_is_whatsapp'] ) ) {
+            if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+                $phone = Imovel_Parceiro_Contact_Visibility::normalize_whatsapp_number( $phone );
+            }
             update_user_meta( $user_id, 'fave_author_whatsapp', $phone );
         }
 
         if ( ! empty( $_POST['term_condition'] ) ) {
             $this->insert_terms_audit_log( $user_id, $person_type, $document_store );
         }
+
+        // Passo 2 do wizard: preferências (somente usermeta, sem schema novo).
+        $goal = isset( $_POST['ipc_goal'] ) ? sanitize_key( wp_unslash( $_POST['ipc_goal'] ) ) : '';
+        if ( in_array( $goal, array( 'comprar', 'alugar', 'investir' ), true ) ) {
+            update_user_meta( $user_id, 'ipc_goal', $goal );
+        }
+
+        $types_raw = isset( $_POST['ipc_property_types'] ) ? sanitize_text_field( wp_unslash( $_POST['ipc_property_types'] ) ) : '';
+        $types     = array_values(
+            array_filter(
+                array_map( 'trim', explode( ',', $types_raw ) ),
+                function ( $type ) {
+                    return '' !== $type && mb_strlen( $type ) <= 60;
+                }
+            )
+        );
+        if ( $types ) {
+            update_user_meta( $user_id, 'ipc_property_types', array_slice( $types, 0, 8 ) );
+        }
+
+        $price_range = isset( $_POST['ipc_price_range'] ) ? sanitize_key( wp_unslash( $_POST['ipc_price_range'] ) ) : '';
+        if ( in_array( $price_range, array( 'ate-300', '300-500', '500-800', '800-1200', '1200-2000', 'acima-2000' ), true ) ) {
+            update_user_meta( $user_id, 'ipc_price_range', $price_range );
+        }
+
+        $location = isset( $_POST['ipc_location'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['ipc_location'] ) ) ) : '';
+        if ( '' !== $location ) {
+            update_user_meta( $user_id, 'ipc_location', mb_substr( $location, 0, 120 ) );
+        }
+
+        update_user_meta( $user_id, 'ipc_consultoria', ! empty( $_POST['ipc_consultoria'] ) ? '1' : '' );
     }
 
     private function insert_terms_audit_log( $user_id, $person_type, $document ) {
@@ -583,7 +629,7 @@ class Imovel_Parceiro_User_Fields {
                     type: form.querySelector('select[name="person_type"]'),
                     doc: form.querySelector('input[name="person_document"]'),
                     creci: form.querySelector('input[name="creci"]'),
-                    role: form.querySelector('select[name="role"]') || form.querySelector('select[name="user_role"]'),
+                    role: form.querySelector('select[name="role"]') || form.querySelector('input[name="role"]:checked') || form.querySelector('select[name="user_role"]'),
                     roleSlot: form.querySelector('[data-ipc-role-slot]'),
                     creciWrap: form.querySelector('input[name="creci"]') ? form.querySelector('input[name="creci"]').closest('.form-group') : null
                 };
@@ -682,7 +728,7 @@ class Imovel_Parceiro_User_Fields {
                 if (!target || !target.closest) {
                     return;
                 }
-                if (target.matches('select[name="person_type"]') || target.matches('select[name="role"]') || target.matches('select[name="user_role"]')) {
+                if (target.matches('select[name="person_type"]') || target.matches('select[name="role"]') || target.matches('select[name="user_role"]') || target.matches('input[name="role"]')) {
                     var form = target.closest('form');
                     if (form) {
                         syncForm(form);
@@ -701,6 +747,12 @@ class Imovel_Parceiro_User_Fields {
                         if (masked !== target.value) {
                             target.value = masked;
                         }
+                    }
+                }
+                if (target && target.matches && target.matches('input[name="creci"]')) {
+                    var creciDigits = target.value.replace(/\D+/g, '').slice(0, 12);
+                    if (creciDigits !== target.value) {
+                        target.value = creciDigits;
                     }
                 }
                 if (target && target.matches && target.matches('input[name="phone_number"]')) {

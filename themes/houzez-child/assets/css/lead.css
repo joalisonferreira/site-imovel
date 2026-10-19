@@ -1,0 +1,485 @@
+/* Botões de entrada: funcionam no header do tema (#main-nav) e no header
+   montado no Elementor (.houzez-elementor-menu), que tem estilos próprios
+   grandes nos links — por isso tudo aqui vai com especificidade + !important. */
+#main-nav .ipc-menu-li,
+.houzez-elementor-menu > .ipc-menu-li,
+.main-ele-nav .ipc-menu-li {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+#main-nav .ipc-menu-li + .ipc-menu-li,
+.houzez-elementor-menu > .ipc-menu-li + .ipc-menu-li {
+    margin-left: 8px !important;
+}
+#main-nav .ipc-menu-cta,
+.houzez-elementor-menu .ipc-menu-cta,
+.main-ele-nav .ipc-menu-cta {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 18px !important;
+    margin: 0 !important;
+    border-radius: 6px !important;
+    font-weight: 800 !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    letter-spacing: .04em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+    transition: filter .15s ease, background-color .15s ease;
+}
+li > .ipc-menu-cta--buyer,
+li > .ipc-menu-cta--owner {
+    background-color: #dc2626 !important;
+    border: 1px solid #dc2626 !important;
+    color: #fff !important;
+}
+li > .ipc-menu-cta--buyer:hover,
+li > .ipc-menu-cta--owner:hover {
+    background-color: #b91c1c !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+    filter: none;
+}
+.ipc-lead-card {
+    position: relative;
+    border: none;
+    border-radius: 20px;
+    padding: 28px 26px 24px;
+    box-shadow: 0 28px 70px -18px rgba(15, 23, 42, .45);
+}
+.ipc-lead-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.ipc-lead-close:hover {
+    background: #e2e8f0;
+}
+.ipc-lead-card .ipc-wz-title {
+    padding-right: 32px;
+}
+
+/* ---- Modal lead autossuficiente (não depende do auth.css) ---------------- */
+#ipc-lead-modal .ipc-wz-kicker {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0 8px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+#ipc-lead-modal .ipc-wz-title {
+    margin: 0 0 6px;
+    padding-right: 32px;
+    font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: #0f172a;
+}
+#ipc-lead-modal .ipc-wz-sub {
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: #64748b;
+}
+#ipc-lead-modal .ipc-wz-label {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+#ipc-lead-modal .ipc-wz-goals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+#ipc-lead-modal .ipc-wz-goal input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+#ipc-lead-modal .ipc-wz-goal span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+}
+#ipc-lead-modal .ipc-wz-goal input:checked + span {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+#ipc-lead-modal .ipc-wz-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+#ipc-lead-modal .ipc-wz-chip {
+    padding: 8px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    background: #fff;
+    font-size: 13px;
+    color: #334155;
+    cursor: pointer;
+}
+#ipc-lead-modal .ipc-wz-chip.is-on {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+    font-weight: 600;
+}
+#ipc-lead-modal .ipc-wz-field {
+    margin-bottom: 14px;
+}
+#ipc-lead-modal .ipc-wz-field > label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+}
+#ipc-lead-modal .ipc-wz-field input {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 15px;
+    box-shadow: none;
+}
+#ipc-lead-modal .ipc-wz-field input:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .15);
+}
+#ipc-lead-modal .ipc-wz-field input.is-invalid {
+    border-color: #dc2626;
+    background: #fff9f9;
+}
+#ipc-lead-modal .ipc-wz-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+#ipc-lead-modal .ipc-wz-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: #475569;
+    cursor: pointer;
+}
+#ipc-lead-modal .ipc-wz-check input {
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    flex: 0 0 auto;
+    accent-color: #dc2626;
+}
+#ipc-lead-modal .ipc-wz-check--box {
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+#ipc-lead-modal .ipc-wz-error {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 600;
+}
+#ipc-lead-modal .ipc-wz-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+#ipc-lead-modal .ipc-wz-btn--primary {
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 12px 26px -12px #dc2626;
+}
+#ipc-lead-modal .ipc-wz-btn--primary:hover {
+    background: #b91c1c;
+}
+#ipc-lead-modal .ipc-wz-btn--primary:disabled {
+    opacity: .65;
+    cursor: wait;
+}
+#ipc-lead-modal .ipc-wz-btn--ghost {
+    background: transparent;
+    color: #475569;
+}
+#ipc-lead-modal .ipc-wz-btn--block {
+    width: 100%;
+    margin-top: 10px;
+}
+#ipc-lead-modal .ipc-wz-seal {
+    margin: 14px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+}
+#ipc-lead-modal .ipc-wz-success__icon {
+    width: 72px;
+    height: 72px;
+    margin: 6px auto 14px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 0 12px #fef2f2;
+}
+#ipc-lead-modal .ipc-wz-title--center,
+#ipc-lead-modal .ipc-wz-sub--center {
+    text-align: center;
+    padding-right: 0;
+}
+/* ---- Header responsivo: CTAs só quando há espaço -------------------------- */
+/* Menu desktop do Elementor: links sem quebra + container flexível. */
+.houzez-nav-menu-main-desktop-wrap .houzez-elementor-menu > li > a {
+    white-space: nowrap !important;
+}
+.houzez-nav-menu-main-desktop-wrap {
+    min-width: 0 !important;
+}
+/* Larguras médias: esconde os 2 CTAs do menu desktop (drawer mantém).
+   Evita sobreposição com avatar/ANUNCIAR. */
+@media (max-width: 1300px) {
+    .houzez-nav-menu-main-desktop-wrap li.ipc-menu-li {
+        display: none !important;
+    }
+}
+
+/* ---- Drawer mobile no padrão stitch (SÓ offcanvas) ------------------------ */
+.offcanvas-mobile-menu {
+    border-radius: 0 24px 24px 0 !important;
+}
+.offcanvas-mobile-menu-body {
+    padding: 6px 14px 20px !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    width: 100% !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li {
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.nav-link {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: #1e293b !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.nav-link:hover,
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.nav-link:active {
+    background: #f8fafc !important;
+    color: #1e293b !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.nav-link::before {
+    content: "" !important;
+    flex: 0 0 auto !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    background-color: #f1f5f9 !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 20px 20px !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.nav-link::after {
+    content: "›" !important;
+    margin-left: auto !important;
+    color: #94a3b8 !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a[href*="buscar"]::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 11l9-8 9 8'/%3E%3Cpath d='M5 10v10h5v-6h4v6h5V10'/%3E%3C/svg%3E") !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a[href*="pacote"]::before,
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a[href*="plano"]::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 7-7 7-7-7z'/%3E%3Cpath d='M5 10l7 7 7-7'/%3E%3C/svg%3E") !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a[href*="como-funciona"]::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18h6M10 21h4'/%3E%3Cpath d='M12 3a6 6 0 00-4 10.5c.8.7 1 1.5 1 2.5h6c0-1 .2-1.8 1-2.5A6 6 0 0012 3z'/%3E%3C/svg%3E") !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a[href*="funcionalidade"]::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E") !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li.ipc-menu-li {
+    margin-top: 6px !important;
+    padding: 0 !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li.ipc-menu-li > a.ipc-menu-cta {
+    width: 100% !important;
+    height: 48px !important;
+    max-height: 48px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    gap: 8px !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li.ipc-menu-li > a.ipc-menu-cta::before {
+    content: "" !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 auto !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.ipc-menu-cta--buyer {
+    background-color: #d32f2f !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px -3px rgba(211, 47, 47, .35) !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.ipc-menu-cta--buyer::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.ipc-menu-cta--owner {
+    background: rgba(211, 47, 47, .06) !important;
+    border: 2px solid #d32f2f !important;
+    color: #d32f2f !important;
+}
+.offcanvas-mobile-menu-body .mobile-navbar-nav > li > a.ipc-menu-cta--owner::before {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d32f2f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='15' r='4'/%3E%3Cpath d='M10.9 12.1 21 2m-4 2 3 3m-6 0 3 3'/%3E%3C/svg%3E") !important;
+}
+
+.ipc-drawer-welcome {
+    margin: 4px 0 12px !important;
+    padding: 14px 16px !important;
+    border-radius: 16px !important;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+    color: #fff !important;
+}
+.ipc-drawer-welcome__hello {
+    display: block !important;
+    font-size: 12px !important;
+    color: #cbd5e1 !important;
+}
+.ipc-drawer-welcome__link {
+    display: block !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    text-decoration: none !important;
+}
+.ipc-drawer-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: 14px !important;
+    padding: 12px 4px 8px !important;
+    border-top: 1px solid #f1f5f9 !important;
+    font-size: 11px !important;
+    color: #94a3b8 !important;
+}
+.ipc-drawer-footer__links a {
+    color: #64748b !important;
+    text-decoration: none !important;
+}
+
+@media (max-width: 991.98px) {
+    li.ipc-menu-li,
+    .offcanvas-mobile-menu-body li.ipc-menu-li,
+    .mobile-navbar-nav > li.ipc-menu-li {
+        display: block !important;
+        width: 100% !important;
+        margin: 10px 0 0 !important;
+        padding: 0 15px !important;
+        align-self: stretch !important;
+    }
+    li.ipc-menu-li + li.ipc-menu-li {
+        margin-left: 0 !important;
+    }
+    .offcanvas-mobile-menu-body .ipc-menu-cta,
+    .mobile-navbar-nav .ipc-menu-cta,
+    .ipc-menu-cta {
+        width: 100% !important;
+        height: 48px !important;
+        max-height: 48px !important;
+        font-size: 14px !important;
+    }
+}
+@media (max-width: 575.98px) {
+/* Modal sempre acima do header fixo/sticky do tema e do Elementor. */
+#ipc-lead-modal {
+    z-index: 200000 !important;
+}
+/* Sobe o backdrop SÓ quando o modal do lead está aberto (o de login fica intacto). */
+body:has(#ipc-lead-modal.show) > .modal-backdrop.show {
+    z-index: 199999 !important;
+}
+
+.ipc-lead-card {
+        padding: 24px 18px 20px;
+    }
+    #ipc-lead-modal .ipc-wz-grid {
+        grid-template-columns: 1fr;
+    }
+    #ipc-lead-modal .ipc-wz-title {
+        font-size: 20px;
+    }
+}

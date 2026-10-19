@@ -22,22 +22,3 @@ Template: houzez
 .item-listing-wrap.item-wrap-v1.hz-item-gallery-js.hz-map-trigger.houzez-gallery-loaded .item-address.mb-2 {
     display: none !important;
 }
-
-/* Avatar genérico de corretor (sem foto): silhueta neutra no lugar do placeholder do Houzez. */
-.ipc-agent-avatar {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 220px;
-    aspect-ratio: 1 / 1;
-    margin-inline: auto;
-    border-radius: 50%;
-    background: #eef2f6;
-    border: 1px solid #e2e8f0;
-    color: #9fb0c3;
-}
-.ipc-agent-avatar svg {
-    width: 52%;
-    height: 52%;
-}

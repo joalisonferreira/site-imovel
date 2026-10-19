@@ -11,6 +11,11 @@ global $property_data;
 
 $required_types = Imovel_Parceiro_Owner_Workflow::owner_required_document_types();
 
+// Nenhum documento exigido: não renderiza a seção.
+if ( empty( $required_types ) ) {
+    return;
+}
+
 $existing_by_type = array();
 $editing_id       = 0;
 if ( houzez_edit_property() && ! empty( $property_data->ID ) ) {
@@ -44,7 +49,7 @@ $status_labels = array(
         <h2><?php esc_html_e( 'Documentação do imóvel (obrigatório)', 'imovel-parceiro-core' ); ?></h2>
     </div>
     <div class="block-content-wrap">
-        <p class="text-muted mb-3"><?php esc_html_e( 'Envie abaixo os documentos do imóvel. É obrigatório anexar os três documentos para concluir o cadastro. Você poderá corrigi-los depois na edição do imóvel.', 'imovel-parceiro-core' ); ?></p>
+        <p class="text-muted mb-3"><?php esc_html_e( 'Envie abaixo a matrícula/documentação do imóvel. É obrigatório anexar o documento para concluir o cadastro. Você poderá corrigi-lo depois na edição do imóvel.', 'imovel-parceiro-core' ); ?></p>
 
         <div class="row g-3">
             <?php foreach ( $required_types as $doc_type => $doc_label ) : ?>
@@ -56,9 +61,9 @@ $status_labels = array(
                 ?>
                 <div class="col-md-4 ipc-owner-doc" data-type="<?php echo esc_attr( $doc_type ); ?>">
                     <label class="form-label"><?php echo esc_html( $doc_label ); ?> <span class="text-danger">*</span></label>
-                    <div class="ipc-owner-doc-dropzone" tabindex="0" role="button" aria-label="<?php echo esc_attr( sprintf( __( 'Enviar %s', 'imovel-parceiro-core' ), $doc_label ) ); ?>">
+                    <div class="ipc-owner-doc-dropzone" tabindex="0" role="button" aria-label="<?php echo esc_attr( sprintf( __( 'Enviar %s. Pressione Enter para selecionar o arquivo.', 'imovel-parceiro-core' ), $doc_label ) ); ?>">
                         <div class="ipc-owner-doc-drop-icon"><i class="houzez-icon icon-upload-button" aria-hidden="true"></i></div>
-                        <div class="ipc-owner-doc-drop-cta"><?php esc_html_e( 'Arraste o arquivo aqui ou', 'imovel-parceiro-core' ); ?> <a href="javascript:;" class="ipc-owner-doc-browse"><?php esc_html_e( 'selecione', 'imovel-parceiro-core' ); ?></a></div>
+                        <div class="ipc-owner-doc-drop-cta"><?php esc_html_e( 'Arraste o arquivo aqui ou', 'imovel-parceiro-core' ); ?> <span class="ipc-owner-doc-browse"><?php esc_html_e( 'selecione', 'imovel-parceiro-core' ); ?></span></div>
                         <div class="ipc-owner-doc-drop-hint"><?php esc_html_e( 'PDF, JPG ou PNG', 'imovel-parceiro-core' ); ?></div>
                         <input type="file" class="ipc-owner-doc-input" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" hidden>
                     </div>
@@ -95,9 +100,12 @@ $status_labels = array(
         gap: .35rem;
     }
     .ipc-owner-doc-dropzone:hover,
-    .ipc-owner-doc-dropzone.ipc-owner-doc-dragover {
+    .ipc-owner-doc-dropzone.ipc-owner-doc-dragover,
+    .ipc-owner-doc-dropzone:focus-visible {
         border-color: #00aeef;
         background: #f0faff;
+        outline: 3px solid rgba(0, 174, 239, .35);
+        outline-offset: 2px;
     }
     .ipc-owner-doc-dropzone.ipc-owner-doc-error {
         border-color: #dc3545;
@@ -112,13 +120,14 @@ $status_labels = array(
         font-size: .9rem;
         color: #475467;
     }
-    .ipc-owner-doc-drop-cta a {
-        color: #00aeef;
+    .ipc-owner-doc-drop-cta .ipc-owner-doc-browse {
+        color: #0077a8;
         font-weight: 600;
+        text-decoration: underline;
     }
     .ipc-owner-doc-drop-hint {
         font-size: .75rem;
-        color: #98a2b3;
+        color: #667085;
     }
     .ipc-owner-doc-file {
         display: flex;
@@ -175,7 +184,7 @@ $status_labels = array(
     var section = document.getElementById('owner-documents-section');
     if (!section) { return; }
 
-    var MSG_REQUIRED = <?php echo wp_json_encode( __( 'Anexe os três documentos obrigatórios antes de continuar.', 'imovel-parceiro-core' ) ); ?>;
+    var MSG_REQUIRED = <?php echo wp_json_encode( __( 'Anexe a matrícula/documentação do imóvel antes de continuar.', 'imovel-parceiro-core' ) ); ?>;
     var MSG_FAIL = <?php echo wp_json_encode( __( 'Falha no envio do documento.', 'imovel-parceiro-core' ) ); ?>;
     var MSG_SENT = <?php echo wp_json_encode( __( 'Enviado — aguardando análise', 'imovel-parceiro-core' ) ); ?>;
 
@@ -262,7 +271,12 @@ $status_labels = array(
         var removeBtn = box.querySelector('.ipc-owner-doc-remove');
 
         function openPicker() { if (input) { input.click(); } }
-        if (dropzone) { dropzone.addEventListener('click', openPicker); }
+        if (dropzone) {
+            dropzone.addEventListener('click', openPicker);
+            dropzone.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+            });
+        }
         if (browse) { browse.addEventListener('click', function (e) { e.stopPropagation(); openPicker(); }); }
         if (input) {
             input.addEventListener('change', function () {

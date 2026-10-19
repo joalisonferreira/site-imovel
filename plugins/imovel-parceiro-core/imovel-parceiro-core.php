@@ -43,8 +43,10 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-notifications.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnership-integrity.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-owner-workflow.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-broker-portfolio.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-duplicates.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-price-formatting.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-elementor-overview-prices.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnerships.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-partnership-workflow.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-watermark.php';
@@ -62,6 +64,8 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-property-interest.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-subscriptions.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-houzez-woocommerce-subscriptions.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-pix-subscriptions.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-pix-payment-page.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-user-fields.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-access.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-package-extras.php';
@@ -80,6 +84,9 @@ class Imovel_Parceiro_Core {
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-upload-performance.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-mailer.php';
         require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-password-reset.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-buyer-lead.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-crm-ptbr.php';
+        require_once IMOVEL_PARCEIRO_CORE_DIR . 'includes/class-imobisec.php';
     }
 
     private function hooks() {
@@ -88,6 +95,7 @@ class Imovel_Parceiro_Core {
         add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_notification_assets' ) );
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_osm_fallback' ), 30 );
         add_filter( 'pre_wp_mail', array( $this, 'maybe_mock_mail_for_client' ), 10, 2 );
         add_filter( 'gettext', array( $this, 'fix_search_labels' ), 20, 3 );
     }
@@ -124,6 +132,30 @@ class Imovel_Parceiro_Core {
             }
         }
         return $return;
+    }
+
+
+    /**
+     * Fallback de endereco no cadastro (somente OSM): Photon + pin manual.
+     * O proprio JS verifica #geocomplete + Leaflet antes de agir.
+     */
+    public function enqueue_osm_fallback() {
+        if ( ! function_exists( 'houzez_is_dashboard' ) || ! houzez_is_dashboard() ) {
+            return;
+        }
+
+        $file = IMOVEL_PARCEIRO_CORE_DIR . 'assets/js/osm-address-fallback.js';
+        if ( ! file_exists( $file ) ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'imovel-parceiro-osm-fallback',
+            IMOVEL_PARCEIRO_CORE_URL . 'assets/js/osm-address-fallback.js',
+            array( 'jquery', 'jquery-ui-autocomplete' ),
+            (string) filemtime( $file ),
+            true
+        );
     }
 
     public function load_textdomain() {
@@ -181,6 +213,15 @@ class Imovel_Parceiro_Core {
             }
         }
 
+        $is_owner_blocked = false;
+        if ( is_user_logged_in() ) {
+            $uid = get_current_user_id();
+            $ctx_property = is_singular( 'property' ) ? get_queried_object_id() : 0;
+            if ( class_exists( 'Imovel_Parceiro_Contact_Visibility' ) ) {
+                $is_owner_blocked = Imovel_Parceiro_Contact_Visibility::viewer_is_owner_blocked( $uid, $ctx_property );
+            }
+        }
+
         wp_enqueue_style( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/css/style.css', array(), $style_version );
         wp_enqueue_script( 'imovel-parceiro-core', IMOVEL_PARCEIRO_CORE_URL . 'assets/js/app.js', array( 'jquery' ), $script_version, true );
         wp_localize_script( 'imovel-parceiro-core', 'imovelParceiroCore', array(
@@ -191,11 +232,44 @@ class Imovel_Parceiro_Core {
             'request_status' => $request_status,
             'is_rental_property' => false,
             'is_client' => $is_client,
+            'is_owner_blocked' => $is_owner_blocked,
+            'is_logged_in' => is_user_logged_in(),
             'partnerships_url' => class_exists( 'Imovel_Parceiro_Partnerships' ) ? Imovel_Parceiro_Partnerships::dashboard_partnerships_url() : '',
             'messages' => array(
                 'acceptances_required' => __( 'E obrigatorio aceitar todos os termos para publicar ou editar este imovel.', 'imovel-parceiro-core' ),
                 'partnership_terms_required' => __( 'Voce deve aceitar os termos da parceria para enviar a solicitacao.', 'imovel-parceiro-core' ),
                 'request_exists' => __( 'Voce ja enviou uma solicitacao para este imovel e nao pode pedir novamente.', 'imovel-parceiro-core' ),
+                'acceptance_title' => __( 'Declarações para publicar', 'imovel-parceiro-core' ),
+                'acceptance_progress' => __( '{done} de {total}', 'imovel-parceiro-core' ),
+                'acceptance_missing' => __( 'Falta {n}: {item}. Toque para concluir.', 'imovel-parceiro-core' ),
+                'acceptance_details' => __( 'detalhes', 'imovel-parceiro-core' ),
+                'acceptance_draft_saved' => __( 'Rascunho salvo às {hora}', 'imovel-parceiro-core' ),
+                'acceptance_draft_saving' => __( 'Salvando rascunho…', 'imovel-parceiro-core' ),
+                'gallery_counter' => __( 'Fotos {n} de {max}', 'imovel-parceiro-core' ),
+                'gallery_limit' => __( 'Você atingiu {max} fotos. Exclua uma para adicionar outra.', 'imovel-parceiro-core' ),
+                'gallery_almost' => __( 'Quase no limite: {n} de {max} fotos.', 'imovel-parceiro-core' ),
+            ),
+            'acceptance_items' => array(
+                array(
+                    'key' => 'authorization',
+                    'short' => __( 'Autorizo a divulgação', 'imovel-parceiro-core' ),
+                    'full' => __( 'Declaro que sou proprietário ou representante legal do imóvel e autorizo a plataforma e seus corretores parceiros a divulgar e intermediar oportunidades relacionadas a este imóvel, conforme os termos da plataforma.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'partnership',
+                    'short' => __( 'Aberto a parcerias', 'imovel-parceiro-core' ),
+                    'full' => __( 'Autorizo que este imóvel seja disponibilizado para parceria com outros corretores cadastrados na plataforma.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'commission',
+                    'short' => __( 'Comissão 50/50 em parceria', 'imovel-parceiro-core' ),
+                    'full' => __( 'Aceito a divisão de comissão de 50% | 50% em parceria direta.', 'imovel-parceiro-core' ),
+                ),
+                array(
+                    'key' => 'terms',
+                    'short' => __( 'Aceito os Termos de Uso', 'imovel-parceiro-core' ),
+                    'full' => __( 'Aceito os Termos de Uso e as regras da plataforma.', 'imovel-parceiro-core' ),
+                ),
             ),
         ) );
 

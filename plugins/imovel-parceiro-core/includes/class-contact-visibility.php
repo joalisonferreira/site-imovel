@@ -10,13 +10,40 @@ if ( ! defined( 'ABSPATH' ) ) {
  * are logged in as corretor/imobiliária, with an active plan and a verified
  * Houzez profile. Everyone else gets no contact markup at all (server-side,
  * so phone numbers never leak into the page source).
- *
- * Clientes (compradores) nunca veem contato direto: usam o fluxo "Tenho
- * interesse neste imóvel" (lead registrada + intermediação).
  */
 class Imovel_Parceiro_Contact_Visibility {
 
     const ALLOWED_ROLES = array( 'houzez_agent', 'houzez_agency' );
+
+    /**
+     * Contato da plataforma: leads de clientes (Agendar visita / Mensagem /
+     * contato do corretor) são redirecionados para este e-mail em vez do corretor.
+     */
+    const CLIENT_LEAD_EMAIL = 'contato@imovelparceiro.com.br';
+
+    /**
+     * Normaliza telefone para links wa.me: só dígitos + DDI 55 quando for
+     * número BR sem código do país. Números já com 55 (ou não-BR) voltam
+     * só com dígitos (wa.me não aceita '+', espaços ou máscara).
+     *
+     * @param string $phone Telefone em qualquer formato.
+     * @return string Dígitos prontos para wa.me.
+     */
+    public static function normalize_whatsapp_number( $phone ) {
+        $digits = preg_replace( '/\D/', '', (string) $phone );
+        if ( '' !== $digits && preg_match( '/^[1-9]{2}[89]?\d{8}$/', $digits ) ) {
+            $digits = '55' . $digits;
+        }
+        return $digits;
+    }
+
+    /**
+     * Flag request-scoped: filtro wp_mail armado só durante o AJAX de contato
+     * enviado por cliente/proprietário/visitante (ver arm_lead_redirect()).
+     *
+     * @var bool
+     */
+    private static $client_redirect_armed = false;
 
     /**
      * Elementor contact widgets fully suppressed when the viewer is unqualified.
@@ -61,42 +88,60 @@ class Imovel_Parceiro_Contact_Visibility {
 
     /**
      * Block contact/tour submissions from unqualified viewers.
-     *
-     * Proteção de lead: clientes NÃO contatam o corretor direto (nem pelos
-     * formulários nativos). Eles usam o fluxo "Tenho interesse neste imóvel",
-     * que registra a lead e faz a intermediação. Corretores precisam de
-     * plano + verificação.
+     * Quem pode enviar: corretores/imobiliárias qualificados (plano +
+     * verificação), clientes, proprietários e visitantes. Para todos exceto
+     * os qualificados, o lead é redirecionado para CLIENT_LEAD_EMAIL.
+     * Só corretores/imobiliárias NÃO qualificados são bloqueados.
+     * (Regra espelhada em viewer_can_submit_forms() para os templates.)
      */
     public function block_unqualified_ajax() {
         if ( self::viewer_can_see_contact() ) {
             return;
         }
 
-        $user_id = get_current_user_id();
-        if ( $user_id ) {
-            $user = get_userdata( $user_id );
-            // Cliente: força o fluxo de interesse (lead registrada + intermediação).
-            if ( $user && class_exists( 'Imovel_Parceiro_Property_Interest' ) && Imovel_Parceiro_Property_Interest::is_client( $user_id ) ) {
-                $message = __( 'Para falar sobre este imóvel, use o botão "Tenho interesse neste imóvel". O corretor responsável entrará em contato com você.', 'imovel-parceiro-core' );
-                wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'use_interest_flow' ) );
-            }
-            // Se não é corretor/imobiliária (outro papel qualquer), libera.
-            if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
-                return;
-            }
-            $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
-            wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'broker_verification_required' ) );
-        } else {
-            // Visitante não logado: solicita login/cadastro
-            $login_url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard_profile.php' ) : home_url( '/meu-perfil/' );
-            $login_url = add_query_arg( 'hpage', 'verification', $login_url );
-            // Fallback para modal de login
-            if ( empty( $login_url ) || $login_url === home_url( '/' ) ) {
-                $login_url = home_url( '/login/' );
-            }
-            $msg = __( 'Faça login para entrar em contato.', 'imovel-parceiro-core' );
-            wp_send_json_error( array( 'msg' => $msg, 'Message' => $msg, 'message' => $msg, 'code' => 'login_required', 'login_url' => $login_url ) );
+        // Cliente, proprietário, visitante ou outro papel não-corretor:
+        // formulários habilitados, mas o lead vai para contato@
+        // (filtro wp_mail armado só nesta requisição AJAX).
+        if ( self::viewer_can_submit_forms() ) {
+            self::arm_lead_redirect();
+            self::arm_crm_reassign();
+            return;
         }
+
+        // Corretor/imobiliária sem plano ativo ou perfil verificado: bloqueado.
+        $message = __( 'Contatos disponíveis para corretores e imobiliárias com plano ativo e perfil verificado.', 'imovel-parceiro-core' );
+        wp_send_json_error( array( 'msg' => $message, 'Message' => $message, 'message' => $message, 'code' => 'broker_verification_required' ) );
+    }
+
+    /**
+     * Whether the viewer may submit contact/tour forms (Agendar visita,
+     * Mensagem). Única fonte da regra — usada pelo gate AJAX acima e pelos
+     * templates (botão de envio habilitado/desabilitado).
+     *
+     * @param int|null $user_id Optional user id. Defaults to current user.
+     * @return bool
+     */
+    public static function viewer_can_submit_forms( $user_id = null ) {
+        if ( null === $user_id ) {
+            $user_id = get_current_user_id();
+        }
+        if ( self::viewer_can_see_contact( $user_id ) ) {
+            return true;
+        }
+        if ( ! $user_id ) {
+            return true; // visitante: lead vai para contato@
+        }
+        if ( self::viewer_is_owner_blocked( $user_id ) ) {
+            return true; // proprietário: lead vai para contato@
+        }
+        if ( self::is_client( $user_id ) ) {
+            return true; // cliente: lead vai para contato@
+        }
+        $user = get_userdata( $user_id );
+        if ( $user && ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
+            return true; // outros papéis: lead vai para contato@
+        }
+        return false; // corretor/imobiliária não qualificado
     }
 
     /**
@@ -107,7 +152,7 @@ class Imovel_Parceiro_Contact_Visibility {
      * @return array
      */
     public function strip_schema_contact( $schema, $property_id ) {
-        if ( self::viewer_can_see_contact() || ! is_array( $schema ) ) {
+        if ( self::viewer_can_see_contact( 0, $property_id ) || ! is_array( $schema ) ) {
             return $schema;
         }
 
@@ -124,14 +169,13 @@ class Imovel_Parceiro_Contact_Visibility {
     /**
      * Whether the viewer may see phone/contact buttons.
      *
-     * Corretores/imobiliárias: apenas com plano ativo + perfil verificado.
-     * Clientes: NUNCA (usam o fluxo "Tenho interesse neste imóvel", com lead
-     * registrada e intermediação). Demais casos: visitante/deslogado, não.
-     *
-     * @param int $user_id Optional user id. Defaults to current user.
+     * @param int $user_id     Optional user id. Defaults to current user.
+     * @param int $property_id Optional property context. Owners keep the
+     *                         channel of their OWN listing; on third-party
+     *                         listings (or without context) they are blocked.
      * @return bool
      */
-    public static function viewer_can_see_contact( $user_id = 0 ) {
+    public static function viewer_can_see_contact( $user_id = 0, $property_id = 0 ) {
         $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
         if ( ! $user_id ) {
             return false;
@@ -142,13 +186,14 @@ class Imovel_Parceiro_Contact_Visibility {
             return false;
         }
 
-        // Cliente comprador: contato direto bloqueado (proteção de lead).
-        if ( class_exists( 'Imovel_Parceiro_Property_Interest' ) && Imovel_Parceiro_Property_Interest::is_client( $user_id ) ) {
+        // Proprietário não contata outros corretores (canal próprio preservado via $property_id).
+        if ( self::viewer_is_owner_blocked( $user_id, $property_id ) ) {
             return false;
         }
 
+        // Clientes e outros papéis não-corretor podem ver/contatar - não aplica gate de plano/verificação
         if ( ! array_intersect( self::ALLOWED_ROLES, (array) $user->roles ) ) {
-            return false;
+            return true;
         }
 
         if ( class_exists( 'Imovel_Parceiro_Subscriptions' ) && ! Imovel_Parceiro_Subscriptions::has_active_subscription( $user_id ) ) {
@@ -163,6 +208,177 @@ class Imovel_Parceiro_Contact_Visibility {
     }
 
     /**
+     * Whether the viewer is a proprietário (houzez_owner) blocked from
+     * contacting brokers in this context.
+     *
+     * Owners keep the channel of their OWN listing (property whose registered
+     * owner is the viewer). Everywhere else — third-party listings or no
+     * property context — they are blocked.
+     *
+     * @param int $user_id     Optional user id. Defaults to current user.
+     * @param int $property_id Optional property context.
+     * @return bool
+     */
+    public static function viewer_is_owner_blocked( $user_id = 0, $property_id = 0 ) {
+        $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+        if ( ! $user_id ) {
+            return false;
+        }
+        $user = get_userdata( $user_id );
+        if ( ! $user || ! in_array( 'houzez_owner', (array) $user->roles, true ) ) {
+            return false;
+        }
+        $property_id = absint( $property_id );
+        if ( $property_id && class_exists( 'Imovel_Parceiro_Partnerships' ) ) {
+            $owner_id = (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id );
+            if ( $owner_id && $owner_id === (int) $user_id ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Whether the user is a cliente (qualquer papel que não seja
+     * corretor/imobiliária/proprietário/admin). É esse público que tem os
+     * formulários habilitados com lead redirecionado para a plataforma.
+     *
+     * @param int $user_id Optional user id. Defaults to current user.
+     * @return bool
+     */
+    public static function is_client( $user_id = 0 ) {
+        $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+        if ( ! $user_id ) {
+            return false;
+        }
+        $user = get_userdata( $user_id );
+        if ( ! $user ) {
+            return false;
+        }
+        return empty( array_intersect(
+            array( 'houzez_agent', 'houzez_agency', 'houzez_owner', 'administrator' ),
+            (array) $user->roles
+        ) );
+    }
+
+    /**
+     * Arma o redirecionamento do lead para CLIENT_LEAD_EMAIL.
+     * Escopo restrito: só vale nesta requisição AJAX (o handler nativo morre
+     * com wp_die logo após enviar).
+     */
+    /**
+     * Reatribuição tardia do CRM para o usuário contato@.
+     *
+     * O handler nativo (`Houzez_Collect_Form_Data`, prioridade 10 em
+     * `houzez_after_agent_form_submission`) atribui o lead ao dono do anúncio.
+     * Este callback (prioridade 30) reatribui ao contato@ as linhas criadas
+     * NESTA requisição (e-mail do remetente + janela de tempo), inclusive
+     * `enquiry_to`. Sem match, não toca em nada.
+     */
+    public static function arm_crm_reassign() {
+        add_action( 'houzez_after_agent_form_submission', array( __CLASS__, 'reassign_client_lead' ), 30 );
+    }
+
+    public static function is_redirect_armed() {
+        return self::$client_redirect_armed;
+    }
+
+    /**
+     * Dono exclusivo do lead de cliente: usuário contato@.
+     *
+     * @return int 0 quando não há usuário da plataforma (não reatribui).
+     */
+    public static function client_lead_user_id() {
+        $user = get_user_by( 'email', self::CLIENT_LEAD_EMAIL );
+        if ( $user ) {
+            return (int) $user->ID;
+        }
+        $admin = get_user_by( 'email', get_option( 'admin_email' ) );
+        if ( $admin ) {
+            return (int) $admin->ID;
+        }
+        return 0;
+    }
+
+    public static function reassign_client_lead() {
+        global $wpdb;
+
+        $target_id = self::client_lead_user_id();
+        if ( ! $target_id ) {
+            return;
+        }
+
+        $sender_email = '';
+        foreach ( array( 'email', 'useremail' ) as $key ) {
+            if ( ! empty( $_POST[ $key ] ) && is_email( wp_unslash( $_POST[ $key ] ) ) ) {
+                $sender_email = sanitize_email( wp_unslash( $_POST[ $key ] ) );
+                break;
+            }
+        }
+        if ( '' === $sender_email ) {
+            return;
+        }
+
+        $since = gmdate( 'Y-m-d H:i:s', time() - 180 );
+
+        $leads_table = $wpdb->prefix . 'houzez_crm_leads';
+        $lead_ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT lead_id FROM {$leads_table} WHERE email = %s AND time >= %s",
+                $sender_email,
+                $since
+            )
+        );
+        $lead_ids = array_map( 'absint', (array) $lead_ids );
+        $lead_ids = array_filter( $lead_ids );
+        if ( empty( $lead_ids ) ) {
+            return;
+        }
+
+        $in = implode( ',', $lead_ids );
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$leads_table} SET user_id = %d WHERE lead_id IN ({$in})",
+                $target_id
+            )
+        );
+
+        $enq_table = $wpdb->prefix . 'houzez_crm_enquiries';
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$enq_table} SET user_id = %d, enquiry_to = %d WHERE lead_id IN ({$in}) AND time >= %s",
+                $target_id,
+                $target_id,
+                $since
+            )
+        );
+    }
+
+    public static function arm_lead_redirect() {
+        if ( self::$client_redirect_armed ) {
+            return;
+        }
+        self::$client_redirect_armed = true;
+        add_filter( 'wp_mail', array( __CLASS__, 'redirect_lead_mail' ) );
+    }
+
+    /**
+     * Troca o destinatário do e-mail pelo contato da plataforma.
+     * Nota: se a loja configurar cópia CC/BCC nesses formulários, a cópia
+     * também é roteada para contato@ nesta requisição (efeito documentado).
+     *
+     * @param array $args Argumentos do wp_mail (to, subject, message, headers, attachments).
+     * @return array
+     */
+    public static function redirect_lead_mail( $args ) {
+        if ( empty( $args['to'] ) ) {
+            return $args;
+        }
+        $args['to'] = self::CLIENT_LEAD_EMAIL;
+        return $args;
+    }
+
+    /**
      * Suppress contact widgets (or strip contact parts) for unqualified viewers.
      *
      * @param string $content Rendered widget HTML.
@@ -174,22 +390,40 @@ class Imovel_Parceiro_Contact_Visibility {
             return $content;
         }
 
-        if ( self::viewer_can_see_contact() ) {
+        // Imóvel de proprietário: o cartão do agente (foto/nome/links) é
+        // fictício — remove para todo visitante, logado ou não. Os
+        // formulários (Agendar/Mensagem) são preservados.
+        if ( 'houzez-property-section-contact-form2' === $widget->get_name() && is_singular( 'property' ) ) {
+            $context_id = get_the_ID();
+            if ( $context_id && self::is_owner_registered_property( $context_id ) ) {
+                return self::strip_nodes_by_class( $content, array( 'agent-details' ) );
+            }
+        }
+
+        // Mesmo caso no widget de cartão do agente avulso: remove tudo.
+        if ( 'houzez_elementor_agent_card' === $widget->get_name() && is_singular( 'property' ) ) {
+            $context_id = get_the_ID();
+            if ( $context_id && self::is_owner_registered_property( $context_id ) ) {
+                return '';
+            }
+        }
+
+        // Contexto do próprio anúncio (preserva o canal do proprietário com seu corretor).
+        $context_property = is_singular( 'property' ) ? get_the_ID() : 0;
+        if ( self::viewer_can_see_contact( 0, $context_property ) ) {
+            // Cliente logado: só formulários — suprime botões de contato direto.
+            if ( self::is_client() ) {
+                $client_name = $widget->get_name();
+                if ( in_array( $client_name, self::$blocked_widgets, true ) ) {
+                    return '';
+                }
+                if ( 'houzez_elementor_agent_card' === $client_name ) {
+                    return self::strip_agent_card_contact( $content );
+                }
+            }
             return $content;
         }
 
-        return self::suppress_contact_markup( $content, $widget );
-    }
-
-    /**
-     * Suppress contact widgets (or strip contact parts) for viewers without
-     * direct-contact access.
-     *
-     * @param string $content Rendered widget HTML.
-     * @param object $widget  Elementor widget instance.
-     * @return string
-     */
-    private static function suppress_contact_markup( $content, $widget ) {
         $name = $widget->get_name();
         if ( in_array( $name, self::$blocked_widgets, true ) ) {
             return '';
@@ -200,6 +434,25 @@ class Imovel_Parceiro_Contact_Visibility {
         }
 
         return $content;
+    }
+
+    /**
+     * Whether the property was registered by a proprietário (owner flow).
+     *
+     * @param int $property_id Property post ID.
+     * @return bool
+     */
+    public static function is_owner_registered_property( $property_id ) {
+        $property_id = absint( $property_id );
+        if ( ! $property_id || ! class_exists( 'Imovel_Parceiro_Partnerships' ) ) {
+            return false;
+        }
+        $owner_id = (int) Imovel_Parceiro_Partnerships::property_owner_id( $property_id );
+        if ( ! $owner_id ) {
+            return false;
+        }
+        $user = get_userdata( $owner_id );
+        return $user && in_array( 'houzez_owner', (array) $user->roles, true );
     }
 
     /**

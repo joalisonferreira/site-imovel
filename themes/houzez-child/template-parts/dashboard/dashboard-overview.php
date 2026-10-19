@@ -177,6 +177,51 @@ $ipc_cards = array(
 $ipc_dashboard_props = houzez_get_template_link_2( 'template/user_dashboard_properties.php' );
 $ipc_dashboard_add   = houzez_get_template_link_2( 'template/user_dashboard_submit.php' );
 $ipc_dashboard_crm   = houzez_get_template_link_2( 'template/user_dashboard_crm.php' );
+
+/* ------------------------------------------------------------
+ * Checklist de boas-vindas (F3): conta → verificação → plano → 1º imóvel.
+ * Exibido somente enquanto houver etapa pendente.
+ * ------------------------------------------------------------ */
+$ipc_is_verified = ( 'approved' === get_user_meta( $user_id, 'houzez_verification_status', true ) );
+$ipc_has_plan = class_exists( 'Imovel_Parceiro_Subscriptions' ) && Imovel_Parceiro_Subscriptions::has_active_subscription( $user_id );
+$ipc_verification_url = '';
+if ( class_exists( 'Imovel_Parceiro_Verification_Notifications' ) ) {
+    $ipc_verification_url = Imovel_Parceiro_Verification_Notifications::user_verification_url( $user_id );
+}
+if ( ! $ipc_verification_url ) {
+    $ipc_profile_link = houzez_get_template_link_2( 'template/user_dashboard_profile.php' );
+    $ipc_verification_url = $ipc_profile_link ? add_query_arg( 'hpage', 'verification', $ipc_profile_link ) : home_url( '/' );
+}
+$ipc_plans_url = class_exists( 'Imovel_Parceiro_Subscriptions' ) ? Imovel_Parceiro_Subscriptions::plans_url() : home_url( '/' );
+$ipc_onboarding_steps = array(
+    array(
+        'label' => __( 'Conta criada', 'imovel-parceiro-core' ),
+        'done'  => true,
+        'url'   => '',
+    ),
+    array(
+        'label' => __( 'Verificar identidade', 'imovel-parceiro-core' ),
+        'done'  => $ipc_is_verified,
+        'url'   => $ipc_is_verified ? '' : $ipc_verification_url,
+    ),
+    array(
+        'label' => __( 'Contratar plano', 'imovel-parceiro-core' ),
+        'done'  => (bool) $ipc_has_plan,
+        'url'   => $ipc_has_plan ? '' : $ipc_plans_url,
+    ),
+    array(
+        'label' => __( 'Anunciar 1º imóvel', 'imovel-parceiro-core' ),
+        'done'  => $total_properties > 0,
+        'url'   => $total_properties > 0 ? '' : $ipc_dashboard_add,
+    ),
+);
+$ipc_onboarding_done = 0;
+foreach ( $ipc_onboarding_steps as $ipc_step ) {
+    if ( ! empty( $ipc_step['done'] ) ) {
+        $ipc_onboarding_done++;
+    }
+}
+$ipc_onboarding_complete = ( $ipc_onboarding_done >= count( $ipc_onboarding_steps ) );
 ?>
 
 <div class="heading flex items-start justify-between gap-3 flex-wrap mb-5">
@@ -195,6 +240,36 @@ $ipc_dashboard_crm   = houzez_get_template_link_2( 'template/user_dashboard_crm.
         </a>
     </div>
 </div>
+
+<?php if ( ! $ipc_onboarding_complete ) : ?>
+    <div class="mb-5 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 to-violet-50/70 p-5 shadow-sm" role="region" aria-label="<?php esc_attr_e( 'Comece por aqui', 'imovel-parceiro-core' ); ?>">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <div>
+                <h3 class="text-base font-bold text-slate-900"><?php esc_html_e( 'Falta pouco para anunciar', 'imovel-parceiro-core' ); ?></h3>
+                <p class="mt-0.5 text-sm text-slate-500"><?php printf( esc_html__( '%d de %d etapas concluídas', 'imovel-parceiro-core' ), absint( $ipc_onboarding_done ), absint( count( $ipc_onboarding_steps ) ) ); ?></p>
+            </div>
+            <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200"><?php printf( esc_html__( '%d%%', 'imovel-parceiro-core' ), absint( round( $ipc_onboarding_done / max( 1, count( $ipc_onboarding_steps ) ) * 100 ) ) ); ?></span>
+        </div>
+        <ol class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <?php foreach ( $ipc_onboarding_steps as $ipc_step ) : ?>
+                <li class="flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm font-semibold <?php echo ! empty( $ipc_step['done'] ) ? 'border-emerald-200 bg-emerald-50/60 text-emerald-700' : 'border-slate-200 bg-white text-slate-700'; ?>">
+                    <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full <?php echo ! empty( $ipc_step['done'] ) ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'; ?>" aria-hidden="true">
+                        <?php if ( ! empty( $ipc_step['done'] ) ) : ?>
+                            <?php echo houzez_dash_icon( 'check', 'h-3.5 w-3.5' ); ?>
+                        <?php else : ?>
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php if ( empty( $ipc_step['done'] ) && ! empty( $ipc_step['url'] ) ) : ?>
+                        <a href="<?php echo esc_url( $ipc_step['url'] ); ?>" class="underline decoration-indigo-300 underline-offset-2 hover:text-indigo-700"><?php echo esc_html( $ipc_step['label'] ); ?></a>
+                    <?php else : ?>
+                        <span><?php echo esc_html( $ipc_step['label'] ); ?></span>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ol>
+    </div>
+<?php endif; ?>
 
 <div class="ipc-stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <?php foreach ( $ipc_cards as $ipc_card ) : ?>

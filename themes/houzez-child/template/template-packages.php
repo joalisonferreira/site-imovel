@@ -3,13 +3,12 @@
  * Override do template nativo "Packages" (frontend-submission-page)
  * com o layout de Planos & Assinaturas alimentado pelos pacotes reais
  * (houzez_packages) do projeto.
+ *
+ * NOTA: a guarda nativa do Houzez (redirect p/ home quando
+ * enable_paid_submission != 'membership') foi removida aqui de propósito:
+ * esta página vende planos via WooCommerce/assinaturas, independente do
+ * modo de submissão nativo (que segue em 'no').
  */
-
-$paid_submission_type = esc_html( houzez_option( 'enable_paid_submission', '' ) );
-if ( $paid_submission_type != 'membership' ) {
-    wp_redirect( home_url() );
-    exit;
-}
 
 get_header();
 
@@ -107,7 +106,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php elseif ( null !== $plan['listings'] ) : ?>
                         <strong><?php echo esc_html( $plan['listings'] ); ?></strong>
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -117,7 +116,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php if ( null !== $plan['featured'] ) : ?>
                         <strong><?php echo esc_html( $plan['featured'] ); ?> inclusos</strong>
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -127,7 +126,7 @@ function ipc_plans_render_card( $plan, $kicker, $segment, $currency_symbol, $whe
                     <?php if ( null !== $plan['images'] ) : ?>
                         <strong><?php echo esc_html( $plan['images'] ); ?> fotos</strong> por anúncio
                     <?php else : ?>
-                        <strong>—</strong>
+                        <strong>Ilimitado</strong>
                     <?php endif; ?>
                 </span>
             </li>
@@ -297,7 +296,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                                 } elseif ( null !== $table_plan['listings'] ) {
                                                     echo esc_html( $table_plan['listings'] );
                                                 } else {
-                                                    echo '—';
+                                                    echo 'Ilimitado';
                                                 }
                                                 ?>
                                             </td>
@@ -307,7 +306,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                         <td>Anúncios com Selo Super Destaque</td>
                                         <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
                                             <td<?php echo (int) $table_plan['id'] === $recommended_id ? ' class="is-recommended"' : ''; ?>>
-                                                <?php echo null !== $table_plan['featured'] ? esc_html( $table_plan['featured'] ) . ' destaques' : '—'; ?>
+                                                <?php echo null !== $table_plan['featured'] ? esc_html( $table_plan['featured'] ) . ' destaques' : 'Ilimitado'; ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -315,7 +314,7 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                                         <td>Fotos por Imóvel</td>
                                         <?php foreach ( $plans_groups['table'] as $table_plan ) : ?>
                                             <td<?php echo (int) $table_plan['id'] === $recommended_id ? ' class="is-recommended"' : ''; ?>>
-                                                <?php echo null !== $table_plan['images'] ? esc_html( $table_plan['images'] ) . ' fotos' : '—'; ?>
+                                                <?php echo null !== $table_plan['images'] ? esc_html( $table_plan['images'] ) . ' fotos' : 'Ilimitado'; ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>

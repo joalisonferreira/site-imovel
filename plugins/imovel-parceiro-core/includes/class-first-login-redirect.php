@@ -20,6 +20,36 @@ class Imovel_Parceiro_First_Login_Redirect {
         add_filter( 'woocommerce_login_redirect', array( $this, 'woocommerce_redirect' ), 20, 2 );
         add_action( 'wp_login', array( $this, 'on_buyer_login' ), 10, 2 );
         add_action( 'template_redirect', array( $this, 'safety_net_redirect' ), 1 );
+        add_action( 'houzez_before_login', array( $this, 'override_houzez_modal_redirect' ), 1 );
+    }
+
+    /**
+     * Login modal Houzez usa $_POST['redirect_to'] direto.
+     * Força dashboard para corretor/imobiliária (ou verificação no 1º acesso).
+     */
+    public function override_houzez_modal_redirect() {
+        if ( empty( $_POST['username'] ) ) {
+            return;
+        }
+        $login = sanitize_text_field( wp_unslash( $_POST['username'] ) );
+        $user = is_email( $login ) ? get_user_by( 'email', $login ) : get_user_by( 'login', $login );
+        if ( ! $user ) {
+            return;
+        }
+        if ( self::is_client( $user->ID ) ) {
+            $_POST['redirect_to'] = self::buscar_url();
+            return;
+        }
+        if ( ! self::is_broker( $user->ID ) ) {
+            return;
+        }
+        if ( self::needs_redirect( $user->ID ) ) {
+            $_POST['redirect_to'] = self::verification_url( $user->ID );
+            update_user_meta( $user->ID, self::DONE_META, 1 );
+            return;
+        }
+        $_POST['redirect_to'] = self::dashboard_url();
+        delete_user_meta( $user->ID, '_imovel_parceiro_dashboard_redirect_pending' );
     }
 
     /**
@@ -83,9 +113,30 @@ class Imovel_Parceiro_First_Login_Redirect {
         return home_url( '/buscar/' );
     }
 
+    public static function dashboard_url() {
+        $url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard.php' ) : '';
+        if ( ! $url ) {
+            $url = home_url( '/dashboard/' );
+        }
+        return $url;
+    }
+
+    public static function is_broker( $user_id ) {
+        $user = get_userdata( absint( $user_id ) );
+        return $user && array_intersect( self::TARGET_ROLES, (array) $user->roles );
+    }
+
     public function on_buyer_login( $user_login, $user ) {
-        if ( $user instanceof WP_User && self::is_client( $user->ID ) ) {
+        if ( ! ( $user instanceof WP_User ) ) {
+            return;
+        }
+        if ( self::is_client( $user->ID ) ) {
             update_user_meta( $user->ID, '_imovel_parceiro_buyer_redirect_pending', 1 );
+            return;
+        }
+        // Corretor/imobiliária: marca para ir ao dashboard (cobre login modal/AJAX).
+        if ( self::is_broker( $user->ID ) && ! self::needs_redirect( $user->ID ) ) {
+            update_user_meta( $user->ID, '_imovel_parceiro_dashboard_redirect_pending', 1 );
         }
     }
 
@@ -100,6 +151,11 @@ class Imovel_Parceiro_First_Login_Redirect {
         if ( $user instanceof WP_User && self::needs_redirect( $user->ID ) ) {
             update_user_meta( $user->ID, self::DONE_META, 1 );
             return self::verification_url( $user->ID );
+        }
+        // Corretor/imobiliária sempre vai para o dashboard ao fazer login.
+        if ( $user instanceof WP_User && self::is_broker( $user->ID ) ) {
+            delete_user_meta( $user->ID, '_imovel_parceiro_dashboard_redirect_pending' );
+            return self::dashboard_url();
         }
 
         return $redirect_to;
@@ -116,6 +172,10 @@ class Imovel_Parceiro_First_Login_Redirect {
         if ( $user instanceof WP_User && self::needs_redirect( $user->ID ) ) {
             update_user_meta( $user->ID, self::DONE_META, 1 );
             return self::verification_url( $user->ID );
+        }
+        if ( $user instanceof WP_User && self::is_broker( $user->ID ) ) {
+            delete_user_meta( $user->ID, '_imovel_parceiro_dashboard_redirect_pending' );
+            return self::dashboard_url();
         }
 
         return $redirect;
@@ -146,6 +206,17 @@ class Imovel_Parceiro_First_Login_Redirect {
             $is_buscar = ( false !== strpos( $_SERVER['REQUEST_URI'], '/buscar' ) );
             if ( ! $is_buscar && ! isset( $_GET['hpage'] ) ) {
                 wp_safe_redirect( self::buscar_url() );
+                exit;
+            }
+            return;
+        }
+
+        // Corretor/imobiliária via login modal/AJAX: leva ao dashboard uma vez.
+        if ( self::is_broker( $user_id ) && get_user_meta( $user_id, '_imovel_parceiro_dashboard_redirect_pending', true ) ) {
+            delete_user_meta( $user_id, '_imovel_parceiro_dashboard_redirect_pending' );
+            $is_dash = ( false !== strpos( $_SERVER['REQUEST_URI'], '/dashboard' ) ) || isset( $_GET['imovel_dashboard_area'] ) || isset( $_GET['imovel-parceiro'] ) || isset( $_GET['hpage'] );
+            if ( ! $is_dash ) {
+                wp_safe_redirect( self::dashboard_url() );
                 exit;
             }
             return;

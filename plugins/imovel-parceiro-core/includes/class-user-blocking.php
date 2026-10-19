@@ -169,7 +169,7 @@ class Imovel_Parceiro_User_Blocking {
         }
 
         $section = isset( $_POST['imovel_admin_section'] ) ? sanitize_key( wp_unslash( $_POST['imovel_admin_section'] ) ) : '';
-        if ( 'agents' !== $section ) {
+        if ( ! in_array( $section, array( 'agents', 'clients', 'owners' ), true ) ) {
             return;
         }
 

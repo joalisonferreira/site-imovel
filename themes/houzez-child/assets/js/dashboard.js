@@ -104,7 +104,7 @@
       btn.addEventListener('click', function (event) {
         if (btn.getAttribute('data-requires-export') === '1') {
           event.preventDefault();
-          ipcToast('Exporte os logs para Excel antes de excluí-los.', 'error');
+          toast('Exporte os logs para Excel antes de excluí-los.', 'error');
           return;
         }
         if (!window.confirm('Excluir TODOS os logs de auditoria? Esta ação não pode ser desfeita.')) {
@@ -180,7 +180,7 @@
         postDelete({ notification_id: notificationId })
           .then(function (result) {
             if (!(result && result.success)) {
-              ipcToast((result && result.data && result.data.message) || 'Falha ao excluir a notificação.', 'error');
+              toast((result && result.data && result.data.message) || 'Falha ao excluir a notificação.', 'error');
               return;
             }
 
@@ -191,14 +191,14 @@
               if (btn.closest('.ipc-notifications-dropdown-panel')) {
                 host.parentNode.removeChild(host);
                 updateUnreadCount(result.data && result.data.unread_count);
-                ipcToast('Notificação excluída.', 'success');
+                toast('Notificação excluída.', 'success');
               } else {
                 window.location.reload();
               }
             }
           })
           .catch(function () {
-            ipcToast('Erro de comunicação com o servidor.', 'error');
+            toast('Erro de comunicação com o servidor.', 'error');
           })
           .finally(function () {
             deleting = false;
@@ -256,7 +256,7 @@
         postDelete({ mode: 'all' })
           .then(function (result) {
             if (!(result && result.success)) {
-              ipcToast((result && result.data && result.data.message) || 'Falha ao excluir as notificações.', 'error');
+              toast((result && result.data && result.data.message) || 'Falha ao excluir as notificações.', 'error');
               return;
             }
 
@@ -271,10 +271,10 @@
                 '<li><span class="dropdown-item-text text-muted" style="display:block;text-align:center;padding:10px;">Sem notificações recentes.</span></li>';
             }
             updateUnreadCount(0);
-            ipcToast('Todas as notificações foram excluídas.', 'success');
+            toast('Todas as notificações foram excluídas.', 'success');
           })
           .catch(function () {
-            ipcToast('Erro de comunicação com o servidor.', 'error');
+            toast('Erro de comunicação com o servidor.', 'error');
           })
           .finally(function () {
             deleting = false;
@@ -331,39 +331,39 @@
         }
 
         if (typeof window.ipcNotifications === 'undefined' || !window.ipcNotifications.ajax_url) {
-          ipcToast('Serviço de notificações indisponível. Recarregue a página.', 'error');
+          toast('Serviço de notificações indisponível. Recarregue a página.', 'error');
           return;
         }
 
         if (!('Notification' in window)) {
-          ipcToast('Seu navegador não suporta notificações.', 'error');
+          toast('Seu navegador não suporta notificações.', 'error');
           return;
         }
 
         if (!window.isSecureContext) {
-          ipcToast('Ative HTTPS (ou use localhost) para habilitar notificações.', 'error');
+          toast('Ative HTTPS (ou use localhost) para habilitar notificações.', 'error');
           return;
         }
 
         if (!('PushManager' in window) || !('serviceWorker' in navigator)) {
-          ipcToast('Push não suportado neste navegador.', 'error');
+          toast('Push não suportado neste navegador.', 'error');
           return;
         }
 
         if (Notification.permission === 'denied') {
-          ipcToast('Permissão bloqueada. Libere as notificações no ícone de cadeado da barra de endereço.', 'error');
+          toast('Permissão bloqueada. Libere as notificações no ícone de cadeado da barra de endereço.', 'error');
           return;
         }
 
         btn.setAttribute('data-busy', '1');
-        ipcToast('Verificando os serviços de notificação do navegador…', 'info');
+        toast('Verificando os serviços de notificação do navegador…', 'info');
 
         navigator.serviceWorker
           .register(window.ipcNotifications.service_worker_url)
           .then(function (registration) {
             return Notification.requestPermission().then(function (permission) {
               if (permission !== 'granted') {
-                ipcToast('Permissão negada para notificações.', 'error');
+                toast('Permissão negada para notificações.', 'error');
                 throw new Error('permission-denied');
               }
 
@@ -373,7 +373,7 @@
                 }
 
                 if (!window.ipcNotifications.vapid_public_key) {
-                  ipcToast('Configuração de push (VAPID) pendente no servidor. Tente novamente em instantes.', 'error');
+                  toast('Configuração de push (VAPID) pendente no servidor. Tente novamente em instantes.', 'error');
                   throw new Error('vapid-missing');
                 }
 
@@ -399,13 +399,13 @@
               return response.json();
             }).then(function (result) {
               if (result && result.success) {
-                ipcToast('Notificações do navegador ativadas com sucesso.', 'success');
+                toast('Notificações do navegador ativadas com sucesso.', 'success');
                 btn.textContent = 'Ativado';
                 btn.classList.add('is-activated');
                 btn.setAttribute('aria-pressed', 'true');
                 return;
               }
-              ipcToast((result && result.data && result.data.message) || 'Falha ao salvar a assinatura de push.', 'error');
+              toast((result && result.data && result.data.message) || 'Falha ao salvar a assinatura de push.', 'error');
             });
           })
           .catch(function (err) {
@@ -415,7 +415,7 @@
             if (err && err.message === 'vapid-missing') {
               return;
             }
-            ipcToast('Não foi possível configurar o push neste dispositivo.', 'error');
+            toast('Não foi possível configurar o push neste dispositivo.', 'error');
           })
           .finally(function () {
             btn.setAttribute('data-busy', '0');
@@ -475,4 +475,135 @@
 
     apply(mark.dataset.opacity, mark.dataset.size);
   }
+})();
+
+/* ==========================================================================
+   Imóvel Parceiro - Exclusão de imóvel pelo proprietário.
+   Popup com motivo opcional; sem histórico comercial exclui direto (lixeira),
+   com histórico vira solicitação para análise. Tudo com log em auditoria.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  function core() {
+    return window.imovelParceiroCore || {};
+  }
+
+  function toast(message, type) {
+    if (typeof window.ipcToast === 'function') {
+      window.ipcToast(message, type);
+      return;
+    }
+    if (typeof ipcToast === 'function') {
+      try {
+        toast(message, type);
+        return;
+      } catch (e) {
+        /* cai para o fallback abaixo */
+      }
+    }
+    var el = document.createElement('div');
+    el.className = 'ipc-toast ipc-toast--' + (type || '');
+    el.textContent = message;
+    document.body.appendChild(el);
+    window.setTimeout(function () {
+      el.classList.add('ipc-toast--show');
+    }, 30);
+    window.setTimeout(function () {
+      if (el.parentElement) {
+        el.parentElement.removeChild(el);
+      }
+    }, 4000);
+  }
+
+  function openDeleteModal(propertyId, propertyTitle) {
+    var modalEl = document.getElementById('ipc-owner-delete-modal');
+    if (!modalEl) {
+      return;
+    }
+    var idInput = modalEl.querySelector('#ipc-owner-delete-id');
+    var reasonInput = modalEl.querySelector('#ipc-owner-delete-reason');
+    var text = modalEl.querySelector('[data-ipc-owner-delete-text]');
+    if (idInput) {
+      idInput.value = propertyId;
+    }
+    if (reasonInput) {
+      reasonInput.value = '';
+    }
+    if (text && propertyTitle) {
+      text.textContent = 'Tem certeza de que deseja excluir "' + propertyTitle + '"? Ele será movido para a lixeira.';
+    }
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  function closeDeleteModal() {
+    var modalEl = document.getElementById('ipc-owner-delete-modal');
+    if (!modalEl) {
+      return;
+    }
+    if (window.bootstrap && window.bootstrap.Modal) {
+      var instance = window.bootstrap.Modal.getInstance(modalEl);
+      if (instance) {
+        instance.hide();
+      }
+    }
+  }
+
+  document.addEventListener('click', function (event) {
+    var trigger = event.target && event.target.closest ? event.target.closest('.imovel-owner-delete') : null;
+    if (trigger) {
+      event.preventDefault();
+      openDeleteModal(
+        trigger.getAttribute('data-property-id'),
+        trigger.getAttribute('data-property-title')
+      );
+      return;
+    }
+
+    var confirmBtn = event.target && event.target.closest ? event.target.closest('[data-ipc-owner-delete-confirm]') : null;
+    if (!confirmBtn) {
+      return;
+    }
+    var modalEl = document.getElementById('ipc-owner-delete-modal');
+    var propertyId = modalEl ? (modalEl.querySelector('#ipc-owner-delete-id') || {}).value : '';
+    var reasonEl = modalEl ? modalEl.querySelector('#ipc-owner-delete-reason') : null;
+    if (!propertyId || !core().ajax_url || !core().nonce) {
+      return;
+    }
+
+    confirmBtn.setAttribute('disabled', 'disabled');
+    var body = new URLSearchParams({
+      action: 'imovel_parceiro_owner_delete_property',
+      nonce: core().nonce,
+      property_id: propertyId,
+      reason: reasonEl ? reasonEl.value : ''
+    });
+
+    window.fetch(core().ajax_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body.toString(),
+      credentials: 'same-origin'
+    }).then(function (response) {
+      return response.json();
+    }).then(function (json) {
+      confirmBtn.removeAttribute('disabled');
+      if (json && json.success) {
+        closeDeleteModal();
+        var row = document.querySelector('.imovel-owner-delete[data-property-id="' + propertyId + '"]');
+        var tr = row && row.closest ? row.closest('tr') : null;
+        if (tr) {
+          tr.parentElement.removeChild(tr);
+        }
+        toast((json.data && json.data.message) || 'Imóvel excluído com sucesso.', 'success');
+      } else {
+        toast((json && json.data && json.data.message) || 'Não foi possível excluir o imóvel.', 'error');
+      }
+    }).catch(function () {
+      confirmBtn.removeAttribute('disabled');
+      toast('Erro de conexão. Tente novamente.', 'error');
+    });
+  });
 })();

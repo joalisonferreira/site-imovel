@@ -40,6 +40,9 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         // Asaas rejects endDate <= nextDueDate; drop it so the purchase never
         // fails -- expiry is enforced via pending-cancel + Houzez validity.
         add_filter( 'woocommerce_asaas_subscription_payment_data', array( $this, 'fix_asaas_end_date' ), 20, 5 );
+        // F4 (CRO): resumo do plano no checkout + próximos passos no obrigado.
+        add_action( 'woocommerce_checkout_before_order_review', array( $this, 'render_checkout_plan_summary' ), 20 );
+        add_action( 'woocommerce_thankyou', array( $this, 'render_thankyou_next_steps' ), 20 );
         // BaseERP issues NFe (products). Our plans are services billed via
         // Asaas NFS-e, so BaseERP must never attempt them (it fails forever,
         // e.g. "externalReference em formato inválido", spamming order notes).
@@ -245,6 +248,10 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
     }
 
     public function save_package_metabox( $post_id, $post, $update ) {
+        // Guarda: sem o CPT registrado não há como mapear edit_post (evita notice map_meta_cap).
+        if ( 'houzez_packages' !== get_post_type( $post_id ) || ! post_type_exists( 'houzez_packages' ) ) {
+            return;
+        }
         if ( ! isset( $_POST['imovel_parceiro_package_subscription_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['imovel_parceiro_package_subscription_nonce'] ) ), 'imovel_parceiro_package_subscription' ) || ! current_user_can( 'edit_post', $post_id ) ) {
             return;
         }
@@ -464,6 +471,98 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
         return $valid;
     }
 
+    /**
+     * F4: resumo do plano dentro do checkout Woo (antes do resumo do pedido).
+     * Só renderiza quando o carrinho tem um produto de assinatura gerenciado.
+     */
+    public function render_checkout_plan_summary() {
+        if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+            return;
+        }
+        $package_id = 0;
+        $product = false;
+        foreach ( WC()->cart->get_cart() as $item ) {
+            $pid = absint( get_post_meta( $item['product_id'], self::PRODUCT_PACKAGE_META, true ) );
+            if ( $pid ) {
+                $package_id = $pid;
+                $product = isset( $item['data'] ) ? $item['data'] : false;
+                break;
+            }
+        }
+        if ( ! $package_id ) {
+            return;
+        }
+
+        $plan_name = get_the_title( $package_id );
+        $cycle_key = self::billing_cycle_for_package( $package_id );
+        $cycles = self::billing_cycles();
+        $cycle_label = isset( $cycles[ $cycle_key ] ) ? $cycles[ $cycle_key ]['label'] : '';
+        $price_html = $product ? wc_price( $product->get_price() ) : '';
+        ?>
+        <div class="ipc-checkout-plan" role="region" aria-label="<?php esc_attr_e( 'Resumo da assinatura', 'imovel-parceiro-core' ); ?>">
+            <div class="ipc-checkout-plan__head">
+                <span class="ipc-checkout-plan__badge"><?php esc_html_e( 'Assinatura', 'imovel-parceiro-core' ); ?></span>
+                <strong class="ipc-checkout-plan__name"><?php echo esc_html( $plan_name ? $plan_name : __( 'Plano', 'imovel-parceiro-core' ) ); ?></strong>
+            </div>
+            <ul class="ipc-checkout-plan__meta">
+                <?php if ( $cycle_label ) : ?>
+                    <li><span><?php esc_html_e( 'Cobrança', 'imovel-parceiro-core' ); ?></span><strong><?php echo esc_html( $cycle_label ); ?></strong></li>
+                <?php endif; ?>
+                <?php if ( '' !== $price_html ) : ?>
+                    <li><span><?php esc_html_e( 'Valor', 'imovel-parceiro-core' ); ?></span><strong><?php echo wp_kses_post( $price_html ); ?></strong></li>
+                <?php endif; ?>
+                <li><span><?php esc_html_e( 'Renovação', 'imovel-parceiro-core' ); ?></span><strong><?php esc_html_e( 'Automática. Cancele quando quiser.', 'imovel-parceiro-core' ); ?></strong></li>
+            </ul>
+        </div>
+        <?php
+    }
+
+    /**
+     * F4: próximos passos após a compra (só para pedidos com assinatura).
+     */
+    public function render_thankyou_next_steps( $order_id ) {
+        $order_id = absint( $order_id );
+        if ( ! $order_id || ! function_exists( 'wc_get_order' ) ) {
+            return;
+        }
+        $order = wc_get_order( $order_id );
+        if ( ! $order || (int) $order->get_customer_id() !== (int) get_current_user_id() ) {
+            return;
+        }
+        $has_plan = false;
+        foreach ( $order->get_items() as $item ) {
+            if ( get_post_meta( $item->get_product_id(), self::PRODUCT_PACKAGE_META, true ) ) {
+                $has_plan = true;
+                break;
+            }
+        }
+        if ( ! $has_plan ) {
+            return;
+        }
+
+        $submit_url = function_exists( 'houzez_get_template_link_2' ) ? houzez_get_template_link_2( 'template/user_dashboard_submit.php' ) : home_url( '/' );
+        $verification_url = '';
+        if ( class_exists( 'Imovel_Parceiro_Verification_Notifications' ) ) {
+            $verification_url = Imovel_Parceiro_Verification_Notifications::user_verification_url( get_current_user_id() );
+        }
+        if ( ! $verification_url && function_exists( 'houzez_get_template_link_2' ) ) {
+            $profile_link = houzez_get_template_link_2( 'template/user_dashboard_profile.php' );
+            $verification_url = $profile_link ? add_query_arg( 'hpage', 'verification', $profile_link ) : home_url( '/' );
+        }
+        $is_verified = ( 'approved' === get_user_meta( get_current_user_id(), 'houzez_verification_status', true ) );
+        ?>
+        <div class="ipc-thankyou-steps" role="region" aria-label="<?php esc_attr_e( 'Próximos passos', 'imovel-parceiro-core' ); ?>">
+            <h3 class="ipc-thankyou-steps__title"><?php esc_html_e( 'Assinatura ativa! O que fazer agora?', 'imovel-parceiro-core' ); ?></h3>
+            <div class="ipc-thankyou-steps__actions">
+                <a href="<?php echo esc_url( $submit_url ); ?>" class="button alt"><?php esc_html_e( 'Anunciar meu 1º imóvel', 'imovel-parceiro-core' ); ?></a>
+                <?php if ( ! $is_verified ) : ?>
+                    <a href="<?php echo esc_url( $verification_url ); ?>" class="button"><?php esc_html_e( 'Completar verificação', 'imovel-parceiro-core' ); ?></a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    }
+
     public static function active_package_for_user( $user_id ) {
         if ( ! function_exists( 'wcs_get_users_subscriptions' ) ) {
             return 0;
@@ -536,23 +635,31 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
     }
 
     /**
-     * Detalhes de pagamento pendente de uma assinatura (URLs do boleto e vencimento).
+     * Detalhes de pagamento pendente de uma assinatura (URLs do boleto, QR do
+     * Pix e vencimento).
      *
      * @param object $subscription WC_Subscription.
-     * @return array Com chaves is_boleto, pay_url, ticket_url e due_date.
+     * @return array Com chaves is_boleto, is_pix, pay_url, ticket_url,
+     *               due_date, pix_qr e pix_payload.
      */
     public static function pending_payment_info( $subscription ) {
         $info = array(
-            'is_boleto'  => false,
-            'pay_url'    => '',
-            'ticket_url' => '',
-            'due_date'   => '',
+            'is_boleto'   => false,
+            'is_pix'      => false,
+            'pay_url'     => '',
+            'ticket_url'  => '',
+            'due_date'    => '',
+            'pix_qr'      => '',
+            'pix_payload' => '',
         );
         if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'get_payment_method' ) ) {
             return $info;
         }
         if ( 'asaas-ticket' === $subscription->get_payment_method() ) {
             $info['is_boleto'] = true;
+        }
+        if ( 'asaas-pix' === $subscription->get_payment_method() ) {
+            $info['is_pix'] = true;
         }
 
         $parent = null;
@@ -563,30 +670,149 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
             }
         }
 
-        if ( $parent ) {
-            if ( method_exists( $parent, 'needs_payment' ) && method_exists( $parent, 'get_checkout_payment_url' ) && $parent->needs_payment() ) {
-                $info['pay_url'] = $parent->get_checkout_payment_url();
-            }
-            // Meta __ASAAS_ORDER do gateway woo-asaas: JSON do pagamento com
-            // bankSlipUrl (boleto), billingType (BOLETO) e dueDate (Y-m-d).
-            $raw = method_exists( $parent, 'get_meta' ) ? $parent->get_meta( '__ASAAS_ORDER' ) : '';
-            if ( '' !== (string) $raw ) {
-                $data = json_decode( (string) $raw );
-                if ( is_object( $data ) ) {
-                    if ( isset( $data->billingType ) && 'BOLETO' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['is_boleto'] = true;
-                    }
-                    if ( isset( $data->bankSlipUrl ) && '' !== (string) $data->bankSlipUrl ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['ticket_url'] = esc_url_raw( (string) $data->bankSlipUrl ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                    }
-                    if ( isset( $data->dueDate ) && '' !== (string) $data->dueDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                        $info['due_date'] = sanitize_text_field( (string) $data->dueDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
-                    }
+        // Pedido mais recente ainda aguardando pagamento (ex.: renovação
+        // manual). Tem prioridade sobre o pedido pai, pois carrega o QR
+        // do ciclo atual e não o do primeiro pagamento.
+        // ATENÇÃO: o 1º parâmetro é $return_fields ('ids'|'all'), o tipo de
+        // pedido vai no 2º ('any' = parent+renewal+switch+resubscribe).
+        $target = $parent;
+        if ( method_exists( $subscription, 'get_related_orders' ) && function_exists( 'wc_get_order' ) ) {
+            foreach ( (array) $subscription->get_related_orders( 'ids', array( 'any' ) ) as $related ) {
+                // Defesa extra: se algum filtro devolver objetos em vez de IDs.
+                if ( is_object( $related ) && method_exists( $related, 'needs_payment' ) ) {
+                    $related_order = $related;
+                } else {
+                    $related_order = wc_get_order( absint( $related ) );
+                }
+                if ( ! $related_order || ! method_exists( $related_order, 'needs_payment' ) || ! $related_order->needs_payment() ) {
+                    continue;
+                }
+                if ( ! $target || (int) $related_order->get_id() > (int) $target->get_id() ) {
+                    $target = $related_order;
                 }
             }
         }
 
+        if ( $target ) {
+            if ( method_exists( $target, 'needs_payment' ) && method_exists( $target, 'get_checkout_payment_url' ) && $target->needs_payment() ) {
+                $info['pay_url'] = $target->get_checkout_payment_url();
+            }
+            self::extract_asaas_meta( $target, $info );
+        } elseif ( $parent ) {
+            self::extract_asaas_meta( $parent, $info );
+        }
+
         return $info;
+    }
+
+    /**
+     * Lê o meta __ASAAS_ORDER do gateway woo-asaas (JSON do pagamento) e
+     * preenche boleto (bankSlipUrl) ou Pix (payload + encodedImage) no $info.
+     *
+     * @param object $order WC_Order.
+     * @param array  $info  Array por referência.
+     */
+    private static function extract_asaas_meta( $order, &$info ) {
+        if ( ! is_object( $order ) || ! method_exists( $order, 'get_meta' ) ) {
+            return;
+        }
+        // Meta __ASAAS_ORDER do gateway woo-asaas: JSON do pagamento com
+        // bankSlipUrl (boleto), billingType (BOLETO/PIX) e dueDate (Y-m-d);
+        // no Pix inclui ainda payload (copia-e-cola), encodedImage (QR em
+        // base64) e expirationDate.
+        $raw = $order->get_meta( '__ASAAS_ORDER' );
+        if ( '' === (string) $raw ) {
+            return;
+        }
+        $data = json_decode( (string) $raw );
+        if ( ! is_object( $data ) ) {
+            return;
+        }
+        if ( isset( $data->billingType ) && 'BOLETO' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['is_boleto'] = true;
+        }
+        if ( isset( $data->billingType ) && 'PIX' === strtoupper( (string) $data->billingType ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['is_pix'] = true;
+        }
+        if ( isset( $data->bankSlipUrl ) && '' !== (string) $data->bankSlipUrl ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['ticket_url'] = esc_url_raw( (string) $data->bankSlipUrl ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->dueDate ) && '' !== (string) $data->dueDate ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['due_date'] = sanitize_text_field( (string) $data->dueDate ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->payload ) && '' !== (string) $data->payload ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['pix_payload'] = (string) $data->payload; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        if ( isset( $data->encodedImage ) && '' !== (string) $data->encodedImage ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+            $info['pix_qr'] = 'data:image/jpeg;base64,' . (string) $data->encodedImage; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar
+        }
+        // Sem pix_expires: o QR dinamico do Asaas vale ate 12 meses apos o
+        // vencimento, entao exibir a data confundia (parecia "contador").
+    }
+
+    /**
+     * Renderiza o painel "Pagamento pendente" (QR do Pix + copia-e-cola ou
+     * link do boleto) para a lista de pending_payment_subscriptions_for_user().
+     *
+     * @param array $pending_list Lista de arrays com subscription, package_id e payment.
+     */
+    public static function render_pending_payments( $pending_list ) {
+        if ( empty( $pending_list ) || ! is_array( $pending_list ) ) {
+            return;
+        }
+        // URL da página atual: o botão "Já paguei" apenas recarrega para
+        // refletir o status que o webhook (produção) já atualizou.
+        $refresh_url = '';
+        if ( isset( $_SERVER['REQUEST_URI'] ) && function_exists( 'home_url' ) ) {
+            $refresh_url = esc_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) );
+        }
+        foreach ( $pending_list as $item ) {
+            if ( ! is_array( $item ) || empty( $item['subscription'] ) || empty( $item['payment'] ) ) {
+                continue;
+            }
+            $subscription = $item['subscription'];
+            $payment      = $item['payment'];
+            $plan_title   = ! empty( $item['package_id'] ) ? get_the_title( absint( $item['package_id'] ) ) : '';
+            $amount       = method_exists( $subscription, 'get_total' ) ? wc_price( $subscription->get_total() ) : '';
+            ?>
+            <div class="houzez-membership mb-4">
+                <div class="membership-inner">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 style="margin:0;"><?php esc_html_e( 'Pagamento pendente', 'imovel-parceiro-core' ); ?></h5>
+                        <span class="dashboard-label bg-warning"><?php esc_html_e( 'Aguardando pagamento', 'imovel-parceiro-core' ); ?></span>
+                    </div>
+                    <?php if ( $plan_title ) : ?>
+                        <p class="mb-1"><strong><?php echo esc_html( $plan_title ); ?></strong><?php echo $amount ? ' — ' . wp_kses_post( $amount ) : ''; ?></p>
+                    <?php elseif ( $amount ) : ?>
+                        <p class="mb-1"><strong><?php echo wp_kses_post( $amount ); ?></strong></p>
+                    <?php endif; ?>
+                    <?php if ( ! empty( $payment['due_date'] ) ) : ?>
+                        <p class="mb-3 text-muted"><?php esc_html_e( 'Vencimento:', 'imovel-parceiro-core' ); ?> <?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $payment['due_date'] ) ) ); ?></p>
+                    <?php endif; ?>
+
+                    <?php if ( ! empty( $payment['is_pix'] ) && ! empty( $payment['pix_qr'] ) ) : ?>
+                        <div class="d-flex flex-column align-items-center text-center" style="gap:12px;">
+                            <img src="<?php echo esc_attr( $payment['pix_qr'] ); ?>" alt="QR Code Pix" width="220" height="220" style="width:220px;height:220px;border:1px solid #e2e8f0;border-radius:12px;" />
+                            <?php if ( ! empty( $payment['pix_payload'] ) ) : ?>
+                                <input type="text" readonly value="<?php echo esc_attr( $payment['pix_payload'] ); ?>" onclick="this.select();" style="width:100%;font-size:12px;" />
+                                <button type="button" class="btn btn-primary-outlined" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);this.textContent='<?php echo esc_js( __( 'Código copiado!', 'imovel-parceiro-core' ) ); ?>';"><?php esc_html_e( 'Copiar código Pix', 'imovel-parceiro-core' ); ?></button>
+                            <?php endif; ?>
+                        </div>
+                    <?php elseif ( ! empty( $payment['is_boleto'] ) && ! empty( $payment['ticket_url'] ) ) : ?>
+                        <p><a href="<?php echo esc_url( $payment['ticket_url'] ); ?>" target="_blank" rel="noopener" class="btn btn-primary"><?php esc_html_e( 'Ver boleto', 'imovel-parceiro-core' ); ?></a></p>
+                    <?php endif; ?>
+
+                    <?php if ( ! empty( $payment['pay_url'] ) ) : ?>
+                        <p class="mt-3 mb-0"><a href="<?php echo esc_url( $payment['pay_url'] ); ?>" class="btn btn-primary"><?php esc_html_e( 'Pagar agora', 'imovel-parceiro-core' ); ?></a></p>
+                    <?php endif; ?>
+                    <?php if ( $refresh_url ) : ?>
+                        <p class="mt-2 mb-1"><a href="<?php echo $refresh_url; ?>" class="btn btn-primary-outlined"><?php esc_html_e( 'Já paguei, atualizar status', 'imovel-parceiro-core' ); ?></a></p>
+                        <p class="mb-0 text-muted" style="font-size:13px;"><?php esc_html_e( 'Após pagar, clique para verificar se o plano já foi liberado.', 'imovel-parceiro-core' ); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php
+        }
     }
 
     public function activate_houzez_membership( $subscription ) {

@@ -35,29 +35,29 @@ $show_form = false;
 
 switch ($verification_status) {
     case 'pending':
-        $status_text = esc_html__('Pending', 'houzez');
+        $status_text = esc_html__('Pendente', 'imovel-parceiro-core');
         $status_class = 'text-warning';
         $badge_class = 'bg-warning';
         break;
     case 'approved':
-        $status_text = esc_html__('Verified', 'houzez');
+        $status_text = esc_html__('Verificado', 'imovel-parceiro-core');
         $status_class = 'text-success';
         $badge_class = 'bg-success';
         break;
     case 'rejected':
-        $status_text = esc_html__('Rejected', 'houzez');
+        $status_text = esc_html__('Rejeitado', 'imovel-parceiro-core');
         $status_class = 'text-danger';
         $badge_class = 'bg-danger';
         $show_form = true;
         break;
     case 'additional_info_required':
-        $status_text = esc_html__('Additional Info Required', 'houzez');
+        $status_text = esc_html__('Informações adicionais necessárias', 'imovel-parceiro-core');
         $status_class = 'text-warning';
         $badge_class = 'bg-warning';
         $show_form = true;
         break;
     default:
-        $status_text = esc_html__('Not Verified', 'houzez');
+        $status_text = esc_html__('Não verificado', 'imovel-parceiro-core');
         $status_class = 'text-muted';
         $badge_class = 'bg-info';
         $show_form = true;
@@ -67,8 +67,8 @@ switch ($verification_status) {
 
 <div class="heading d-flex align-items-center justify-content-between">
     <div class="heading-text">
-        <h2><?php esc_html_e('Account Verification', 'houzez'); ?></h2>
-        <p><?php esc_html_e('Verify your identity to build trust with potential clients', 'houzez'); ?></p>
+        <h2><?php esc_html_e('Verificação de conta', 'imovel-parceiro-core'); ?></h2>
+        <p><?php esc_html_e('Verifique sua identidade para gerar confiança com potenciais clientes', 'imovel-parceiro-core'); ?></p>
     </div>
 
     <div class="heading-btn">
@@ -76,12 +76,12 @@ switch ($verification_status) {
         <?php if( !isset( $_GET['apply'] ) ): ?>
             <a href="<?php echo esc_url($profile_link); ?>" class="btn btn-primary-outlined">
             <i class="houzez-icon icon-arrow-left-1 me-1"></i>
-            <?php esc_html_e('Back to Profile', 'houzez'); ?>
+            <?php esc_html_e('Voltar ao perfil', 'imovel-parceiro-core'); ?>
         </a>
         <?php else: ?>
             <a href="<?php echo esc_url($cancel_verification_link); ?>" class="btn btn-primary-outlined">
                 <i class="houzez-icon icon-arrow-left-1 me-1"></i>
-                <?php esc_html_e('Back', 'houzez'); ?>
+                <?php esc_html_e('Voltar', 'imovel-parceiro-core'); ?>
             </a>
         <?php endif; ?>
     </div>
@@ -90,10 +90,10 @@ switch ($verification_status) {
 <div class="propertie-list">
     <ul class="d-flex align-items-center" id="verificationTabs" role="tablist">
         <li role="presentation">
-            <a class="active" id="status-tab" data-bs-toggle="tab" data-bs-target="#status-tab-pane" type="button" role="tab" aria-controls="status-tab-pane" aria-selected="true"><?php esc_html_e('Status', 'houzez'); ?></a>
+            <button class="active" id="status-tab" data-bs-toggle="tab" data-bs-target="#status-tab-pane" type="button" role="tab" aria-controls="status-tab-pane" aria-selected="true"><?php esc_html_e('Status', 'imovel-parceiro-core'); ?></button>
         </li>
         <li role="presentation">
-            <a class="" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-tab-pane" type="button" role="tab" aria-controls="history-tab-pane" aria-selected="false"><?php esc_html_e('History', 'houzez'); ?></a>
+            <button class="" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-tab-pane" type="button" role="tab" aria-controls="history-tab-pane" aria-selected="false"><?php esc_html_e('Histórico', 'imovel-parceiro-core'); ?></button>
         </li>
     </ul>
 </div>
@@ -105,10 +105,10 @@ switch ($verification_status) {
             <div id="status" class="block-wrap mt-0 mb-4">
                 <div class="block-title-wrap d-flex justify-content-between align-items-center">
                     <?php if( !isset( $_GET['apply'] ) ): ?>
-                        <h2><?php esc_html_e('Verification Status', 'houzez'); ?></h2>
+                        <h2><?php esc_html_e('Status da verificação', 'imovel-parceiro-core'); ?></h2>
                         <span class="badge <?php echo esc_attr($badge_class); ?>"><?php echo esc_html($status_text); ?></span>
                     <?php else: ?>
-                        <h2><?php esc_html_e('Verification Application', 'houzez'); ?></h2>
+                        <h2><?php esc_html_e('Solicitação de verificação', 'imovel-parceiro-core'); ?></h2>
                     <?php endif; ?>
                     
         </div>

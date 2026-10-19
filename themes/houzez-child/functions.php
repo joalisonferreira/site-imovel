@@ -122,6 +122,17 @@ function houzez_child_enqueue_dashboard_assets() {
         '1.0.0'
     );
 
+    // Tela "Entre para cadastrar seu imóvel" (visitante deslogado no submit).
+    $submit_login_css = get_stylesheet_directory() . '/assets/css/submit-login.css';
+    if ( file_exists( $submit_login_css ) ) {
+        wp_enqueue_style(
+            'houzez-child-submit-login',
+            get_stylesheet_directory_uri() . '/assets/css/submit-login.css',
+            array( 'houzez-child-dashboard-tailwind' ),
+            (string) filemtime( $submit_login_css )
+        );
+    }
+
     wp_enqueue_script(
         'houzez-child-dashboard',
         get_stylesheet_directory_uri() . '/assets/js/dashboard.js',
@@ -155,15 +166,350 @@ function houzez_child_enqueue_auth_assets() {
      */
     wp_add_inline_style( 'houzez-child-auth', houzez_child_auth_password_toggle_css() );
 
+    $auth_js_path = get_stylesheet_directory() . '/assets/js/auth.js';
+    $auth_js_ver  = file_exists( $auth_js_path ) ? (string) filemtime( $auth_js_path ) : '1.1.0';
+
     wp_enqueue_script(
         'houzez-child-auth',
         get_stylesheet_directory_uri() . '/assets/js/auth.js',
         array(),
-        '1.0.0',
+        $auth_js_ver,
         true
+    );
+
+    // Redirect pós-cadastro por perfil (cadastro simplificado, auth.js).
+    wp_localize_script(
+        'houzez-child-auth',
+        'ipcAuth',
+        array(
+            'ajaxurl'   => admin_url( 'admin-ajax.php' ),
+            'redirects' => array(
+                'houzez_owner'  => houzez_child_ipc_page_url( 'cadastrar-imovel' ),
+                'houzez_agent'  => houzez_child_ipc_page_url( 'pacotes' ),
+                'houzez_agency' => houzez_child_ipc_page_url( 'pacotes' ),
+                'houzez_buyer'  => houzez_child_ipc_page_url( 'buscar' ),
+            ),
+        )
     );
 }
 add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_auth_assets', 100 );
+
+/**
+ * Enfileira os assets do lead express + imprime o modal no rodapé.
+ */
+function houzez_child_enqueue_lead_assets() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $css_path = get_stylesheet_directory() . '/assets/css/lead.css';
+    $js_path  = get_stylesheet_directory() . '/assets/js/lead.js';
+
+    wp_enqueue_style(
+        'houzez-child-lead',
+        get_stylesheet_directory_uri() . '/assets/css/lead.css',
+        array(),
+        file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0'
+    );
+
+    wp_enqueue_script(
+        'houzez-child-lead',
+        get_stylesheet_directory_uri() . '/assets/js/lead.js',
+        array(),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+
+    wp_localize_script(
+        'houzez-child-lead',
+        'ipcLead',
+        array(
+            'ajaxurl'       => admin_url( 'admin-ajax.php' ),
+            'nonce'         => wp_create_nonce( Imovel_Parceiro_Buyer_Lead::NONCE_ACTION ),
+            'is_logged_in'  => is_user_logged_in(),
+            'user_name'     => is_user_logged_in() ? wp_get_current_user()->display_name : '',
+            'dashboard_url' => houzez_child_ipc_page_url( 'dashboard' ),
+        )
+    );
+}
+/**
+ * Híbrido OSM + Google no cadastro de imóvel (functions.php: mapa e pin
+ * continuam OSM; o Google entra só com sugestões no campo de endereço).
+ * Inerte sem chave em Opções do Tema → Maps → Google Maps API Key.
+ */
+function houzez_child_enqueue_address_suggest() {
+    if ( is_admin() || ! is_page_template( 'template/user_dashboard_submit.php' ) ) {
+        return;
+    }
+
+    if ( ! function_exists( 'houzez_option' ) ) {
+        return;
+    }
+
+    $key = trim( (string) houzez_option( 'googlemap_api_key' ) );
+    if ( '' === $key ) {
+        return;
+    }
+
+    if ( 'google' === houzez_option( 'map_system_submit', 'osm' ) ) {
+        return;
+    }
+
+    wp_enqueue_script(
+        'ipc-google-places',
+        'https://maps.googleapis.com/maps/api/js?key=' . urlencode( $key ) . '&libraries=places&loading=async&callback=ipcAddressSuggestInit',
+        array(),
+        null,
+        true
+    );
+
+    $js_path = get_stylesheet_directory() . '/assets/js/address-suggest.js';
+    wp_enqueue_script(
+        'houzez-child-address-suggest',
+        get_stylesheet_directory_uri() . '/assets/js/address-suggest.js',
+        array( 'ipc-google-places' ),
+        file_exists( $js_path ) ? (string) filemtime( $js_path ) : '1.0.0',
+        true
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_address_suggest', 100 );
+
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_lead_assets', 100 );
+
+/**
+ * Corretor/imobiliária sem plano ativo não abre o formulário de anúncio:
+ * redireciona para a página inicial do dashboard (só criação; edição liberada).
+ */
+add_action( 'template_redirect', 'houzez_child_guard_submit_without_plan', 5 );
+
+function houzez_child_guard_submit_without_plan() {
+    if ( is_admin() || ! is_page_template( 'template/user_dashboard_submit.php' ) ) {
+        return;
+    }
+    if ( ! is_user_logged_in() ) {
+        return;
+    }
+    if ( isset( $_GET['edit_property'] ) ) {
+        return;
+    }
+    if ( current_user_can( 'manage_options' ) ) {
+        return;
+    }
+    if ( function_exists( 'houzez_is_editor' ) && houzez_is_editor() ) {
+        return;
+    }
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    if ( ! array_intersect( array( 'houzez_agent', 'houzez_agency' ), $roles ) ) {
+        return;
+    }
+    // Plano ativo = assinatura Woo ativa vinculada a um pacote (regra do projeto).
+    // Independe do modo enable_paid_submission (o site opera em modo gratuito).
+    if ( ! class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' ) ) {
+        return;
+    }
+    $package_user_id = (int) $user->ID;
+    if ( function_exists( 'houzez_get_agent_agency_id' ) ) {
+        $agency_id = (int) houzez_get_agent_agency_id( $package_user_id );
+        if ( $agency_id ) {
+            $package_user_id = $agency_id;
+        }
+    }
+    if ( Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::active_package_for_user( $package_user_id ) ) {
+        return;
+    }
+    $dashboard = function_exists( 'houzez_get_template_link_2' )
+        ? houzez_get_template_link_2( 'template/user_dashboard.php' )
+        : home_url( '/dashboard/' );
+    if ( ! $dashboard ) {
+        $dashboard = home_url( '/' );
+    }
+    wp_safe_redirect( add_query_arg( 'ipc_no_plan', '1', $dashboard ) );
+    exit;
+}
+
+add_action( 'wp_footer', 'houzez_child_print_lead_modal', 30 );
+
+function houzez_child_print_lead_modal() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    get_template_part( 'template-parts/lead/buyer-lead-modal' );
+
+    if ( is_user_logged_in() && class_exists( 'Imovel_Parceiro_Owner_Workflow' ) && Imovel_Parceiro_Owner_Workflow::is_current_user_proprietario() ) {
+        get_template_part( 'template-parts/dashboard/owner-delete-modal' );
+    }
+}
+
+/**
+ * Botões de entrada no menu principal: comprador (lead express) e
+ * proprietário (wizard com perfil pré-selecionado). Só código, sem banco.
+ */
+add_filter( 'wp_nav_menu_items', 'houzez_child_header_ctas', 10, 2 );
+
+function houzez_child_header_ctas( $items, $args ) {
+    // Só na home.
+    if ( ! is_front_page() ) {
+        return $items;
+    }
+
+    // Dispara no menu principal por location OU por slug (o header da home
+    // pode renderizar o menu direto, sem theme_location atribuída).
+    $location = isset( $args->theme_location ) ? (string) $args->theme_location : '';
+    $menu_slug = '';
+    if ( isset( $args->menu ) ) {
+        if ( is_object( $args->menu ) && isset( $args->menu->slug ) ) {
+            $menu_slug = (string) $args->menu->slug;
+        } elseif ( is_numeric( $args->menu ) ) {
+            $menu_obj = wp_get_nav_menu_object( (int) $args->menu );
+            if ( $menu_obj && isset( $menu_obj->slug ) ) {
+                $menu_slug = (string) $menu_obj->slug;
+            }
+        } elseif ( is_string( $args->menu ) ) {
+            $menu_obj = wp_get_nav_menu_object( $args->menu );
+            $menu_slug = $menu_obj && isset( $menu_obj->slug ) ? (string) $menu_obj->slug : $args->menu;
+        }
+    }
+
+    $is_primary = 'main-menu' === $location
+        || in_array( $menu_slug, array( 'main-menu', 'menu-principal' ), true );
+
+    if ( ! $is_primary ) {
+        return $items;
+    }
+
+    if ( ! class_exists( 'Imovel_Parceiro_Buyer_Lead' ) ) {
+        return $items;
+    }
+
+    $cta_style = ' style="display:flex;width:100%;height:48px;align-items:center;justify-content:center;"';
+
+    $buyer = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+        . '<a href="#" class="ipc-menu-cta ipc-menu-cta--buyer" data-bs-toggle="modal" data-bs-target="#ipc-lead-modal"' . $cta_style
+        . ' title="' . esc_attr__( 'Diga o que procura e onde', 'houzez' ) . '">'
+        . esc_html__( 'Quero comprar', 'houzez' ) . '</a></li>';
+
+    if ( is_user_logged_in() ) {
+        $owner_url = houzez_child_ipc_page_url( 'cadastrar-imovel' );
+        $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+            . '<a href="' . esc_url( $owner_url ) . '" class="ipc-menu-cta ipc-menu-cta--owner"' . $cta_style
+            . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
+            . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
+    } else {
+        $owner = '<li class="menu-item menu-item-type-custom menu-item-object-custom ipc-menu-li">'
+            . '<a href="#" class="ipc-menu-cta ipc-menu-cta--owner" data-bs-toggle="modal" data-bs-target="#login-register-form" data-ipc-register-role="houzez_owner"' . $cta_style
+            . ' title="' . esc_attr__( 'Cadastre seu imóvel para venda', 'houzez' ) . '">'
+            . esc_html__( 'Sou proprietário', 'houzez' ) . '</a></li>';
+    }
+
+    return $items . $buyer . $owner;
+}
+
+/**
+ * Placeholders PT-BR do cadastro de imóvel (AGENTS.md: PT-BR obrigatório).
+ *
+ * Quase todos vêm de options (houzez_options); o inglês aparece quando a
+ * option está vazia (fallback do código) ou foi salva em inglês. Este filtro
+ * preenche só nesses casos — nunca sobrescreve texto já traduzido no admin.
+ */
+add_filter( 'redux/options/houzez_options/global_variable', 'houzez_child_placeholders_ptbr', 20 );
+
+function houzez_child_placeholders_ptbr( $options ) {
+    if ( ! is_array( $options ) ) {
+        return $options;
+    }
+
+    $map = array(
+        'cl_energy_cls_plac'              => array( 'Selecione a classe energética', array( 'Select Energy Class' ) ),
+        'cl_energy_index_plac'            => array( 'Ex.: 92,42 kWh/m²a', array( 'For example: 92.42 kWh / m²a' ) ),
+        'cl_energy_renew_index_plac'      => array( 'Ex.: 0,00 kWh/m²a', array( 'For example: 0.00 kWh / m²a' ) ),
+        'cl_virtual_plac'                 => array( 'Cole o link ou o código iframe do tour virtual', array( 'Enter virtual tour link OR iframe/embeded code' ) ),
+        'cl_energy_build_performance_plac' => array( 'Desempenho energético do edifício', array() ),
+        'cl_energy_ecp_p_plac'            => array( 'Classificação energética potencial', array() ),
+        'cl_energy_ecp_rating_plac'       => array( 'Classificação energética atual', array() ),
+        'cl_price_postfix_plac'           => array( 'Texto após o preço (ex.: /mês)', array( 'Enter the label after price' ) ),
+    );
+
+    foreach ( $map as $key => $data ) {
+        list( $ptbr, $english ) = $data;
+        $current = isset( $options[ $key ] ) ? trim( (string) $options[ $key ] ) : '';
+        if ( '' === $current || in_array( $current, $english, true ) ) {
+            $options[ $key ] = $ptbr;
+        }
+    }
+
+    return $options;
+}
+
+/**
+ * Resolve a URL de uma página pelo slug, com fallback para home_url().
+ */
+function houzez_child_ipc_page_url( $slug ) {
+    $page = get_page_by_path( $slug );
+    if ( $page ) {
+        return get_permalink( $page );
+    }
+
+    return home_url( '/' . trim( $slug, '/' ) . '/' );
+}
+
+/**
+ * Dados do banner "complete seu cadastro" (perfil progressivo).
+ *
+ * @return array|false Array com message/profile_url, ou false quando nada a pedir.
+ */
+function houzez_child_profile_nudge_data() {
+    if ( ! is_user_logged_in() || current_user_can( 'manage_options' ) ) {
+        return false;
+    }
+
+    $user_id = get_current_user_id();
+    $roles   = (array) wp_get_current_user()->roles;
+
+    $dismissed = (int) get_user_meta( $user_id, 'ipc_profile_nudge_dismissed', true );
+    if ( $dismissed && ( time() - $dismissed ) < 30 * DAY_IN_SECONDS ) {
+        return false;
+    }
+
+    $missing = array();
+
+    if ( '' === trim( (string) get_user_meta( $user_id, 'fave_author_mobile', true ) ) ) {
+        $missing[] = __( 'seu WhatsApp', 'houzez' );
+    }
+
+    // Perfil progressivo: CPF/CNPJ adiado no cadastro mínimo é pedido aqui.
+    if ( '' === trim( (string) get_user_meta( $user_id, 'fave_author_tax_no', true ) ) ) {
+        $missing[] = __( 'seu CPF/CNPJ', 'houzez' );
+    }
+
+    if ( ! $missing ) {
+        return false;
+    }
+
+    if ( class_exists( 'Imovel_Parceiro_Owner_Workflow' ) && Imovel_Parceiro_Owner_Workflow::is_current_user_proprietario() ) {
+        $profile_url = add_query_arg( 'imovel_owner_area', 'perfil', houzez_child_ipc_page_url( 'dashboard' ) );
+    } else {
+        $profile_url = houzez_child_ipc_page_url( 'meu-perfil' );
+    }
+
+    return array(
+        'message'     => sprintf( __( 'Falta %s para aproveitar tudo.', 'houzez' ), implode( __( ' e ', 'houzez' ), $missing ) ),
+        'profile_url' => $profile_url,
+    );
+}
+
+add_action( 'wp_ajax_ipc_dismiss_profile_nudge', 'houzez_child_dismiss_profile_nudge' );
+
+function houzez_child_dismiss_profile_nudge() {
+    check_ajax_referer( 'ipc_profile_nudge', 'nonce' );
+
+    if ( is_user_logged_in() ) {
+        update_user_meta( get_current_user_id(), 'ipc_profile_nudge_dismissed', time() );
+    }
+
+    wp_send_json_success();
+}
 
 /**
  * Inline CSS for the password visibility toggle.
@@ -216,8 +562,6 @@ function houzez_child_audit_event_labels() {
         // Fluxo do proprietário.
         'owner_property_registered' => __( 'Imóvel cadastrado pelo proprietário (fluxo do proprietário)', 'imovel-parceiro-core' ),
         'owner_document_submitted' => __( 'Documento enviado pelo proprietário (análise de documentação)', 'imovel-parceiro-core' ),
-        'owner_requested_broker_change' => __( 'Troca de corretor solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
-        'admin_processed_broker_change' => __( 'Troca de corretor analisada (gestão administrativa)', 'imovel-parceiro-core' ),
         'admin_reviewed_property_document' => __( 'Documento do imóvel analisado (gestão administrativa)', 'imovel-parceiro-core' ),
         'owner_requested_property_deletion' => __( 'Exclusão de imóvel solicitada (painel do proprietário)', 'imovel-parceiro-core' ),
         'admin_processed_property_deletion_request' => __( 'Exclusão de imóvel analisada (gestão administrativa)', 'imovel-parceiro-core' ),
@@ -685,7 +1029,7 @@ function imovel_parceiro_admin_update_user() {
     );
 }
 
-// Exibe valores monetários canônicos (1600.00) no formato pt-BR (1.600,00).
+// Exibe valores monetários canônicos (1600.00) no formato pt-BR com R$ (R$1.600,00).
 // Aplica-se somente a campos de preço; demais campos passam intactos.
 function imovel_parceiro_format_price_display( $field_key, $value ) {
     if ( ! is_scalar( $value ) ) {
@@ -718,7 +1062,7 @@ function imovel_parceiro_format_price_display( $field_key, $value ) {
         return $value;
     }
 
-    return number_format( (float) $text, 2, ',', '.' );
+    return 'R$' . number_format( (float) $text, 2, ',', '.' );
 }
 
 /**
@@ -738,6 +1082,23 @@ function houzez_child_is_packages_page() {
 
     return false;
 }
+
+/**
+ * Enfileira layout fresco do checkout (stitch code.html) — Tailwind CDN + CSS/JS novos.
+ * Não reutiliza checkout antigo.
+ */
+function houzez_child_enqueue_checkout_assets() {
+    if ( ! function_exists('is_checkout') || ! is_checkout() ) return;
+
+    // Tailwind CDN + plugins forms/container-queries
+    wp_enqueue_script('tailwind-cdn', 'https://cdn.tailwindcss.com?plugins=forms,container-queries', array(), null, false);
+    wp_add_inline_script('tailwind-cdn', "tailwind.config={theme:{extend:{fontFamily:{sans:['\"Plus Jakarta Sans\"','\"Inter\"','sans-serif'],mono:['ui-monospace','SFMono-Regular','Menlo','monospace']},colors:{brand:{50:'#fef2f2',100:'#fee2e2',500:'#ef4444',600:'#dc2626',700:'#b91c1c',800:'#991b1b',900:'#7f1d1d'},navy:{900:'#0f172a',950:'#020617'}},boxShadow:{subtle:'0 2px 8px -2px rgba(15,23,42,0.05), 0 1px 4px -1px rgba(15,23,42,0.03)',card:'0 12px 32px -8px rgba(15,23,42,0.06), 0 4px 12px -2px rgba(15,23,42,0.03)',elevated:'0 20px 40px -12px rgba(220,38,38,0.25)'}}}}");
+
+    wp_enqueue_style('houzez-child-checkout', get_stylesheet_directory_uri().'/assets/css/checkout.css', array(), filemtime(get_stylesheet_directory().'/assets/css/checkout.css'));
+    wp_enqueue_script('houzez-child-checkout', get_stylesheet_directory_uri().'/assets/js/checkout.js', array(), filemtime(get_stylesheet_directory().'/assets/js/checkout.js'), true);
+    wp_enqueue_style('houzez-child-checkout-fonts', 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap', array(), null);
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_checkout_assets', 100 );
 
 /**
  * Enfileira CSS/JS do layout da página de planos (apenas nessa página).
@@ -955,32 +1316,4 @@ if ( ! function_exists( 'houzez_get_overview_item' ) ) {
 
         return $output;
     }
-}
-
-/**
- * Avatar genérico de corretor/imobiliária (sem foto cadastrada).
- *
- * Substitui o placeholder cinza do Houzez por uma silhueta genérica, sem
- * depender de imagem externa. Usado pelos overrides do child theme:
- * template-parts/realtors/agent/{image,agent-item,agent-grid}.php
- *
- * @param int    $post_id    ID do post do corretor (0 = post global).
- * @param string $image_size Tamanho da imagem quando houver thumbnail.
- * @param string $img_class  Classe CSS da tag img.
- */
-function houzez_child_agent_avatar( $post_id = 0, $image_size = 'thumbnail', $img_class = 'img-fluid' ) {
-    $post_id = $post_id ? absint( $post_id ) : get_the_ID();
-    if ( $post_id && has_post_thumbnail( $post_id ) && get_the_post_thumbnail( $post_id ) != '' ) {
-        echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => $img_class ) );
-        return;
-    }
-    ?>
-    <span class="ipc-agent-avatar" aria-hidden="true">
-        <svg viewBox="0 0 64 64" focusable="false">
-            <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="2" opacity="0.35"/>
-            <circle cx="32" cy="24" r="9" fill="currentColor" opacity="0.55"/>
-            <path d="M14 50c3.5-9.5 10.5-14 18-14s14.5 4.5 18 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
-        </svg>
-    </span>
-    <?php
 }
