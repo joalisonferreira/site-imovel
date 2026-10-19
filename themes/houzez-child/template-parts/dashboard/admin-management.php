@@ -1225,12 +1225,12 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 $imobisec_row = ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) ? Imovel_Parceiro_ImobiSec::list_data( $user->ID ) : null;
                                                 if ( $imobisec_row ) :
                                                 ?>
-                                                    <span class="badge bg-<?php echo esc_attr( $imobisec_row['badge'] ); ?>"><?php echo esc_html( $imobisec_row['label'] ); ?></span>
+                                                    <span class="badge bg-<?php echo esc_attr( $imobisec_row['badge'] ); ?>" style="font-size:10px; padding:2px 6px; display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;"><?php echo esc_html( $imobisec_row['label'] ); ?></span>
                                                     <?php if ( '' !== $imobisec_row['checked'] ) : ?>
                                                         <div class="text-muted" style="font-size:11px;"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $imobisec_row['checked'] ) ) ); ?></div>
                                                     <?php endif; ?>
                                                     <?php if ( '' !== $imobisec_row['note'] ) : ?>
-                                                        <div class="text-muted" style="font-size:11px; max-width:220px;"><?php echo esc_html( $imobisec_row['note'] ); ?></div>
+                                                        <div class="text-muted" style="font-size:11px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><?php echo esc_html( $imobisec_row['note'] ); ?></div>
                                                     <?php endif; ?>
                                                 <?php else : ?>
                                                     -
@@ -1253,6 +1253,9 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                         <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
                                                         <button type="button" class="btn btn-outline-danger btn-sm reject-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
                                                         <button type="button" class="btn btn-outline-primary btn-sm request-info-btn" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Info', 'imovel-parceiro-core' ); ?></button>
+                                                        <?php if ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) && ! empty( $imobisec_row['note'] ) ) : ?>
+                                                            <button type="button" class="btn btn-outline-secondary btn-sm revoke-approval" data-user-id="<?php echo esc_attr( $user->ID ); ?>" title="<?php esc_attr_e( 'Revogar verificação pendente com erro', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
+                                                        <?php endif; ?>
                                                     <?php elseif ( 'approved' === $status ) : ?>
                                                         <button type="button" class="btn btn-outline-secondary btn-sm revoke-approval" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
                                                     <?php elseif ( 'rejected' === $status ) : ?>

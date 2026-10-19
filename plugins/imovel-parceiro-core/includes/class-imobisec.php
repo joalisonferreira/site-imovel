@@ -545,6 +545,11 @@ class Imovel_Parceiro_ImobiSec {
         $res = $this->get_creci( $candidate['state'], $candidate['number'], $candidate['type'] );
         if ( 0 === $res['code'] ) {
             $this->set_note( $user_id, sprintf( __( 'Falha de rede na consulta ImobiSec: %s', 'imovel-parceiro-core' ), $res['error'] ) );
+            $this->notify_admin_review(
+                $user_id,
+                __( 'ImobiSec: falha de rede na consulta CRECI', 'imovel-parceiro-core' ),
+                array( sprintf( __( 'Erro: %s', 'imovel-parceiro-core' ), $res['error'] ) )
+            );
             return;
         }
         if ( 401 === $res['code'] || 403 === $res['code'] ) {
@@ -566,6 +571,11 @@ class Imovel_Parceiro_ImobiSec {
         }
         if ( 200 !== $res['code'] || ! is_array( $res['data'] ) ) {
             $this->set_note( $user_id, sprintf( __( 'ImobiSec respondeu HTTP %d.', 'imovel-parceiro-core' ), $res['code'] ) );
+            $this->notify_admin_review(
+                $user_id,
+                __( 'ImobiSec: resposta inesperada da API', 'imovel-parceiro-core' ),
+                array( sprintf( __( 'HTTP %d: %s', 'imovel-parceiro-core' ), $res['code'], $res['error'] ? $res['error'] : '-' ) )
+            );
             return;
         }
 
