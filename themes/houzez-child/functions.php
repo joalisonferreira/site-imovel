@@ -24,29 +24,10 @@ function houzez_child_check_plan_before_submit() {
 /**
  * Enfileira scripts do checkout.
  */
-function houzez_child_enqueue_auth_assets() {
-    wp_enqueue_script(
-        'houzez-child-auth',
-        get_stylesheet_directory_uri() . '/assets/js/auth.js',
-        array(),
-        '1.0.0',
-        true
-    );
 
-    wp_localize_script(
-        'houzez-child-auth',
-        'ipcAuth',
-        array(
-            'is_logged_in' => is_user_logged_in() ? 1 : 0,
-            'has_membership' => function_exists( 'houzez_user_has_membership' ) && houzez_user_has_membership( get_current_user_id() ) ? 1 : 0,
-        )
-    );
-}
-add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_auth_assets', 100 );
-
-/**
- * Enfileira script de proteção dos formulários de contato (Agendar visita / Mensagem).
- */
+ /**
+  * Enfileira script de proteção dos formulários de contato (Agendar visita / Mensagem).
+  */
 function houzez_child_enqueue_contact_visibility() {
     if ( ! is_singular( 'property' ) ) {
         return;
