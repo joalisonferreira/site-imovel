@@ -256,22 +256,13 @@
             html += '<span class="ipcw-btn__title">' + esc(str('plans_cta', 'Ver planos')) + '</span>';
             html += '<span class="ipcw-btn__sub">' + esc(str('needs_subscription', 'Seu plano acabou ou não está ativo.')) + '</span>';
             html += '</span></button>';
-<<<<<<< HEAD
-        } else if ('needs_login' === req.state) {
+} else if ('needs_login' === req.state) {
             // Visitante: botão normal que abre toast "precisa se cadastrar + plano ativo"
             html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-partnership-guest" data-action="partnership">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
             html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
             html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.login_required : 'Cadastre-se e tenha um plano ativo para solicitar parceria.') + '</span>';
-=======
-        } else {
-            html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-request-btn ipcw-needs-login">';
-            html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
-            html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">' + esc(str('login_cta', 'Fazer login')) + '</span>';
-            html += '<span class="ipcw-btn__sub">' + esc(str('login_required', 'Faça login para solicitar uma parceria.')) + '</span>';
->>>>>>> eb43e092654933229b8c4ef83b703c2e845a1bce
             html += '</span></button>';
         }
         }

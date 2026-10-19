@@ -5,6 +5,72 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+/**
+ * Impede cadastro de imóveis por usuários sem plano ativo (opcional, mantido por segurança).
+ */
+add_action( 'wp_ajax_houzez_child_check_plan_before_submit', 'houzez_child_check_plan_before_submit' );
+function houzez_child_check_plan_before_submit() {
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => __( 'Faça login para publicar imóveis.', 'imovel-parceiro-core' ) ) );
+    }
+
+    if ( ! function_exists( 'houzez_user_has_membership' ) || ! houzez_user_has_membership( get_current_user_id() ) ) {
+        wp_send_json_error( array( 'message' => __( 'Você precisa de um plano ativo para cadastrar imóveis.', 'imovel-parceiro-core' ) ) );
+    }
+
+    wp_send_json_success();
+}
+
+/**
+ * Enfileira scripts do checkout.
+ */
+function houzez_child_enqueue_auth_assets() {
+    wp_enqueue_script(
+        'houzez-child-auth',
+        get_stylesheet_directory_uri() . '/assets/js/auth.js',
+        array(),
+        '1.0.0',
+        true
+    );
+
+    wp_localize_script(
+        'houzez-child-auth',
+        'ipcAuth',
+        array(
+            'is_logged_in' => is_user_logged_in() ? 1 : 0,
+            'has_membership' => function_exists( 'houzez_user_has_membership' ) && houzez_user_has_membership( get_current_user_id() ) ? 1 : 0,
+        )
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_auth_assets', 100 );
+
+/**
+ * Enfileira script de proteção dos formulários de contato (Agendar visita / Mensagem).
+ */
+function houzez_child_enqueue_contact_visibility() {
+    if ( ! is_singular( 'property' ) ) {
+        return;
+    }
+
+    wp_enqueue_script(
+        'houzez-child-contact-visibility',
+        get_stylesheet_directory_uri() . '/assets/js/contact-visibility.js',
+        array( 'jquery' ),
+        '1.0.0',
+        true
+    );
+
+    wp_localize_script(
+        'houzez-child-contact-visibility',
+        'ipcLead',
+        array(
+            'is_logged_in' => is_user_logged_in() ? 1 : 0,
+            'has_membership' => function_exists( 'houzez_user_has_membership' ) && houzez_user_has_membership( get_current_user_id() ) ? 1 : 0,
+        )
+    );
+}
+add_action( 'wp_enqueue_scripts', 'houzez_child_enqueue_contact_visibility', 100 );
+
 require get_stylesheet_directory() . '/inc/dashboard-icons.php';
 
 /**
