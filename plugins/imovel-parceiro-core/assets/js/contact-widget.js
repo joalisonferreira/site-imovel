@@ -187,11 +187,12 @@
             html += '<span class="ipcw-btn__sub">Entrar em contato com o corretor</span>';
             html += '</span></a>';
         } else if (wa.needs_login) {
-            html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp ipcw-wa-login">';
+            // Visitante: botão normal que abre toast "precisa se cadastrar + plano ativo"
+            html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp ipcw-wa-guest" data-action="wa">';
             html += '<span class="ipcw-btn__icon">' + whatsappIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
-            html += '<span class="ipcw-btn__title">' + (IPCW.strings ? IPCW.strings.wa_login : 'Faça login para ver o contato') + '</span>';
-            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Entre na sua conta para falar com o corretor.') + '</span>';
+            html += '<span class="ipcw-btn__title">' + (IPCW.strings ? IPCW.strings.wa_login : 'Falar pelo WhatsApp') + '</span>';
+            html += '<span class="ipcw-btn__sub">' + (IPCW.strings ? IPCW.strings.wa_login_sub : 'Cadastre-se e tenha um plano ativo para falar com o corretor.') + '</span>';
             html += '</span></button>';
         } else {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
@@ -230,16 +231,13 @@
             html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
             html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.needs_subscription : 'Para solicitar uma parceria, você precisa ter um plano ativo.') + '</span>';
             html += '</span></button>';
-        } else {
-            var sub = 'Trabalhar este imóvel em conjunto';
-            if (!requestAllowedUser()) {
-                sub = (IPCW.strings ? IPCW.strings.login_required : 'Faça login para solicitar uma parceria.');
-            }
-            html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-request-btn ipcw-needs-login">';
+        } else if ('needs_login' === req.state) {
+            // Visitante: botão normal que abre toast "precisa se cadastrar + plano ativo"
+            html += '<button type="button" class="ipcw-btn ipcw-btn--partnership ipcw-partnership-guest" data-action="partnership">';
             html += '<span class="ipcw-btn__icon" aria-hidden="true">' + handshakeIcon() + '</span>';
             html += '<span class="ipcw-btn__text">';
             html += '<span class="ipcw-btn__title">Solicitar parceria</span>';
-            html += '<span class="ipcw-btn__sub">' + esc(sub) + '</span>';
+            html += '<span class="ipcw-btn__sub">' + esc(IPCW.strings ? IPCW.strings.login_required : 'Cadastre-se e tenha um plano ativo para solicitar parceria.') + '</span>';
             html += '</span></button>';
         }
         }
@@ -290,6 +288,40 @@
         var $it = $body.find('.ipcw-interest-btn');
         if ($it.length) {
             $it.on('click', function () { renderInterestForm(config); });
+        }
+
+        // Visitante: botão WhatsApp abre toast "cadastre-se + plano ativo"
+        var $waGuest = $body.find('.ipcw-wa-guest');
+        if ($waGuest.length) {
+            $waGuest.on('click', function (e) {
+                e.preventDefault();
+                if (typeof showFeedback === 'function') {
+                    showFeedback('Cadastre-se e tenha um plano ativo para falar com o corretor pelo WhatsApp.', 'error');
+                } else {
+                    var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
+                    $toast.text('Cadastre-se e tenha um plano ativo para falar com o corretor pelo WhatsApp.');
+                    $('body').append($toast);
+                    $toast.addClass('ipc-show');
+                    setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+                }
+            });
+        }
+
+        // Visitante: botão Parceria abre toast "cadastre-se + plano ativo"
+        var $partGuest = $body.find('.ipcw-partnership-guest');
+        if ($partGuest.length) {
+            $partGuest.on('click', function (e) {
+                e.preventDefault();
+                if (typeof showFeedback === 'function') {
+                    showFeedback('Cadastre-se e tenha um plano ativo para solicitar parceria.', 'error');
+                } else {
+                    var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
+                    $toast.text('Cadastre-se e tenha um plano ativo para solicitar parceria.');
+                    $('body').append($toast);
+                    $toast.addClass('ipc-show');
+                    setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+                }
+            });
         }
     }
 
