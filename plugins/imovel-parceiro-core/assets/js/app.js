@@ -1,4 +1,10 @@
 jQuery(function($){
+    console.log('[IPC Debug] app.js carregado', { 
+        hasCore: !!window.imovelParceiroCore, 
+        isLoggedIn: window.imovelParceiroCore?.is_logged_in,
+        isClient: window.imovelParceiroCore?.is_client,
+        isOwnerBlocked: window.imovelParceiroCore?.is_owner_blocked
+    });
     // Cliente, proprietário bloqueado e visitante nunca veem botão de parceria (fallback global, além do PHP).
     // Silencioso: remove sem mensagem.
     if (window.imovelParceiroCore && (window.imovelParceiroCore.is_client || window.imovelParceiroCore.is_owner_blocked || !window.imovelParceiroCore.is_logged_in)) {
@@ -10,15 +16,26 @@ jQuery(function($){
     }
     // Visitante: botões de contato no perfil do corretor (Enviar e-mail, Chamar) mostram toast
     if (window.imovelParceiroCore && !window.imovelParceiroCore.is_logged_in) {
+        console.log('[IPC Debug] Visitante detectado - anexando handlers de toast');
         // Enviar e-mail (abre modal #realtor-form)
         $(document).on('click', 'button[data-bs-target="#realtor-form"], a[data-bs-target="#realtor-form"]', function (e) {
+            console.log('[IPC Debug] Clique em Enviar e-mail detectado');
             e.preventDefault();
-            showFeedback('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.', 'error');
+            if (typeof showFeedback === 'function') {
+                showFeedback('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.', 'error');
+            } else {
+                console.error('[IPC Debug] showFeedback não é função ainda');
+            }
         });
         // Chamar (tel:)
         $(document).on('click', 'a.btn-call, a[href^="tel:"]', function (e) {
+            console.log('[IPC Debug] Clique em Chamar (tel:) detectado');
             e.preventDefault();
-            showFeedback('Cadastre-se e tenha um plano ativo para ligar para o corretor.', 'error');
+            if (typeof showFeedback === 'function') {
+                showFeedback('Cadastre-se e tenha um plano ativo para ligar para o corretor.', 'error');
+            } else {
+                console.error('[IPC Debug] showFeedback não é função ainda');
+            }
         });
     }
     // Fallback IPCW is_client (do widget)
