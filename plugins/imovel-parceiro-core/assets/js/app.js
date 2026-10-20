@@ -29,7 +29,8 @@ jQuery(function($){
                     'z-index:10060;max-width:min(92vw,480px);background:#0f172a;color:#fff;border-radius:12px;' +
                     'padding:12px 18px;font-size:14px;font-weight:500;box-shadow:0 12px 32px rgba(2,6,23,.35);' +
                     'opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center;z-index:10060}' +
-                    '#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}';
+                    '#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}' +
+                    '.ipc-contact-locked{opacity:.65;cursor:not-allowed}';
                 document.head.appendChild(style);
             }
             var el = document.getElementById('ipc-contact-toast');
@@ -78,7 +79,7 @@ jQuery(function($){
 
             var btn = el.closest(SELECTOR);
 
-            // Fallback: qualquer botão dentro de um form com action nativo bloqueado
+            // Fallback: qualquer botão dentro de um form com action nativa bloqueado
             if (!btn) {
                 var form = el.closest('form');
                 if (form) {
@@ -98,6 +99,57 @@ jQuery(function($){
             e.stopImmediatePropagation();
             showIpcToast(MSG);
         }, true);
+
+        // Trava em nível de DOM: os botões do perfil do corretor ficam
+        // desabilitados de verdade (sem abrir modal e sem discar o telefone).
+        function lockProfileButtons(root) {
+            var scope = root || document;
+            var boxes = scope.querySelectorAll ? scope.querySelectorAll('.agent-profile-buttons') : [];
+
+            Array.prototype.forEach.call(boxes, function (box) {
+                Array.prototype.forEach.call(box.querySelectorAll('button'), function (btn) {
+                    btn.removeAttribute('data-bs-toggle');
+                    btn.removeAttribute('data-bs-target');
+                    btn.classList.add('ipc-contact-locked');
+                    btn.setAttribute('aria-disabled', 'true');
+                });
+                Array.prototype.forEach.call(box.querySelectorAll('a'), function (link) {
+                    if (!link.getAttribute('href') || link.getAttribute('href') === '#') {
+                        return;
+                    }
+                    link.setAttribute('data-ipc-href', link.getAttribute('href'));
+                    link.setAttribute('href', '#');
+                    link.classList.add('ipc-contact-locked');
+                    link.setAttribute('aria-disabled', 'true');
+                });
+            });
+        }
+
+        function lockProfileButtonsWithToast(root) {
+            lockProfileButtons(root);
+            var scope = root || document;
+            var targets = scope.querySelectorAll ? scope.querySelectorAll('.agent-profile-buttons button, .agent-profile-buttons a') : [];
+            Array.prototype.forEach.call(targets, function (el) {
+                if (el.getAttribute('data-ipc-locked-bound')) {
+                    return;
+                }
+                el.setAttribute('data-ipc-locked-bound', '1');
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showIpcToast(MSG);
+                });
+            });
+        }
+
+        lockProfileButtonsWithToast(document);
+
+        // Elementor pode re-renderizar o widget: reaplique a trava.
+        if (window.MutationObserver) {
+            new MutationObserver(function () {
+                lockProfileButtonsWithToast(document);
+            }).observe(document.documentElement, { childList: true, subtree: true });
+        }
     })();
     // Fallback IPCW is_client (do widget)
     if (window.ipcwData && window.ipcwData.is_client) {
