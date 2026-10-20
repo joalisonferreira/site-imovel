@@ -19,22 +19,35 @@ jQuery(function($){
         console.log('[IPC Debug] Visitante detectado - anexando handlers de toast');
         // Enviar e-mail (abre modal #realtor-form)
         $(document).on('click', 'button[data-bs-target="#realtor-form"], a[data-bs-target="#realtor-form"]', function (e) {
-            console.log('[IPC Debug] Clique em Enviar e-mail detectado');
+            console.log('[IPC Debug] Clique em Enviar e-mail detectado', this);
             e.preventDefault();
             if (typeof showFeedback === 'function') {
+                console.log('[IPC Debug] Chamando showFeedback para Enviar e-mail');
                 showFeedback('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.', 'error');
             } else {
-                console.error('[IPC Debug] showFeedback não é função ainda');
+                console.error('[IPC Debug] showFeedback NÃO é função ainda', typeof showFeedback);
+                // fallback toast manual
+                var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
+                $toast.text('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.');
+                $('body').append($toast);
+                $toast.addClass('ipc-show');
+                setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
             }
         });
         // Chamar (tel:)
         $(document).on('click', 'a.btn-call, a[href^="tel:"]', function (e) {
-            console.log('[IPC Debug] Clique em Chamar (tel:) detectado');
+            console.log('[IPC Debug] Clique em Chamar (tel:) detectado', this);
             e.preventDefault();
             if (typeof showFeedback === 'function') {
+                console.log('[IPC Debug] Chamando showFeedback para Chamar');
                 showFeedback('Cadastre-se e tenha um plano ativo para ligar para o corretor.', 'error');
             } else {
-                console.error('[IPC Debug] showFeedback não é função ainda');
+                console.error('[IPC Debug] showFeedback NÃO é função ainda', typeof showFeedback);
+                var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
+                $toast.text('Cadastre-se e tenha um plano ativo para ligar para o corretor.');
+                $('body').append($toast);
+                $toast.addClass('ipc-show');
+                setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
             }
         });
     }
