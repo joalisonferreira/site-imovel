@@ -55,18 +55,41 @@ jQuery(function($){
         var SELECTOR = [
             '.schedule_contact_form',                          // Agendar visita
             '.houzez_agent_property_form',                     // Mensagem / Enviar e-mail
+            '#contact_realtor_btn_elementor',                  // Form do agent card (Elementor)
+            '.contact-realtor-btn',
             '.agent-profile-buttons button[data-bs-target="#realtor-form"]',
             '.agent-profile-buttons a[data-bs-target="#realtor-form"]',
             '.agent-profile-buttons a.btn-call',
             '.agent-profile-buttons a[href^="tel:"]'
         ].join(', ');
 
+        // Actions AJAX nativas do Houzez que disparam o envio de lead.
+        var GATED_ACTIONS = [
+            'houzez_schedule_send_message',
+            'houzez_property_agent_contact',
+            'houzez_contact_realtor'
+        ];
+
         document.addEventListener('click', function (e) {
             var el = e.target;
             if (!el || !el.closest) {
                 return;
             }
+
             var btn = el.closest(SELECTOR);
+
+            // Fallback: qualquer botão dentro de um form com action nativo bloqueado
+            if (!btn) {
+                var form = el.closest('form');
+                if (form) {
+                    var actionInput = form.querySelector('input[name="action"]');
+                    var action = actionInput ? String(actionInput.value || '') : '';
+                    if (action && GATED_ACTIONS.indexOf(action) !== -1) {
+                        btn = el.closest('button, input[type="submit"], .houzez-ele-button');
+                    }
+                }
+            }
+
             if (!btn) {
                 return;
             }
