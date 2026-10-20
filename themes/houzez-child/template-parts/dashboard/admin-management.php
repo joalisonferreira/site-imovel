@@ -414,7 +414,19 @@ $info_required_count = 0;
 
 if ( 'verification_requests' === $current_section ) {
     if ( class_exists( 'Houzez_User_Verification' ) && isset( $GLOBALS['houzez_user_verification'] ) ) {
-        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( $verification_status_filter );
+        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( '' );
+
+        // Filtro por status no lado do servidor (garante funcionamento independentemente do Houzez).
+        if ( '' !== $verification_status_filter ) {
+            $verification_requests = array_filter(
+                $verification_requests,
+                function( $request ) use ( $verification_status_filter ) {
+                    $vd = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
+                    return isset( $vd['status'] ) && $vd['status'] === $verification_status_filter;
+                }
+            );
+            $verification_requests = array_values( $verification_requests );
+        }
 
         usort(
             $verification_requests,
@@ -1089,8 +1101,8 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                 <?php endif; ?>
             </div>
 
-            <?php if ( 'verification_requests' === $current_section ) : ?>
-                <!-- Houzez Dashboard Layout for Verification Requests -->
+<?php if ( 'verification_requests' === $current_section ) : ?>
+                <!-- Houzez Dashboard Layout for Verification Requests - Responsive -->
                 <script>
                     // Store nonce value for AJAX operations
                     window.imovelAdminNonce = '<?php echo wp_create_nonce( 'imovel_admin_update' ); ?>';
@@ -1115,7 +1127,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
 
                     <!-- Main Content Card -->
                     <div class="houzez-main-card" style="border:1px solid #e6e6e6; border-radius:8px; background:#fff; overflow:hidden;">
-                        <div class="houzez-card-header" style="padding:20px; border-bottom:1px solid #e6e6e6; background:#f8f9fa; display:flex; justify-content:space-between; align-items:center;">
+                        <div class="houzez-card-header" style="padding:20px; border-bottom:1px solid #e6e6e6; background:#f8f9fa; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                             <h2 style="margin:0; font-size:18px; font-weight:bold;">
                                 <i class="dashicons dashicons-admin-users" style="margin-right:8px;"></i>
                                 <?php esc_html_e( 'Gestão de Verificação', 'imovel-parceiro-core' ); ?>
@@ -1129,11 +1141,11 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             <!-- Filter Section -->
                             <div class="tablenav top" style="margin-bottom:20px;">
                                 <div class="alignleft actions">
-                                    <form method="get" class="filter-form" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <form method="get" class="filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                                         <input type="hidden" name="imovel_admin_section" value="<?php echo esc_attr( $current_section ); ?>" />
                                         <input type="hidden" name="imovel_admin_action" value="list" />
                                         <div class="hz-filter-group" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                                            <select name="imovel_admin_verification_status" class="filter-select" style="padding:8px; border:1px solid #e6e6e6; border-radius:4px;">
+                                            <select name="imovel_admin_verification_status" class="filter-select" style="padding:8px; border:1px solid #e6e6e6; border-radius:4px; min-width:180px;">
                                                 <option value="" <?php selected( $verification_status_filter, '' ); ?>><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></option>
                                                 <option value="pending" <?php selected( $verification_status_filter, 'pending' ); ?>><?php esc_html_e( 'Pendente', 'imovel-parceiro-core' ); ?></option>
                                                 <option value="approved" <?php selected( $verification_status_filter, 'approved' ); ?>><?php esc_html_e( 'Aprovado', 'imovel-parceiro-core' ); ?></option>
@@ -1155,19 +1167,19 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                 <br class="clear">
                             </div>
 
-                            <!-- Verification Table -->
+                            <!-- Responsive Table: Desktop table + Mobile cards -->
                             <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
                             <table class="ipc-table table table-hover align-middle mb-0" style="table-layout:fixed; width:100%; min-width:900px;">
                                 <thead>
                                     <tr>
-                                        <th style="width:22%;"><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:16%;"><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:12%;"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:20%;"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:12%;"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:8%;"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:12%;"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:18%;"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:20%; min-width:180px;"><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:16%; min-width:140px;"><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:10%; min-width:100px;"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:18%; min-width:180px;"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:12%; min-width:120px;"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:8%; min-width:100px;"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:10%; min-width:100px;"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:16%; min-width:200px;"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1209,7 +1221,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 }
                                             }
                                         ?>
-                                        <tr>
+                                        <tr data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>">
                                             <td>
                                                 <div class="d-flex align-items-center gap-2">
                                                     <?php echo get_avatar( $user ? $user->ID : 0, 40 ); ?>
@@ -1248,7 +1260,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                             </td>
                                             <td><span class="badge bg-<?php echo esc_attr( $status_badge ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
                                             <td class="text-muted"><?php echo isset( $verification_data['submitted_on'] ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $verification_data['submitted_on'] ) ) ) : '-'; ?></td>
-                                            <td style="width:18%; vertical-align:middle;">
+                                            <td style="width:16%; vertical-align:middle;">
                                                 <div class="d-flex flex-wrap gap-1" style="justify-content:flex-start;">
                                                     <?php if ( 'pending' === $status ) : ?>
                                                         <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
@@ -1649,7 +1661,6 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     });
                 });
                 </script>
-
             <?php else : ?>
                 <?php if ( in_array( $current_section, array( 'agents', 'clients', 'owners' ), true ) ) : ?>
                     <?php

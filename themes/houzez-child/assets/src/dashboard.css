@@ -1781,3 +1781,46 @@ body.ipc-sidebar-open .ipc-sidebar-overlay {
     width: 100%;
   }
 }
+
+/* ============================================================
+   Barra fixa de ações (cadastro/edição de imóvel) — corrige
+   o corte dos botões nas bordas no mobile/tablet.
+   O tema pai posiciona essa barra como `position: fixed` com
+   `left: 0; width: 100%` (e `left: 240px` a partir de 992px),
+   o que estoura a largura (padding + width 100%) e empurra os
+   botões para fora da tela. Aqui a barra usa a largura real da
+   área do dashboard (sidebar de 264px) e os botões quebram linha.
+   ============================================================ */
+.add-new-listing-bottom-nav-wrap {
+  box-sizing: border-box;
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+@media (min-width: 1024px) {
+  .add-new-listing-bottom-nav-wrap {
+    left: 264px;
+    width: calc(100% - 264px);
+  }
+}
+@media (max-width: 1023.98px) {
+  .add-new-listing-bottom-nav-wrap {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .add-new-listing-bottom-nav-wrap > .d-flex {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .add-new-listing-bottom-nav-wrap .btn {
+    flex: 0 1 auto;
+  }
+  /* Dica de etapa: largura total, fica abaixo dos botões */
+  .add-new-listing-bottom-nav-wrap > .ipc-form-step-hint {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
