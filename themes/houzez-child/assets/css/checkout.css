@@ -93,3 +93,38 @@ body.woocommerce-checkout .breadcrumb-wrap {
   .woocommerce-checkout-fresh form.checkout #order_review,
   .woocommerce-checkout-fresh form.checkout #order_review_heading { padding-right: 16px !important; padding-left: 16px !important; }
 }
+
+/* ============================================================
+   Corrigir botões do checkout/botão não cortarem no mobile
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .woocommerce-checkout-fresh .add-new-listing-bottom-nav-wrap,
+  .woocommerce-checkout-fresh .ipc-menu-cta {
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  .add-new-listing-bottom-nav-wrap {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    padding-bottom: 8px !important;
+  }
+  .add-new-listing-bottom-nav-wrap .btn,
+  .add-new-listing-bottom-nav-wrap .ipc-menu-cta {
+    width: 100% !important;
+    max-width: none !important;
+    text-align: center !important;
+    min-width: auto !important;
+  }
+  /* Garante que o botão Voltar/Cancelar não fique cortado na borda esquerda */
+  .woocommerce-checkout-fresh .btn-back,
+  .woocommerce-checkout-fresh .btn-cancel,
+  .woocommerce-checkout-fresh .ipc-menu-cta--owner,
+  .woocommerce-checkout-fresh .ipc-menu-cta--buyer {
+    min-width: auto !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
