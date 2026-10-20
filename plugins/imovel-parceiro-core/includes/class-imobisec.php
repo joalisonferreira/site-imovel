@@ -896,7 +896,7 @@ class Imovel_Parceiro_ImobiSec {
                 $badge = 'warning text-dark';
             }
         }
-        return array( 'badge' => $badge, 'label' => $label, 'checked' => $checked, 'note' => $note );
+        return array( 'badge' => $badge, 'label' => $label, 'label_short' => mb_strwidth( $label, 'UTF-8' ) > 40 ? mb_substr( $label, 0, 40, 'UTF-8') . '…' : $label, 'checked' => $checked, 'note' => $note );
     }
 
     /* ------------------------------------------------------------------ */

@@ -1225,7 +1225,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 $imobisec_row = ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) ? Imovel_Parceiro_ImobiSec::list_data( $user->ID ) : null;
                                                 if ( $imobisec_row ) :
                                                 ?>
-                                                    <span class="badge bg-<?php echo esc_attr( $imobisec_row['badge'] ); ?>" style="font-size:10px; padding:2px 6px; display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;"><?php echo esc_html( $imobisec_row['label'] ); ?></span>
+                                                    <span class="badge bg-<?php echo esc_attr( $imobisec_row['badge'] ); ?>" style="font-size:10px; padding:2px 6px; display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; word-break:break-all;" title="<?php echo esc_attr( $imobisec_row['label'] ); ?>"><?php echo esc_html( $imobisec_row['label_short'] ); ?></span>
                                                     <?php if ( '' !== $imobisec_row['checked'] ) : ?>
                                                         <div class="text-muted" style="font-size:11px;"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $imobisec_row['checked'] ) ) ); ?></div>
                                                     <?php endif; ?>
