@@ -1156,17 +1156,18 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Verification Table -->
-                            <table class="ipc-table table table-hover align-middle mb-0">
+                            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                            <table class="ipc-table table table-hover align-middle mb-0" style="table-layout:fixed; width:100%; min-width:900px;">
                                 <thead>
                                     <tr>
-                                        <th><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
-                                        <th><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:22%;"><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:16%;"><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:12%;"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:20%;"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:12%;"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:8%;"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:12%;"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
+                                        <th style="width:18%;"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1247,8 +1248,8 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                             </td>
                                             <td><span class="badge bg-<?php echo esc_attr( $status_badge ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
                                             <td class="text-muted"><?php echo isset( $verification_data['submitted_on'] ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $verification_data['submitted_on'] ) ) ) : '-'; ?></td>
-                                            <td>
-                                                <div class="d-flex flex-wrap gap-2">
+                                            <td style="width:18%; vertical-align:middle;">
+                                                <div class="d-flex flex-wrap gap-1" style="justify-content:flex-start;">
                                                     <?php if ( 'pending' === $status ) : ?>
                                                         <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
                                                         <button type="button" class="btn btn-outline-danger btn-sm reject-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
@@ -1288,6 +1289,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     <?php endif; ?>
                                 </tbody>
                             </table>
+                            </div>
 
                             <?php if ( $verification_total_pages > 1 ) : ?>
                                 <div style="margin-top:20px; display:flex; justify-content:flex-end;">
