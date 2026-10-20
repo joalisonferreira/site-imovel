@@ -414,9 +414,11 @@ $info_required_count = 0;
 
 if ( 'verification_requests' === $current_section ) {
     if ( class_exists( 'Houzez_User_Verification' ) && isset( $GLOBALS['houzez_user_verification'] ) ) {
-        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( '' );
+        // Pass filter to Houzez method (it handles filtering + pagination server-side).
+        // If that fails to filter, we also apply local filter as safety net.
+        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( $verification_status_filter );
 
-        // Filtro por status no lado do servidor (garante funcionamento independentemente do Houzez).
+        // Safety net: local filter in case Houzez method doesn't filter correctly.
         if ( '' !== $verification_status_filter ) {
             $verification_requests = array_filter(
                 $verification_requests,
