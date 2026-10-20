@@ -183,11 +183,10 @@
 
         html += '<div class="ipcw-actions">';
 
-        // WhatsApp action. Disabled for the property owner (cannot contact self).
-        // Proprietário bloqueado (anúncio de terceiros), cliente (usa o fluxo
-        // "Tenho interesse neste imóvel") e visitante (só formulários, lead
-        // vai para contato@): não renderiza nada — silencioso, sem mensagem.
-        if (req.owner_blocked || req.is_client || wa.needs_login) {
+        // WhatsApp action. Hidden for the property owner (cannot contact self)
+        // and for clients (houzez_buyer). Visitors (needs_login) get a normal
+        // button that shows a toast asking to register + have an active plan.
+        if (req.owner_blocked || req.is_client) {
             /* botão WhatsApp oculto */
         } else if (req.is_owner) {
             html += '<button type="button" class="ipcw-btn ipcw-btn--whatsapp" disabled>';
@@ -320,14 +319,9 @@
         if ($waGuest.length) {
             $waGuest.on('click', function (e) {
                 e.preventDefault();
-                if (typeof showFeedback === 'function') {
-                    showFeedback('Cadastre-se e tenha um plano ativo para falar com o corretor pelo WhatsApp.', 'error');
-                } else {
-                    var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
-                    $toast.text('Cadastre-se e tenha um plano ativo para falar com o corretor pelo WhatsApp.');
-                    $('body').append($toast);
-                    $toast.addClass('ipc-show');
-                    setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+                e.stopImmediatePropagation();
+                if (typeof window.imovelParceiroToast === 'function') {
+                    window.imovelParceiroToast('Cadastre-se e tenha um plano ativo para falar com o corretor pelo WhatsApp.');
                 }
             });
         }
@@ -337,14 +331,9 @@
         if ($partGuest.length) {
             $partGuest.on('click', function (e) {
                 e.preventDefault();
-                if (typeof showFeedback === 'function') {
-                    showFeedback('Cadastre-se e tenha um plano ativo para solicitar parceria.', 'error');
-                } else {
-                    var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
-                    $toast.text('Cadastre-se e tenha um plano ativo para solicitar parceria.');
-                    $('body').append($toast);
-                    $toast.addClass('ipc-show');
-                    setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+                e.stopImmediatePropagation();
+                if (typeof window.imovelParceiroToast === 'function') {
+                    window.imovelParceiroToast('Cadastre-se e tenha um plano ativo para solicitar parceria.');
                 }
             });
         }

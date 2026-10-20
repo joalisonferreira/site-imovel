@@ -1,10 +1,4 @@
 jQuery(function($){
-    console.log('[IPC Debug] app.js carregado', { 
-        hasCore: !!window.imovelParceiroCore, 
-        isLoggedIn: window.imovelParceiroCore?.is_logged_in,
-        isClient: window.imovelParceiroCore?.is_client,
-        isOwnerBlocked: window.imovelParceiroCore?.is_owner_blocked
-    });
     // Cliente, proprietário bloqueado e visitante nunca veem botão de parceria (fallback global, além do PHP).
     // Silencioso: remove sem mensagem.
     if (window.imovelParceiroCore && (window.imovelParceiroCore.is_client || window.imovelParceiroCore.is_owner_blocked || !window.imovelParceiroCore.is_logged_in)) {
@@ -14,43 +8,74 @@ jQuery(function($){
         style.textContent = '.imovel-parceiro-request-partnership{display:none !important} #imovel-parceiro-partnership-modal{display:none !important}';
         document.head.appendChild(style);
     }
-    // Visitante: botões de contato no perfil do corretor (Enviar e-mail, Chamar) mostram toast
-    if (window.imovelParceiroCore && !window.imovelParceiroCore.is_logged_in) {
-        console.log('[IPC Debug] Visitante detectado - anexando handlers de toast');
-        // Enviar e-mail (abre modal #realtor-form)
-        $(document).on('click', 'button[data-bs-target="#realtor-form"], a[data-bs-target="#realtor-form"]', function (e) {
-            console.log('[IPC Debug] Clique em Enviar e-mail detectado', this);
-            e.preventDefault();
-            if (typeof showFeedback === 'function') {
-                console.log('[IPC Debug] Chamando showFeedback para Enviar e-mail');
-                showFeedback('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.', 'error');
-            } else {
-                console.error('[IPC Debug] showFeedback NÃO é função ainda', typeof showFeedback);
-                // fallback toast manual
-                var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
-                $toast.text('Cadastre-se e tenha um plano ativo para enviar mensagem ao corretor.');
-                $('body').append($toast);
-                $toast.addClass('ipc-show');
-                setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+    // Visitante: bloqueia o envio dos formulários/botões de contato e mostra toast.
+    // Usa listener NATIVO em fase de captura: roda ANTES dos handlers do tema
+    // (que fazem binding direto no botão e disparam o $.ajax), por isso o
+    // preventDefault aqui impede o envio mesmo com o form method="post" action="#".
+    (function () {
+        if (!window.imovelParceiroCore || window.imovelParceiroCore.is_logged_in) {
+            return;
+        }
+
+        var MSG = 'Cadastre-se e tenha um plano ativo para entrar em contato com o corretor.';
+
+        // Toast global (com CSS auto-injetado) — compartilhado com o widget.
+        window.imovelParceiroToast = window.imovelParceiroToast || function (msg) {
+            if (!document.getElementById('ipc-contact-toast-style')) {
+                var style = document.createElement('style');
+                style.id = 'ipc-contact-toast-style';
+                style.textContent =
+                    '#ipc-contact-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);' +
+                    'z-index:10060;max-width:min(92vw,480px);background:#0f172a;color:#fff;border-radius:12px;' +
+                    'padding:12px 18px;font-size:14px;font-weight:500;box-shadow:0 12px 32px rgba(2,6,23,.35);' +
+                    'opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center;z-index:10060}' +
+                    '#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}';
+                document.head.appendChild(style);
             }
-        });
-        // Chamar (tel:)
-        $(document).on('click', 'a.btn-call, a[href^="tel:"]', function (e) {
-            console.log('[IPC Debug] Clique em Chamar (tel:) detectado', this);
-            e.preventDefault();
-            if (typeof showFeedback === 'function') {
-                console.log('[IPC Debug] Chamando showFeedback para Chamar');
-                showFeedback('Cadastre-se e tenha um plano ativo para ligar para o corretor.', 'error');
-            } else {
-                console.error('[IPC Debug] showFeedback NÃO é função ainda', typeof showFeedback);
-                var $toast = $('<div id="ipc-contact-toast" role="status" aria-live="polite"></div>');
-                $toast.text('Cadastre-se e tenha um plano ativo para ligar para o corretor.');
-                $('body').append($toast);
-                $toast.addClass('ipc-show');
-                setTimeout(function(){ $toast.removeClass('ipc-show'); setTimeout(function(){ $toast.remove(); }, 300); }, 4000);
+            var el = document.getElementById('ipc-contact-toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'ipc-contact-toast';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                document.body.appendChild(el);
             }
-        });
-    }
+            el.textContent = msg;
+            el.classList.add('ipc-show');
+            window.clearTimeout(window.imovelParceiroToast._timer);
+            window.imovelParceiroToast._timer = window.setTimeout(function () {
+                el.classList.remove('ipc-show');
+            }, 4500);
+        };
+
+        function showIpcToast(msg) {
+            window.imovelParceiroToast(msg);
+        }
+
+        var SELECTOR = [
+            '.schedule_contact_form',                          // Agendar visita
+            '.houzez_agent_property_form',                     // Mensagem / Enviar e-mail
+            '.agent-profile-buttons button[data-bs-target="#realtor-form"]',
+            '.agent-profile-buttons a[data-bs-target="#realtor-form"]',
+            '.agent-profile-buttons a.btn-call',
+            '.agent-profile-buttons a[href^="tel:"]'
+        ].join(', ');
+
+        document.addEventListener('click', function (e) {
+            var el = e.target;
+            if (!el || !el.closest) {
+                return;
+            }
+            var btn = el.closest(SELECTOR);
+            if (!btn) {
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            showIpcToast(MSG);
+        }, true);
+    })();
     // Fallback IPCW is_client (do widget)
     if (window.ipcwData && window.ipcwData.is_client) {
         $('.imovel-parceiro-request-partnership').hide();
