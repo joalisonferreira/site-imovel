@@ -167,7 +167,11 @@ class Imovel_Parceiro_Core {
         $is_property_page = is_singular( 'property' );
         $is_imovel_admin_dashboard = is_user_logged_in() && ( isset( $_GET['imovel_admin_area'] ) || isset( $_GET['imovel_admin_section'] ) || isset( $_GET['imovel_dashboard_area'] ) );
 
-        if ( ! $is_dashboard && ! $is_property_page && ! $is_imovel_admin_dashboard ) {
+        // Perfil de corretor/imobiliária (author.php / single-agent / single-agency):
+        // carrega o app.js para travar os botões de contato de quem não tem conta.
+        $is_agent_profile = is_author() || is_singular( 'houzez_agent' ) || is_singular( 'houzez_agency' );
+
+        if ( ! $is_dashboard && ! $is_property_page && ! $is_imovel_admin_dashboard && ! $is_agent_profile ) {
             return;
         }
 
