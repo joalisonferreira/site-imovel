@@ -183,6 +183,17 @@ function houzez_child_enqueue_dashboard_assets() {
         );
     }
 
+    // Ajustes visuais da tela "Gestão > Verificação" (dependem só deste arquivo).
+    $verification_css = get_stylesheet_directory() . '/assets/css/verification-requests.css';
+    if ( file_exists( $verification_css ) ) {
+        wp_enqueue_style(
+            'houzez-child-verification-requests',
+            get_stylesheet_directory_uri() . '/assets/css/verification-requests.css',
+            array( 'houzez-child-dashboard-tailwind' ),
+            (string) filemtime( $verification_css )
+        );
+    }
+
     wp_enqueue_script(
         'houzez-child-dashboard',
         get_stylesheet_directory_uri() . '/assets/js/dashboard.js',
