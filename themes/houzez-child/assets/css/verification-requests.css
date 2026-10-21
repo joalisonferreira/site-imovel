@@ -21,31 +21,45 @@
     color: #fff;
 }
 
-/* Botao limpar filtros */
+/* Botao limpar filtros (vermelho: acao de descarte) */
 .ipc-vr .ipc-vr-clear {
     background-color: #fff;
-    border: 1px solid #e2e8f0;
-    color: #475569;
+    border-color: #fecaca;
+    color: #dc2626;
 }
 
 .ipc-vr .ipc-vr-clear:hover,
 .ipc-vr .ipc-vr-clear:focus {
-    background-color: #f8fafc;
-    color: #334155;
+    background-color: #fef2f2;
+    border-color: #fca5a5;
+    color: #b91c1c;
 }
 
-/* Icone de pesquisa: centralizado verticalmente dentro do campo */
+/* Icone de pesquisa: fora do placeholder (16px a 12px da borda) */
 .ipc-vr .ipc-vr-search-icon {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 40px;
+    top: 50%;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #94a3b8;
     pointer-events: none;
+    z-index: 1;
+}
+
+/* Espaco reservado no campo para o icone */
+.ipc-vr .ipc-vr-search {
+    padding-left: 44px;
+}
+
+/* Cards do mobile: o utilitario space-y-3 pode faltar no build do Tailwind */
+.ipc-vr .ipc-vr-cards {
+    display: grid;
+    gap: 12px;
 }
 
 .ipc-vr .ipc-vr-search-icon .dashicons {

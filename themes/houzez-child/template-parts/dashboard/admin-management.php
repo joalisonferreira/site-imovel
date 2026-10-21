@@ -13,7 +13,7 @@ $current_action = isset( $_GET['imovel_admin_action'] ) ? sanitize_key( wp_unsla
 $current_id = isset( $_GET['imovel_admin_id'] ) ? absint( wp_unslash( $_GET['imovel_admin_id'] ) ) : 0;
 $current_page = max( 1, isset( $_GET['imovel_admin_paged'] ) ? absint( wp_unslash( $_GET['imovel_admin_paged'] ) ) : 1 );
 $per_page = isset( $_GET['imovel_admin_per_page'] ) ? absint( wp_unslash( $_GET['imovel_admin_per_page'] ) ) : 20;
-if ( ! in_array( $per_page, array( 10, 20, 25, 50, 100 ), true ) ) {
+if ( ! in_array( $per_page, array( 5, 10, 20, 25, 50, 100 ), true ) ) {
     $per_page = 20;
 }
 
@@ -405,8 +405,12 @@ if ( 'delete' === $current_action && $current_id && in_array( $current_section, 
 
 $selected_entity = isset( $entity_configs[ $current_section ] ) ? $entity_configs[ $current_section ] : $entity_configs['agents'];
 $verification_status_filter = isset( $_GET['imovel_admin_verification_status'] ) ? sanitize_key( wp_unslash( $_GET['imovel_admin_verification_status'] ) ) : '';
+$verification_search_filter = isset( $_GET['imovel_admin_verification_search'] ) ? sanitize_text_field( wp_unslash( $_GET['imovel_admin_verification_search'] ) ) : '';
+$verification_doc_filter    = isset( $_GET['imovel_admin_verification_doc'] ) ? sanitize_key( wp_unslash( $_GET['imovel_admin_verification_doc'] ) ) : '';
+$verification_api_filter    = isset( $_GET['imovel_admin_verification_api'] ) ? sanitize_key( wp_unslash( $_GET['imovel_admin_verification_api'] ) ) : '';
 $verification_requests = array();
 $verification_total_pages = 1;
+$verification_matched_items = 0;
 $pending_count = 0;
 $approved_count = 0;
 $rejected_count = 0;
@@ -416,18 +420,76 @@ if ( 'verification_requests' === $current_section ) {
     if ( class_exists( 'Houzez_User_Verification' ) && isset( $GLOBALS['houzez_user_verification'] ) ) {
         // Pass filter to Houzez method (it handles filtering + pagination server-side).
         // If that fails to filter, we also apply local filter as safety net.
-        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( $verification_status_filter );
+        // Traz todas as solicitações (sem filtro de status) para que as métricas
+        // do topo reflitam o total real e a paginação funcione com os filtros.
+        $verification_requests = $GLOBALS['houzez_user_verification']->get_verification_requests( '' );
 
-        // Safety net: local filter in case Houzez method doesn't filter correctly.
-        if ( '' !== $verification_status_filter ) {
-            $verification_requests = array_filter(
-                $verification_requests,
-                function( $request ) use ( $verification_status_filter ) {
-                    $vd = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
-                    return isset( $vd['status'] ) && $vd['status'] === $verification_status_filter;
-                }
+        // Filtro por tipo de documento (CRECI / documento de identidade / CPF).
+        if ( '' !== $verification_doc_filter ) {
+            $verification_requests = array_values(
+                array_filter(
+                    $verification_requests,
+                    function( $request ) use ( $verification_doc_filter ) {
+                        $vd   = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
+                        $type = isset( $vd['document_type'] ) ? strtolower( (string) $vd['document_type'] ) : '';
+                        if ( 'creci' === $verification_doc_filter ) {
+                            return false !== strpos( $type, 'creci' );
+                        }
+                        if ( 'rg' === $verification_doc_filter ) {
+                            return ( false !== strpos( $type, 'rg' ) ) || ( false !== strpos( $type, 'identidade' ) );
+                        }
+                        if ( 'cpf' === $verification_doc_filter ) {
+                            return false !== strpos( $type, 'cpf' );
+                        }
+                        return true;
+                    }
+                )
             );
-            $verification_requests = array_values( $verification_requests );
+        }
+
+        // Filtro por estado do CRECI consultado na API (ImobiSec).
+        if ( '' !== $verification_api_filter ) {
+            $verification_requests = array_values(
+                array_filter(
+                    $verification_requests,
+                    function( $request ) use ( $verification_api_filter ) {
+                        $user_id = isset( $request['user_id'] ) ? (int) $request['user_id'] : 0;
+                        $state   = 'none';
+                        if ( $user_id && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) {
+                            $api = Imovel_Parceiro_ImobiSec::list_data( $user_id );
+                            if ( is_array( $api ) ) {
+                                $badge = isset( $api['badge'] ) ? $api['badge'] : '';
+                                if ( 'success' === $badge ) {
+                                    $state = 'active';
+                                } elseif ( 'warning' === $badge ) {
+                                    $state = 'pending';
+                                }
+                            }
+                        }
+                        return $state === $verification_api_filter;
+                    }
+                )
+            );
+        }
+
+        // Filtro por busca livre (nome, e-mail, nome completo ou CRECI).
+        if ( '' !== $verification_search_filter ) {
+            $needle = mb_strtolower( $verification_search_filter );
+            $verification_requests = array_values(
+                array_filter(
+                    $verification_requests,
+                    function( $request ) use ( $needle ) {
+                        $user = isset( $request['user_data'] ) ? $request['user_data'] : null;
+                        $vd   = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
+                        $name = $user ? $user->display_name : '';
+                        $mail = $user ? $user->user_email : '';
+                        $full = isset( $vd['full_name'] ) ? $vd['full_name'] : '';
+                        $lic  = $user ? get_user_meta( $user->ID, 'fave_author_license', true ) : '';
+                        $hay  = mb_strtolower( trim( $name . ' ' . $mail . ' ' . $full . ' ' . $lic ) );
+                        return false !== strpos( $hay, $needle );
+                    }
+                )
+            );
         }
 
         usort(
@@ -467,6 +529,23 @@ if ( 'verification_requests' === $current_section ) {
             } elseif ( 'additional_info_required' === $status ) {
                 $info_required_count++;
             }
+        }
+
+        // Total antes do filtro de status (base das métricas do topo).
+        $verification_matched_items = count( $verification_requests );
+
+        // Filtro de status (aplicado depois das métricas, para que elas mostrem
+        // o panorama completo mesmo com um status selecionado).
+        if ( '' !== $verification_status_filter ) {
+            $verification_requests = array_values(
+                array_filter(
+                    $verification_requests,
+                    function( $request ) use ( $verification_status_filter ) {
+                        $vd = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
+                        return isset( $vd['status'] ) && $vd['status'] === $verification_status_filter;
+                    }
+                )
+            );
         }
     }
 
@@ -1109,7 +1188,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     window.imovelAdminNonce = '<?php echo wp_create_nonce( 'imovel_admin_update' ); ?>';
                 </script>
                 <?php
-                $vr_total    = isset( $verification_total_items ) ? (int) $verification_total_items : 0;
+                // Total do conjunto (antes do filtro de status) — base das métricas do topo.
+                $vr_total    = ( isset( $verification_matched_items ) && $verification_matched_items > 0 ) ? (int) $verification_matched_items : ( isset( $verification_total_items ) ? (int) $verification_total_items : 0 );
+                // Total após todos os filtros — chip, contador e paginação.
+                $vr_filtered = isset( $verification_total_items ) ? (int) $verification_total_items : 0;
                 $vr_pending  = isset( $pending_count ) ? (int) $pending_count : 0;
                 $vr_approved = isset( $approved_count ) ? (int) $approved_count : 0;
                 $vr_info     = isset( $info_required_count ) ? (int) $info_required_count : 0;
@@ -1319,67 +1401,75 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     <p class="m-0 text-xs text-slate-500"><?php esc_html_e( 'Filtragem avançada e validações em lote', 'imovel-parceiro-core' ); ?></p>
                                 </div>
                             </div>
-                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"><?php echo esc_html( sprintf( __( 'Total de itens: %d', 'imovel-parceiro-core' ), $vr_total ) ); ?></span>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"><?php echo esc_html( sprintf( __( 'Total de itens: %d', 'imovel-parceiro-core' ), $vr_filtered ) ); ?></span>
                         </div>
 
                         <div class="p-4 md:p-6">
-                            <!-- Filtros -->
-                            <div class="grid gap-3 md:grid-cols-12">
+                            <!-- Filtros (GET: aplicados no servidor, valem para a paginação) -->
+                            <form method="get" action="<?php echo esc_url( $dashboard_url ); ?>" id="ipc-vr-filters" class="grid gap-3 md:grid-cols-12">
+                                <input type="hidden" name="imovel_admin_area" value="gestao" />
+                                <input type="hidden" name="imovel_admin_section" value="verification_requests" />
+                                <input type="hidden" name="imovel_admin_action" value="list" />
+                                <input type="hidden" name="imovel_admin_per_page" value="<?php echo esc_attr( $per_page ); ?>" />
                                 <div class="md:col-span-4">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-search"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></label>
                                     <div class="relative">
                                         <span class="ipc-vr-search-icon">
                                             <span class="dashicons dashicons-search"></span>
                                         </span>
-                                        <input type="search" id="ipc-vr-search" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="" />
+                                        <input type="search" id="ipc-vr-search" name="imovel_admin_verification_search" class="ipc-vr-search w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="<?php echo esc_attr( $verification_search_filter ); ?>" />
                                     </div>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-status"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></label>
-                                    <select id="ipc-vr-status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                    <select id="ipc-vr-status" name="imovel_admin_verification_status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="pending"><?php esc_html_e( 'Pendente', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="approved"><?php esc_html_e( 'Aprovado', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="rejected"><?php esc_html_e( 'Rejeitado', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="additional_info_required"><?php esc_html_e( 'Informação adicional', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="pending" <?php selected( $verification_status_filter, 'pending' ); ?>><?php esc_html_e( 'Pendente', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="approved" <?php selected( $verification_status_filter, 'approved' ); ?>><?php esc_html_e( 'Aprovado', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="rejected" <?php selected( $verification_status_filter, 'rejected' ); ?>><?php esc_html_e( 'Rejeitado', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="additional_info_required" <?php selected( $verification_status_filter, 'additional_info_required' ); ?>><?php esc_html_e( 'Informação adicional', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-doc"><?php esc_html_e( 'Documento', 'imovel-parceiro-core' ); ?></label>
-                                    <select id="ipc-vr-doc" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                    <select id="ipc-vr-doc" name="imovel_admin_verification_doc" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos os documentos', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="creci"><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="rg"><?php esc_html_e( 'Documento de identidade', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="creci" <?php selected( $verification_doc_filter, 'creci' ); ?>><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="rg" <?php selected( $verification_doc_filter, 'rg' ); ?>><?php esc_html_e( 'Documento de identidade', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="cpf" <?php selected( $verification_doc_filter, 'cpf' ); ?>><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-api"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></label>
-                                    <select id="ipc-vr-api" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                    <select id="ipc-vr-api" name="imovel_admin_verification_api" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="active"><?php esc_html_e( 'Ativo', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="pending"><?php esc_html_e( 'Aguardando resposta', 'imovel-parceiro-core' ); ?></option>
-                                        <option value="none"><?php esc_html_e( 'Não consultado', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="active" <?php selected( $verification_api_filter, 'active' ); ?>><?php esc_html_e( 'Ativo', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="pending" <?php selected( $verification_api_filter, 'pending' ); ?>><?php esc_html_e( 'Aguardando resposta', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="none" <?php selected( $verification_api_filter, 'none' ); ?>><?php esc_html_e( 'Não consultado', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
                                 <div class="flex items-end gap-2 md:col-span-2">
-                                    <button type="button" id="ipc-vr-apply" class="ipc-vr-apply flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
-                                    <button type="button" id="ipc-vr-clear" class="ipc-vr-clear rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
-                                        <span class="dashicons dashicons-dashicon"></span>
-                                    </button>
+                                    <button type="submit" id="ipc-vr-apply" class="ipc-vr-apply flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
+                                    <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'verification_requests', 'imovel_admin_action' => 'list' ), $dashboard_url ) ); ?>" id="ipc-vr-clear" class="ipc-vr-clear rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
+                                        <span class="dashicons dashicons-editor-close"></span>
+                                    </a>
                                 </div>
-                            </div>
+                            </form>
 
                             <!-- Filtros rápidos (mobile) -->
                             <div class="mt-3 flex gap-2 overflow-x-auto md:hidden">
-                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
-                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
-                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
-                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="creci"><?php esc_html_e( 'Doc: CRECI', 'imovel-parceiro-core' ); ?></button>
+                                <?php
+                                $vr_no_filter = ( '' === $verification_status_filter && '' === $verification_doc_filter && '' === $verification_api_filter && '' === $verification_search_filter );
+                                $vr_pill_class = 'ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600';
+                                ?>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( $vr_no_filter ? ' is-active' : '' ) ); ?>" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'approved' === $verification_status_filter ? ' is-active' : '' ) ); ?>" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'pending' === $verification_status_filter ? ' is-active' : '' ) ); ?>" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'creci' === $verification_doc_filter ? ' is-active' : '' ) ); ?>" data-pill="creci"><?php esc_html_e( 'Doc: CRECI', 'imovel-parceiro-core' ); ?></button>
                             </div>
 
                             <p class="mt-3 text-xs text-slate-500" data-ipc-vr-count>
-                                <?php echo esc_html( sprintf( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ), $vr_total, $vr_total ) ); ?>
+                                <?php echo esc_html( sprintf( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ), $vr_filtered, $vr_filtered ) ); ?>
                             </p>
 
                             <!-- Tabela (desktop) -->
@@ -1486,7 +1576,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Cards (mobile) -->
-                            <div class="mt-4 space-y-3 md:hidden">
+                                <div class="ipc-vr-cards mt-4 space-y-3 md:hidden">
                                 <?php if ( empty( $vr_items ) ) : ?>
                                     <p data-ipc-vr-empty class="rounded-2xl border border-slate-100 bg-white px-4 py-8 text-center text-sm text-slate-500"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></p>
                                 <?php else : ?>
@@ -1569,50 +1659,52 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Paginação -->
-                            <?php if ( $verification_total_pages > 1 ) : ?>
-                                <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <p class="m-0 text-xs text-slate-500">
-                                        <?php
-                                        $vr_from = (int) $verification_offset + 1;
-                                        $vr_to   = (int) $verification_offset + count( $vr_items );
-                                        echo esc_html( sprintf( __( 'Mostrando %d a %d de %d itens', 'imovel-parceiro-core' ), $vr_from, $vr_to, $vr_total ) );
-                                        ?>
-                                    </p>
-                                    <div class="flex items-center gap-2">
-                                        <label class="text-xs text-slate-500" for="ipc-vr-per-page"><?php esc_html_e( 'Itens por página:', 'imovel-parceiro-core' ); ?></label>
-                                        <select id="ipc-vr-per-page" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
-                                            <?php foreach ( array( 10, 20, 50, 100 ) as $vr_pp ) : ?>
-                                                <option value="<?php echo esc_attr( $vr_pp ); ?>" <?php selected( (int) $per_page, $vr_pp ); ?>><?php echo esc_html( $vr_pp ); ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <?php
-                                        $vr_page_url = function ( $vr_num ) use ( $dashboard_url, $current_section, $per_page, $verification_status_filter ) {
-                                            return add_query_arg(
-                                                array(
-                                                    'imovel_admin_section' => $current_section,
-                                                    'imovel_admin_action' => 'list',
-                                                    'imovel_admin_per_page' => $per_page,
-                                                    'imovel_admin_paged' => $vr_num,
-                                                    'imovel_admin_verification_status' => $verification_status_filter,
-                                                ),
-                                                $dashboard_url
-                                            );
-                                        };
-                                        ?>
-                                        <?php if ( $current_page > 1 ) : ?>
-                                            <a href="<?php echo esc_url( $vr_page_url( $current_page - 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Anterior', 'imovel-parceiro-core' ); ?></a>
-                                        <?php endif; ?>
-                                        <?php for ( $vr_p = 1; $vr_p <= (int) $verification_total_pages; $vr_p++ ) : ?>
-                                            <a href="<?php echo esc_url( $vr_page_url( $vr_p ) ); ?>" class="rounded-lg px-3 py-1.5 text-xs font-bold no-underline <?php echo $vr_p === (int) $current_page ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'; ?>"><?php echo esc_html( $vr_p ); ?></a>
-                                        <?php endfor; ?>
-                                        <?php if ( $current_page < (int) $verification_total_pages ) : ?>
-                                            <a href="<?php echo esc_url( $vr_page_url( $current_page + 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Próximo', 'imovel-parceiro-core' ); ?></a>
-                                        <?php endif; ?>
-                                    </div>
+                            <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                <p class="m-0 text-xs text-slate-500">
+                                    <?php
+                                    $vr_from = $vr_filtered > 0 ? (int) $verification_offset + 1 : 0;
+                                    $vr_to   = (int) $verification_offset + count( $vr_items );
+                                    echo esc_html( sprintf( __( 'Mostrando %d a %d de %d itens', 'imovel-parceiro-core' ), $vr_from, $vr_to, $vr_filtered ) );
+                                    ?>
+                                </p>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs text-slate-500" for="ipc-vr-per-page"><?php esc_html_e( 'Itens por página:', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="ipc-vr-per-page" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                                        <?php foreach ( array( 5, 10, 20, 50, 100 ) as $vr_pp ) : ?>
+                                            <option value="<?php echo esc_attr( $vr_pp ); ?>" <?php selected( (int) $per_page, $vr_pp ); ?>><?php echo esc_html( $vr_pp ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
-                            <?php endif; ?>
+                                <div class="flex items-center gap-1">
+                                    <?php
+                                    $vr_page_url = function ( $vr_num ) use ( $dashboard_url, $current_section, $per_page, $verification_status_filter, $verification_search_filter, $verification_doc_filter, $verification_api_filter ) {
+                                        return add_query_arg(
+                                            array(
+                                                'imovel_admin_area' => 'gestao',
+                                                'imovel_admin_section' => $current_section,
+                                                'imovel_admin_action' => 'list',
+                                                'imovel_admin_per_page' => $per_page,
+                                                'imovel_admin_paged' => $vr_num,
+                                                'imovel_admin_verification_status' => $verification_status_filter,
+                                                'imovel_admin_verification_search' => $verification_search_filter,
+                                                'imovel_admin_verification_doc' => $verification_doc_filter,
+                                                'imovel_admin_verification_api' => $verification_api_filter,
+                                            ),
+                                            $dashboard_url
+                                        );
+                                    };
+                                    ?>
+                                    <?php if ( $current_page > 1 ) : ?>
+                                        <a href="<?php echo esc_url( $vr_page_url( $current_page - 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Anterior', 'imovel-parceiro-core' ); ?></a>
+                                    <?php endif; ?>
+                                    <?php for ( $vr_p = 1; $vr_p <= (int) $verification_total_pages; $vr_p++ ) : ?>
+                                        <a href="<?php echo esc_url( $vr_page_url( $vr_p ) ); ?>" class="rounded-lg px-3 py-1.5 text-xs font-bold no-underline <?php echo $vr_p === (int) $current_page ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'; ?>"><?php echo esc_html( $vr_p ); ?></a>
+                                    <?php endfor; ?>
+                                    <?php if ( $current_page < (int) $verification_total_pages ) : ?>
+                                        <a href="<?php echo esc_url( $vr_page_url( $current_page + 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Próximo', 'imovel-parceiro-core' ); ?></a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1621,81 +1713,50 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                 ( function () {
                     var root = document.querySelector( '.ipc-vr' );
                     if ( ! root ) { return; }
+                    var form    = root.querySelector( '#ipc-vr-filters' );
                     var search  = root.querySelector( '#ipc-vr-search' );
                     var status  = root.querySelector( '#ipc-vr-status' );
                     var doc     = root.querySelector( '#ipc-vr-doc' );
                     var api     = root.querySelector( '#ipc-vr-api' );
                     var perPage = root.querySelector( '#ipc-vr-per-page' );
-                    var counter = root.querySelector( '[data-ipc-vr-count]' );
-                    var items   = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-item]' ) );
-                    // A tabela (desktop) e os cards (mobile) renderizam os MESMOS itens:
-                    // a contagem usa apenas as linhas da tabela para não duplicar.
-                    var rows    = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-row]' ) );
-                    var total   = rows.length;
-                    var emptyEls = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-empty]' ) );
                     var pills   = Array.prototype.slice.call( root.querySelectorAll( '.ipc-vr-pill' ) );
 
-                    function norm( value ) {
-                        return String( value || '' ).toLowerCase().trim();
-                    }
+                    if ( ! form ) { return; }
 
-                    function apply( pill ) {
-                        var term = norm( search ? search.value : '' );
-                        var st   = status ? status.value : '';
-                        var dc   = doc ? doc.value : '';
-                        var ap   = api ? api.value : '';
-                        var shown = 0;
-
-                        items.forEach( function ( el ) {
-                            var visible = true;
-                            if ( term && norm( el.getAttribute( 'data-search' ) ).indexOf( term ) === -1 ) { visible = false; }
-                            if ( st && el.getAttribute( 'data-status' ) !== st ) { visible = false; }
-                            if ( ap && el.getAttribute( 'data-api' ) !== ap ) { visible = false; }
-                            if ( dc ) {
-                                var type = norm( el.getAttribute( 'data-doc' ) );
-                                if ( dc === 'creci' && type.indexOf( 'creci' ) === -1 ) { visible = false; }
-                                if ( dc === 'rg' && type.indexOf( 'rg' ) === -1 && type.indexOf( 'identidade' ) === -1 ) { visible = false; }
-                                if ( dc === 'cpf' && type.indexOf( 'cpf' ) === -1 ) { visible = false; }
-                            }
-                            if ( pill === 'approved' && el.getAttribute( 'data-status' ) !== 'approved' ) { visible = false; }
-                            if ( pill === 'pending' && el.getAttribute( 'data-status' ) !== 'pending' ) { visible = false; }
-                            if ( pill === 'creci' && norm( el.getAttribute( 'data-doc' ) ).indexOf( 'creci' ) === -1 ) { visible = false; }
-                            el.style.display = visible ? '' : 'none';
-                            if ( visible && el.hasAttribute( 'data-ipc-vr-row' ) ) { shown++; }
-                        } );
-
-                        emptyEls.forEach( function ( el ) { el.style.display = shown ? 'none' : ''; } );
-                        if ( counter ) {
-                            counter.textContent = '<?php echo esc_js( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ) ); ?>'.replace( '%d', shown ).replace( '%d', total );
+                    function submitFilters() {
+                        if ( form.requestSubmit ) {
+                            form.requestSubmit();
+                        } else {
+                            form.submit();
                         }
                     }
 
-                    function clearAll() {
-                        if ( search ) { search.value = ''; }
-                        if ( status ) { status.value = ''; }
-                        if ( doc ) { doc.value = ''; }
-                        if ( api ) { api.value = ''; }
-                        apply( '' );
+                    // Busca livre: filtra ao pressionar Enter (mantem a paginacao coerente).
+                    if ( search ) {
+                        search.addEventListener( 'keydown', function ( e ) {
+                            if ( 'Enter' === e.key ) {
+                                e.preventDefault();
+                                submitFilters();
+                            }
+                        } );
                     }
 
-                    if ( search ) { search.addEventListener( 'input', function () { apply( '' ); } ); }
-                    [ status, doc, api ].forEach( function ( sel ) {
-                        if ( sel ) { sel.addEventListener( 'change', function () { apply( '' ); } ); }
-                    } );
-                    var applyBtn = root.querySelector( '#ipc-vr-apply' );
-                    if ( applyBtn ) { applyBtn.addEventListener( 'click', function () { apply( '' ); } ); }
-                    var clearBtn = root.querySelector( '#ipc-vr-clear' );
-                    if ( clearBtn ) { clearBtn.addEventListener( 'click', clearAll ); }
+                    // Filtros rapidos (mobile): aplicados no servidor.
                     pills.forEach( function ( pill ) {
                         pill.addEventListener( 'click', function () {
-                            pills.forEach( function ( p ) {
-                                p.classList.remove( 'bg-slate-900', 'text-white', 'is-active' );
-                            } );
-                            pill.classList.add( 'bg-slate-900', 'text-white', 'is-active' );
+                            var kind = pill.getAttribute( 'data-pill' );
+                            if ( search ) { search.value = ''; }
                             if ( status ) { status.value = ''; }
-                            apply( pill.getAttribute( 'data-pill' ) );
+                            if ( doc ) { doc.value = ''; }
+                            if ( api ) { api.value = ''; }
+                            if ( 'approved' === kind && status ) { status.value = 'approved'; }
+                            if ( 'pending' === kind && status ) { status.value = 'pending'; }
+                            if ( 'creci' === kind && doc ) { doc.value = 'creci'; }
+                            submitFilters();
                         } );
                     } );
+
+                    // Itens por pagina: recarrega preservando os filtros atuais.
                     if ( perPage ) {
                         perPage.addEventListener( 'change', function () {
                             var url = new URL( window.location.href );
