@@ -1450,7 +1450,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                 </div>
                                 <div class="flex items-end gap-2 md:col-span-2">
                                     <button type="submit" id="ipc-vr-apply" class="ipc-vr-apply flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
-                                    <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'verification_requests', 'imovel_admin_action' => 'list' ), $dashboard_url ) ); ?>" id="ipc-vr-clear" class="ipc-vr-clear rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
+                                    <a href="<?php echo esc_url( add_query_arg( array( 'imovel_admin_area' => 'gestao', 'imovel_admin_section' => 'verification_requests', 'imovel_admin_action' => 'list' ), $dashboard_url ) ); ?>" id="ipc-vr-clear" class="ipc-vr-clear rounded-xl border border-red-600 bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700" style="background-color:#dc2626;border-color:#dc2626;color:#fff;" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
                                         <span class="dashicons dashicons-editor-close"></span>
                                     </a>
                                 </div>
@@ -1460,12 +1460,14 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             <div class="mt-3 flex gap-2 overflow-x-auto md:hidden">
                                 <?php
                                 $vr_no_filter = ( '' === $verification_status_filter && '' === $verification_doc_filter && '' === $verification_api_filter && '' === $verification_search_filter );
-                                $vr_pill_class = 'ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600';
+                                $vr_pill_class    = 'ipc-vr-pill shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition';
+                                $vr_pill_inactive = ' border-slate-200 bg-white text-slate-600';
+                                $vr_pill_active   = ' border-slate-900 bg-slate-900 text-white is-active';
                                 ?>
-                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( $vr_no_filter ? ' is-active' : '' ) ); ?>" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
-                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'approved' === $verification_status_filter ? ' is-active' : '' ) ); ?>" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
-                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'pending' === $verification_status_filter ? ' is-active' : '' ) ); ?>" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
-                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'creci' === $verification_doc_filter ? ' is-active' : '' ) ); ?>" data-pill="creci"><?php esc_html_e( 'Doc: CRECI', 'imovel-parceiro-core' ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( $vr_no_filter ? $vr_pill_active : $vr_pill_inactive ) ); ?>" style="<?php echo esc_attr( $vr_no_filter ? 'background-color:#0f172a;border-color:#0f172a;color:#fff;' : 'color:#475569;' ); ?>" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'approved' === $verification_status_filter ? $vr_pill_active : $vr_pill_inactive ) ); ?>" style="<?php echo esc_attr( 'approved' === $verification_status_filter ? 'background-color:#0f172a;border-color:#0f172a;color:#fff;' : 'color:#475569;' ); ?>" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'pending' === $verification_status_filter ? $vr_pill_active : $vr_pill_inactive ) ); ?>" style="<?php echo esc_attr( 'pending' === $verification_status_filter ? 'background-color:#0f172a;border-color:#0f172a;color:#fff;' : 'color:#475569;' ); ?>" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
+                                <button type="button" class="<?php echo esc_attr( $vr_pill_class . ( 'creci' === $verification_doc_filter ? $vr_pill_active : $vr_pill_inactive ) ); ?>" style="<?php echo esc_attr( 'creci' === $verification_doc_filter ? 'background-color:#0f172a;border-color:#0f172a;color:#fff;' : 'color:#475569;' ); ?>" data-pill="creci"><?php esc_html_e( 'Doc: CRECI', 'imovel-parceiro-core' ); ?></button>
                             </div>
 
                             <p class="mt-3 text-xs text-slate-500" data-ipc-vr-count>

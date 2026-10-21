@@ -23,16 +23,20 @@
 
 /* Botao limpar filtros (vermelho: acao de descarte) */
 .ipc-vr .ipc-vr-clear {
-    background-color: #fff;
-    border-color: #fecaca;
-    color: #dc2626;
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
 }
 
 .ipc-vr .ipc-vr-clear:hover,
 .ipc-vr .ipc-vr-clear:focus {
-    background-color: #fef2f2;
-    border-color: #fca5a5;
-    color: #b91c1c;
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+    color: #fff;
+}
+
+.ipc-vr .ipc-vr-clear .dashicons {
+    color: #fff;
 }
 
 /* Icone de pesquisa: fora do placeholder (16px a 12px da borda) */
@@ -70,6 +74,10 @@
 }
 
 /* Pílulas de filtro rápido: estado ativo */
+.ipc-vr .ipc-vr-pill {
+    color: #475569;
+}
+
 .ipc-vr .ipc-vr-pill.is-active {
     background-color: #0f172a;
     border-color: #0f172a;

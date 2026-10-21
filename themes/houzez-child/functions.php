@@ -162,11 +162,14 @@ function houzez_child_enqueue_dashboard_assets() {
         return;
     }
 
+    // Versao por data de modificacao: garante que o browser baixe o build mais
+    // recente do Tailwind (versao fixa fazia o CSS antigo continuar em cache).
+    $dashboard_css = get_stylesheet_directory() . '/assets/css/dashboard.css';
     wp_enqueue_style(
         'houzez-child-dashboard-tailwind',
         get_stylesheet_directory_uri() . '/assets/css/dashboard.css',
         array(),
-        '1.0.0'
+        file_exists( $dashboard_css ) ? (string) filemtime( $dashboard_css ) : '1.0.0'
     );
 
     // Tela "Entre para cadastrar seu imóvel" (visitante deslogado no submit).
