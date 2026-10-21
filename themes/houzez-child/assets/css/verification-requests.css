@@ -98,7 +98,7 @@
 .ipc-vr .ipc-vr-pill.is-active {
     background-color: #0f172a;
     border-color: #0f172a;
-    color: #fff;
+    color: #dc2626;
 }
 
 /* Tabela (desktop): mantém o scroll horizontal sem estourar o card */
