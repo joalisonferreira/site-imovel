@@ -1327,7 +1327,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             <span class="text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Métricas principais', 'imovel-parceiro-core' ); ?></span>
                             <span class="text-xs text-slate-400"><?php esc_html_e( 'Arraste para o lado →', 'imovel-parceiro-core' ); ?></span>
                         </div>
-                        <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
+                        <div class="ipc-vr-metrics mt-2 flex snap-x gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
                             <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm md:min-w-0">
                                 <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Total de solicitações', 'imovel-parceiro-core' ); ?></p>
                                 <div class="mt-2 flex items-center justify-between gap-2">

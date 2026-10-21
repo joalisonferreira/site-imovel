@@ -56,10 +56,41 @@
     padding-left: 44px;
 }
 
-/* Cards do mobile: o utilitario space-y-3 pode faltar no build do Tailwind */
-.ipc-vr .ipc-vr-cards {
-    display: grid;
-    gap: 12px;
+/* Cards do mobile: o utilitario space-y-3 pode faltar no build do Tailwind.
+   ATENCAO: display:grid so pode valer no mobile. Se valer em qualquer largura,
+   a especificidade (.ipc-vr .ipc-vr-cards = 0,2,0) vence o .md:hidden do
+   Tailwind (0,1,0) e os cards aparecem tambem no desktop, junto da tabela. */
+@media (max-width: 767.98px) {
+    .ipc-vr .ipc-vr-cards {
+        display: grid;
+        gap: 12px;
+    }
+
+    /* No mobile a versao em tabela fica escondida (independe do build) */
+    .ipc-vr .ipc-vr-table-wrap {
+        display: none;
+    }
+}
+
+/* No desktop: tabela visivel, cards ocultos (independe do build) */
+@media (min-width: 768px) {
+    .ipc-vr .ipc-vr-table-wrap {
+        display: block;
+    }
+
+    .ipc-vr .ipc-vr-cards {
+        display: none;
+    }
+}
+
+/* Metricas: grade de 4 colunas no desktop (independe do build do Tailwind) */
+@media (min-width: 768px) {
+    .ipc-vr .ipc-vr-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: visible;
+        padding-bottom: 0;
+    }
 }
 
 .ipc-vr .ipc-vr-search-icon .dashicons {
