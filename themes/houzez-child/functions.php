@@ -162,8 +162,8 @@ function houzez_child_enqueue_dashboard_assets() {
         return;
     }
 
-    // Versao por data de modificacao: garante que o browser baixe o build mais
-    // recente do Tailwind (versao fixa fazia o CSS antigo continuar em cache).
+    // Versao por data de modificacao: evita que o browser/cloudflare continuem
+    // servindo um build antigo do Tailwind (URL nao mudava com versao fixa).
     $dashboard_css = get_stylesheet_directory() . '/assets/css/dashboard.css';
     wp_enqueue_style(
         'houzez-child-dashboard-tailwind',
@@ -180,17 +180,6 @@ function houzez_child_enqueue_dashboard_assets() {
             get_stylesheet_directory_uri() . '/assets/css/submit-login.css',
             array( 'houzez-child-dashboard-tailwind' ),
             (string) filemtime( $submit_login_css )
-        );
-    }
-
-    // Ajustes visuais da tela "Gestão > Verificação" (dependem só deste arquivo).
-    $verification_css = get_stylesheet_directory() . '/assets/css/verification-requests.css';
-    if ( file_exists( $verification_css ) ) {
-        wp_enqueue_style(
-            'houzez-child-verification-requests',
-            get_stylesheet_directory_uri() . '/assets/css/verification-requests.css',
-            array( 'houzez-child-dashboard-tailwind' ),
-            (string) filemtime( $verification_css )
         );
     }
 
