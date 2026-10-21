@@ -1091,7 +1091,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
             <?php } ?>
         </div>
     <?php else : ?>
-        <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
+        <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-0 sm:p-6 shadow-sm">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                 <h5 style="margin:0;"><?php echo esc_html( $selected_entity['label'] ); ?></h5>
                 <?php if ( 'verification_requests' !== $current_section ) : ?>
@@ -1328,10 +1328,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                 <div class="lg:col-span-4">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-search"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></label>
                                     <div class="relative">
-                                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            <span class="dashicons dashicons-search"></span>
+                                        <span class="pointer-events-none absolute left-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-slate-400">
+                                            <span class="dashicons dashicons-search leading-none"></span>
                                         </span>
-                                        <input type="search" id="ipc-vr-search" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="" />
+                                        <input type="search" id="ipc-vr-search" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="" />
                                     </div>
                                 </div>
                                 <div class="lg:col-span-2">
@@ -1363,7 +1363,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     </select>
                                 </div>
                                 <div class="flex items-end gap-2 lg:col-span-2">
-                                    <button type="button" id="ipc-vr-apply" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
+                                    <button type="button" id="ipc-vr-apply" class="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
                                     <button type="button" id="ipc-vr-clear" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
                                         <span class="dashicons dashicons-dashicon"></span>
                                     </button>
