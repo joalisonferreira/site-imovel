@@ -1104,19 +1104,199 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
             </div>
 
 <?php if ( 'verification_requests' === $current_section ) : ?>
-                <!-- Houzez Dashboard Layout for Verification Requests - Responsive -->
                 <script>
                     // Store nonce value for AJAX operations
                     window.imovelAdminNonce = '<?php echo wp_create_nonce( 'imovel_admin_update' ); ?>';
                 </script>
-                <div class="houzez-dashboard" style="margin-top:20px;">
-                    <!-- Status summary badges -->
-                    <div class="d-flex flex-wrap gap-2 mb-4">
-                        <span class="badge bg-secondary"><?php echo esc_html( sprintf( __( '%s total de solicitações', 'imovel-parceiro-core' ), $verification_total_items ?? 0 ) ); ?></span>
-                        <span class="badge bg-warning text-dark"><?php echo esc_html( sprintf( __( '%s aguardando revisão', 'imovel-parceiro-core' ), $pending_count ) ); ?></span>
-                        <span class="badge bg-success"><?php echo esc_html( sprintf( __( '%s aprovados', 'imovel-parceiro-core' ), $approved_count ) ); ?></span>
-                        <span class="badge bg-info text-dark"><?php echo esc_html( sprintf( __( '%s informações necessárias', 'imovel-parceiro-core' ), $info_required_count ) ); ?></span>
+                <?php
+                $vr_total    = isset( $verification_total_items ) ? (int) $verification_total_items : 0;
+                $vr_pending  = isset( $pending_count ) ? (int) $pending_count : 0;
+                $vr_approved = isset( $approved_count ) ? (int) $approved_count : 0;
+                $vr_info     = isset( $info_required_count ) ? (int) $info_required_count : 0;
+                $vr_pct      = $vr_total > 0 ? round( ( $vr_approved / $vr_total ) * 100, 1 ) : 0;
+
+                // Prepara os dados de cada solicitação (usado na tabela do desktop e nos cards do mobile).
+                $vr_items = array();
+                if ( ! empty( $verification_requests ) ) :
+                    foreach ( $verification_requests as $vr_request ) :
+                        $vr_user   = isset( $vr_request['user_data'] ) ? $vr_request['user_data'] : null;
+                        $vr_data   = isset( $vr_request['verification_data'] ) ? $vr_request['verification_data'] : array();
+                        $vr_status = isset( $vr_data['status'] ) ? $vr_data['status'] : '';
+
+                        $vr_status_label = __( 'Desconhecido', 'imovel-parceiro-core' );
+                        $vr_status_class = 'bg-slate-50 text-slate-600 ring-slate-200';
+                        switch ( $vr_status ) {
+                            case 'pending':
+                                $vr_status_label = __( 'Pendente', 'imovel-parceiro-core' );
+                                $vr_status_class = 'bg-amber-50 text-amber-700 ring-amber-200';
+                                break;
+                            case 'approved':
+                                $vr_status_label = __( 'Aprovado', 'imovel-parceiro-core' );
+                                $vr_status_class = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+                                break;
+                            case 'rejected':
+                                $vr_status_label = __( 'Rejeitado', 'imovel-parceiro-core' );
+                                $vr_status_class = 'bg-rose-50 text-rose-700 ring-rose-200';
+                                break;
+                            case 'additional_info_required':
+                                $vr_status_label = __( 'Informação adicional necessária', 'imovel-parceiro-core' );
+                                $vr_status_class = 'bg-sky-50 text-sky-700 ring-sky-200';
+                                break;
+                        }
+
+                        // Documento enviado
+                        $vr_doc_type = isset( $vr_data['document_type'] ) && '' !== $vr_data['document_type'] ? $vr_data['document_type'] : '-';
+                        $vr_doc_url  = '';
+                        if ( $vr_user ) {
+                            $vr_doc_path = isset( $vr_data['document_path'] ) ? $vr_data['document_path'] : '';
+                            if ( ! empty( $vr_doc_path ) ) {
+                                $vr_doc_url = add_query_arg(
+                                    array(
+                                        'action'  => 'houzez_secure_document',
+                                        'user_id' => (int) $vr_user->ID,
+                                        'file'    => basename( $vr_doc_path ),
+                                    ),
+                                    admin_url( 'admin-ajax.php' )
+                                );
+                            } elseif ( ! empty( $vr_data['document_url'] ) ) {
+                                $vr_doc_url = $vr_data['document_url'];
+                            } elseif ( ! empty( $vr_data['document_id'] ) ) {
+                                $vr_doc_url = wp_get_attachment_url( (int) $vr_data['document_id'] );
+                            }
+                        }
+
+                        // CRECI (API) — ImobiSec
+                        $vr_api          = ( $vr_user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) ? Imovel_Parceiro_ImobiSec::list_data( $vr_user->ID ) : null;
+                        $vr_api_state    = 'none';
+                        $vr_api_label    = __( 'Não consultado', 'imovel-parceiro-core' );
+                        $vr_api_class    = 'bg-slate-100 text-slate-600 ring-slate-200';
+                        $vr_api_note_cls = 'text-slate-500';
+                        $vr_api_checked  = '';
+                        $vr_api_note     = '';
+                        if ( $vr_api ) {
+                            $vr_api_label    = $vr_api['label_short'];
+                            $vr_api_checked  = $vr_api['checked'];
+                            $vr_api_note     = $vr_api['note'];
+                            $vr_api_badge    = isset( $vr_api['badge'] ) ? $vr_api['badge'] : '';
+                            if ( 'success' === $vr_api_badge ) {
+                                $vr_api_state    = 'active';
+                                $vr_api_class    = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+                                $vr_api_note_cls = 'text-emerald-700';
+                            } elseif ( 'warning' === $vr_api_badge ) {
+                                $vr_api_state    = 'pending';
+                                $vr_api_class    = 'bg-amber-50 text-amber-700 ring-amber-200';
+                                $vr_api_note_cls = 'text-amber-700';
+                            }
+                        }
+
+                        $vr_name     = $vr_user ? $vr_user->display_name : __( 'Usuário', 'imovel-parceiro-core' );
+                        $vr_email    = $vr_user ? $vr_user->user_email : '-';
+                        $vr_fullname = isset( $vr_data['full_name'] ) && '' !== $vr_data['full_name'] ? $vr_data['full_name'] : '-';
+                        $vr_license  = $vr_user ? get_user_meta( $vr_user->ID, 'fave_author_license', true ) : '';
+                        $vr_license  = '' !== $vr_license ? $vr_license : '-';
+                        $vr_sent     = isset( $vr_data['submitted_on'] ) && $vr_data['submitted_on'] ? date_i18n( get_option( 'date_format' ), strtotime( $vr_data['submitted_on'] ) ) : '-';
+
+                        $vr_search = strtolower( $vr_name . ' ' . $vr_email . ' ' . $vr_fullname . ' ' . $vr_license );
+
+                        $vr_items[] = array(
+                            'user_id'     => $vr_user ? (int) $vr_user->ID : 0,
+                            'name'        => $vr_name,
+                            'email'       => $vr_email,
+                            'fullname'    => $vr_fullname,
+                            'license'     => $vr_license,
+                            'doc_type'    => $vr_doc_type,
+                            'doc_url'     => $vr_doc_url,
+                            'status'      => $vr_status,
+                            'status_label'=> $vr_status_label,
+                            'status_class'=> $vr_status_class,
+                            'sent'        => $vr_sent,
+                            'api_state'   => $vr_api_state,
+                            'api_label'   => $vr_api_label,
+                            'api_class'   => $vr_api_class,
+                            'api_checked' => $vr_api_checked,
+                            'api_note'    => $vr_api_note,
+                            'api_note_cls'=> $vr_api_note_cls,
+                            'api_full'    => $vr_api ? $vr_api['label'] : '',
+                            'search'      => $vr_search,
+                            'has_api'     => ( $vr_user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) ? 1 : 0,
+                            'api_error'   => ( $vr_api && '' !== $vr_api['note'] ) ? 1 : 0,
+                        );
+                    endforeach;
+                endif;
+                ?>
+
+                <div class="ipc-vr mt-6">
+                    <!-- Cabeçalho da página -->
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <h1 class="m-0 text-xl font-extrabold text-slate-900 lg:text-2xl"><?php esc_html_e( 'Verificação de usuários', 'imovel-parceiro-core' ); ?></h1>
+                                <span class="rounded-full px-3 py-1 text-xs font-bold <?php echo $vr_pending > 0 ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'; ?>">
+                                    <?php echo $vr_pending > 0 ? esc_html( sprintf( __( '%d pendentes', 'imovel-parceiro-core' ), $vr_pending ) ) : esc_html__( 'Todos revisados', 'imovel-parceiro-core' ); ?>
+                                </span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-500"><?php esc_html_e( 'Acompanhe e audite a regularidade cadastral, documentação e certidões dos corretores de imóveis.', 'imovel-parceiro-core' ); ?></p>
+                        </div>
                     </div>
+
+                    <!-- Métricas (carrossel no mobile, grade no desktop) -->
+                    <div class="mt-5">
+                        <div class="flex items-center justify-between lg:hidden">
+                            <span class="text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Métricas principais', 'imovel-parceiro-core' ); ?></span>
+                            <span class="text-xs text-slate-400"><?php esc_html_e( 'Arraste para o lado →', 'imovel-parceiro-core' ); ?></span>
+                        </div>
+                        <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                                <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Total de solicitações', 'imovel-parceiro-core' ); ?></p>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="m-0 text-2xl font-extrabold text-slate-900"><?php echo esc_html( number_format_i18n( $vr_total ) ); ?></p>
+                                        <p class="m-0 text-xs text-slate-500"><?php esc_html_e( 'cadastros', 'imovel-parceiro-core' ); ?></p>
+                                    </div>
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                                        <span class="dashicons dashicons-groups"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                                <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Aguardando revisão', 'imovel-parceiro-core' ); ?></p>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="m-0 text-2xl font-extrabold text-amber-600"><?php echo esc_html( number_format_i18n( $vr_pending ) ); ?></p>
+                                        <p class="m-0 text-xs text-slate-500"><?php esc_html_e( 'pendências', 'imovel-parceiro-core' ); ?></p>
+                                    </div>
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                                        <span class="dashicons dashicons-clock"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                                <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Aprovados', 'imovel-parceiro-core' ); ?></p>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="m-0 text-2xl font-extrabold text-emerald-600"><?php echo esc_html( number_format_i18n( $vr_approved ) ); ?></p>
+                                        <p class="m-0 text-xs text-slate-500"><?php echo esc_html( sprintf( __( '%s%% do total', 'imovel-parceiro-core' ), number_format_i18n( $vr_pct, 1 ) ) ); ?></p>
+                                    </div>
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                        <span class="dashicons dashicons-yes-alt"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                                <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Informações necessárias', 'imovel-parceiro-core' ); ?></p>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="m-0 text-2xl font-extrabold text-sky-600"><?php echo esc_html( number_format_i18n( $vr_info ) ); ?></p>
+                                        <p class="m-0 text-xs text-slate-500"><?php esc_html_e( 'solicitadas', 'imovel-parceiro-core' ); ?></p>
+                                    </div>
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                                        <span class="dashicons dashicons-info-outline"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <?php
                     $imobisec_msg = isset( $_GET['imovel_imobisec_msg'] ) ? sanitize_key( wp_unslash( $_GET['imovel_imobisec_msg'] ) ) : '';
                     if ( in_array( $imobisec_msg, array( 'consult_ok', 'strong_ok', 'imobisec_error' ), true ) ) :
@@ -1124,216 +1304,403 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             ? __( 'Ação ImobiSec não executada. Verifique a chave de API em Gestão → CRECI/Cofeci.', 'imovel-parceiro-core' )
                             : __( 'Ação ImobiSec executada — veja o resultado na coluna CRECI (API).', 'imovel-parceiro-core' );
                     ?>
-                    <div class="alert <?php echo 'imobisec_error' === $imobisec_msg ? 'alert-danger' : 'alert-success'; ?>" role="alert" style="border-radius:10px;"><?php echo esc_html( $imobisec_text ); ?></div>
+                    <div class="mt-4 rounded-xl border px-4 py-3 text-sm <?php echo 'imobisec_error' === $imobisec_msg ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'; ?>" role="alert"><?php echo esc_html( $imobisec_text ); ?></div>
                     <?php endif; ?>
 
-                    <!-- Main Content Card -->
-                    <div class="houzez-main-card" style="border:1px solid #e6e6e6; border-radius:8px; background:#fff; overflow:hidden;">
-                        <div class="houzez-card-header" style="padding:20px; border-bottom:1px solid #e6e6e6; background:#f8f9fa; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                            <h2 style="margin:0; font-size:18px; font-weight:bold;">
-                                <i class="dashicons dashicons-admin-users" style="margin-right:8px;"></i>
-                                <?php esc_html_e( 'Gestão de Verificação', 'imovel-parceiro-core' ); ?>
-                            </h2>
-                            <div class="houzez-status-badge" style="padding:8px 12px; border-radius:20px; font-size:12px; font-weight:bold; background:<?php echo $pending_count > 0 ? '#fff3cd' : '#d1e7dd'; ?>; color:<?php echo $pending_count > 0 ? '#856404' : '#0f5132'; ?>;">
-                                <?php echo $pending_count > 0 ? sprintf( esc_html__( '%d Pendentes', 'imovel-parceiro-core' ), $pending_count ) : esc_html__( 'Todos revisados', 'imovel-parceiro-core' ); ?>
+                    <!-- Cartão principal -->
+                    <div class="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 lg:px-6">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
+                                    <span class="dashicons dashicons-admin-users"></span>
+                                </span>
+                                <div>
+                                    <h2 class="m-0 text-base font-extrabold text-slate-900"><?php esc_html_e( 'Gestão de Verificação', 'imovel-parceiro-core' ); ?></h2>
+                                    <p class="m-0 text-xs text-slate-500"><?php esc_html_e( 'Filtragem avançada e validações em lote', 'imovel-parceiro-core' ); ?></p>
+                                </div>
                             </div>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"><?php echo esc_html( sprintf( __( 'Total de itens: %d', 'imovel-parceiro-core' ), $vr_total ) ); ?></span>
                         </div>
 
-                        <div class="houzez-card-body" style="padding:20px;">
-                            <!-- Filter Section -->
-                            <div class="tablenav top" style="margin-bottom:20px;">
-                                <div class="alignleft actions">
-                                    <form method="get" class="filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                                        <input type="hidden" name="imovel_admin_section" value="<?php echo esc_attr( $current_section ); ?>" />
-                                        <input type="hidden" name="imovel_admin_action" value="list" />
-                                        <div class="hz-filter-group" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                                            <select name="imovel_admin_verification_status" class="filter-select" style="padding:8px; border:1px solid #e6e6e6; border-radius:4px; min-width:180px;">
-                                                <option value="" <?php selected( $verification_status_filter, '' ); ?>><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></option>
-                                                <option value="pending" <?php selected( $verification_status_filter, 'pending' ); ?>><?php esc_html_e( 'Pendente', 'imovel-parceiro-core' ); ?></option>
-                                                <option value="approved" <?php selected( $verification_status_filter, 'approved' ); ?>><?php esc_html_e( 'Aprovado', 'imovel-parceiro-core' ); ?></option>
-                                                <option value="rejected" <?php selected( $verification_status_filter, 'rejected' ); ?>><?php esc_html_e( 'Rejeitado', 'imovel-parceiro-core' ); ?></option>
-                                                <option value="additional_info_required" <?php selected( $verification_status_filter, 'additional_info_required' ); ?>><?php esc_html_e( 'Aguardando informações adicionais', 'imovel-parceiro-core' ); ?></option>
-                                            </select>
-                                            <button type="submit" class="button action" style="padding:8px 16px;">
-                                                <span class="dashicons dashicons-filter" style="font-size:14px; width:14px; height:14px; margin-top:3px;"></span>
-                                                <?php esc_html_e( 'Aplicar filtro', 'imovel-parceiro-core' ); ?>
-                                            </button>
-                                        </div>
-                                    </form>
+                        <div class="p-4 lg:p-6">
+                            <!-- Filtros -->
+                            <div class="grid gap-3 lg:grid-cols-12">
+                                <div class="lg:col-span-4">
+                                    <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-search"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></label>
+                                    <div class="relative">
+                                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <span class="dashicons dashicons-search"></span>
+                                        </span>
+                                        <input type="search" id="ipc-vr-search" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="" />
+                                    </div>
                                 </div>
-                                <div class="tablenav-pages one-page">
-                                    <span class="displaying-num">
-                                        <?php echo esc_html( sprintf( _n( 'Item %d', 'Itens %d', $verification_total_items, 'imovel-parceiro-core' ), $verification_total_items ) ); ?>
-                                    </span>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-status"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="ipc-vr-status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                        <option value=""><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="pending"><?php esc_html_e( 'Pendente', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="approved"><?php esc_html_e( 'Aprovado', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="rejected"><?php esc_html_e( 'Rejeitado', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="additional_info_required"><?php esc_html_e( 'Informação adicional', 'imovel-parceiro-core' ); ?></option>
+                                    </select>
                                 </div>
-                                <br class="clear">
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-doc"><?php esc_html_e( 'Documento', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="ipc-vr-doc" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                        <option value=""><?php esc_html_e( 'Todos os documentos', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="creci"><?php esc_html_e( 'CRECI', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="rg"><?php esc_html_e( 'Documento de identidade', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
+                                    </select>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-api"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></label>
+                                    <select id="ipc-vr-api" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                                        <option value=""><?php esc_html_e( 'Todos', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="active"><?php esc_html_e( 'Ativo', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="pending"><?php esc_html_e( 'Aguardando resposta', 'imovel-parceiro-core' ); ?></option>
+                                        <option value="none"><?php esc_html_e( 'Não consultado', 'imovel-parceiro-core' ); ?></option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end gap-2 lg:col-span-2">
+                                    <button type="button" id="ipc-vr-apply" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
+                                    <button type="button" id="ipc-vr-clear" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
+                                        <span class="dashicons dashicons-dashicon"></span>
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- Responsive Table: Desktop table + Mobile cards -->
-                            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-                            <table class="ipc-table table table-hover align-middle mb-0" style="table-layout:fixed; width:100%; min-width:900px;">
-                                <thead>
-                                    <tr>
-                                        <th style="width:20%; min-width:180px;"><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:16%; min-width:140px;"><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:10%; min-width:100px;"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:18%; min-width:180px;"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:12%; min-width:120px;"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:8%; min-width:100px;"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:10%; min-width:100px;"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
-                                        <th style="width:16%; min-width:200px;"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if ( empty( $verification_requests ) ) : ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center text-muted py-4"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></td>
+                            <!-- Filtros rápidos (mobile) -->
+                            <div class="mt-3 flex gap-2 overflow-x-auto lg:hidden">
+                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
+                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
+                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
+                                <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="creci"><?php esc_html_e( 'Doc: CRECI', 'imovel-parceiro-core' ); ?></button>
+                            </div>
+
+                            <p class="mt-3 text-xs text-slate-500" data-ipc-vr-count>
+                                <?php echo esc_html( sprintf( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ), $vr_total, $vr_total ) ); ?>
+                            </p>
+
+                            <!-- Tabela (desktop) -->
+                            <div class="mt-4 hidden overflow-x-auto lg:block">
+                                <table class="w-full min-w-[1020px] border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            <th class="px-3 py-3"><?php esc_html_e( 'Usuário', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3"><?php esc_html_e( 'Nome completo', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3 text-center"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3 text-center"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="px-3 py-3"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></th>
+                                            <th class="w-[150px] px-3 py-3 text-center"><?php esc_html_e( 'Ações', 'imovel-parceiro-core' ); ?></th>
                                         </tr>
-                                    <?php else : ?>
-                                        <?php foreach ( $verification_requests as $request ) :
-                                            $user = isset( $request['user_data'] ) ? $request['user_data'] : null;
-                                            $verification_data = isset( $request['verification_data'] ) ? $request['verification_data'] : array();
-                                            $status = isset( $verification_data['status'] ) ? $verification_data['status'] : '';
+                                    </thead>
+                                    <tbody>
+                                        <?php if ( empty( $vr_items ) ) : ?>
+                                            <tr data-ipc-vr-empty>
+                                                <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></td>
+                                            </tr>
+                                        <?php else : ?>
+                                            <?php foreach ( $vr_items as $vr_item ) : ?>
+                                                <tr class="border-b border-slate-100 align-top transition hover:bg-slate-50/60" data-ipc-vr-item data-search="<?php echo esc_attr( $vr_item['search'] ); ?>" data-status="<?php echo esc_attr( $vr_item['status'] ); ?>" data-doc="<?php echo esc_attr( $vr_item['doc_type'] ); ?>" data-api="<?php echo esc_attr( $vr_item['api_state'] ); ?>" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>">
+                                                    <td class="px-3 py-3">
+                                                        <div class="flex items-center gap-2">
+                                                            <?php echo get_avatar( $vr_item['user_id'], 40 ); ?>
+                                                            <div class="min-w-0">
+                                                                <a href="<?php echo esc_url( admin_url( 'user-edit.php?user_id=' . $vr_item['user_id'] ) ); ?>" target="_blank" class="block truncate text-sm font-bold text-slate-900 no-underline hover:underline"><?php echo esc_html( $vr_item['name'] ); ?></a>
+                                                                <a href="mailto:<?php echo esc_attr( $vr_item['email'] ); ?>" class="block truncate text-xs text-slate-500"><?php echo esc_html( $vr_item['email'] ); ?></a>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-3 py-3 text-sm font-medium text-slate-700"><?php echo esc_html( $vr_item['fullname'] ); ?></td>
+                                                    <td class="px-3 py-3">
+                                                        <span class="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-semibold text-slate-700"><?php echo esc_html( $vr_item['license'] ); ?></span>
+                                                    </td>
+                                                    <td class="max-w-[280px] px-3 py-3">
+                                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ring-1 <?php echo esc_attr( $vr_item['api_class'] ); ?>" title="<?php echo esc_attr( $vr_item['api_full'] ); ?>">
+                                                            <?php if ( 'active' === $vr_item['api_state'] ) : ?>
+                                                                <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
+                                                            <?php endif; ?>
+                                                            <?php echo esc_html( $vr_item['api_label'] ); ?>
+                                                        </span>
+                                                        <?php if ( '' !== $vr_item['api_checked'] ) : ?>
+                                                            <p class="m-0 mt-1 text-xs font-medium text-slate-600"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $vr_item['api_checked'] ) ) ); ?></p>
+                                                        <?php endif; ?>
+                                                        <?php if ( '' !== $vr_item['api_note'] ) : ?>
+                                                            <p class="m-0 mt-0.5 truncate text-xs <?php echo esc_attr( $vr_item['api_note_cls'] ); ?>"><?php echo esc_html( $vr_item['api_note'] ); ?></p>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="px-3 py-3 text-center">
+                                                        <?php if ( '' !== $vr_item['doc_url'] ) : ?>
+                                                            <a href="<?php echo esc_url( $vr_item['doc_url'] ); ?>" class="view-document-btn inline-block cursor-pointer rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold lowercase text-slate-700 no-underline" data-document-url="<?php echo esc_url( $vr_item['doc_url'] ); ?>" data-document-title="<?php echo esc_attr( $vr_item['doc_type'] ); ?>"><?php echo esc_html( $vr_item['doc_type'] ); ?></a>
+                                                        <?php else : ?>
+                                                            <span class="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold lowercase text-slate-500"><?php echo esc_html( $vr_item['doc_type'] ); ?></span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="px-3 py-3 text-center">
+                                                        <span class="inline-block rounded-full px-2.5 py-1 text-xs font-extrabold uppercase ring-1 <?php echo esc_attr( $vr_item['status_class'] ); ?>"><?php echo esc_html( $vr_item['status_label'] ); ?></span>
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                                                        <span class="dashicons dashicons-calendar-alt"></span>
+                                                        <?php echo esc_html( $vr_item['sent'] ); ?>
+                                                    </td>
+                                                    <td class="px-3 py-3">
+                                                        <div class="mx-auto flex max-w-[130px] flex-col gap-2">
+                                                            <?php if ( 'pending' === $vr_item['status'] ) : ?>
+                                                                <button type="button" class="w-full rounded-lg border border-emerald-300 bg-white px-2 py-1.5 text-xs font-bold text-emerald-700 approve-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
+                                                                <button type="button" class="w-full rounded-lg border border-rose-300 bg-white px-2 py-1.5 text-xs font-bold text-rose-700 reject-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
+                                                                <button type="button" class="w-full rounded-lg border border-sky-300 bg-white px-2 py-1.5 text-xs font-bold text-sky-700 request-info-btn" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Info', 'imovel-parceiro-core' ); ?></button>
+                                                                <?php if ( $vr_item['api_error'] ) : ?>
+                                                                    <button type="button" class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 revoke-approval" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>" title="<?php esc_attr_e( 'Revogar verificação pendente com erro', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
+                                                                <?php endif; ?>
+                                                            <?php elseif ( 'approved' === $vr_item['status'] ) : ?>
+                                                                <button type="button" class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 revoke-approval" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
+                                                            <?php elseif ( 'rejected' === $vr_item['status'] || 'additional_info_required' === $vr_item['status'] ) : ?>
+                                                                <button type="button" class="w-full rounded-lg border border-emerald-300 bg-white px-2 py-1.5 text-xs font-bold text-emerald-700 approve-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
+                                                            <?php endif; ?>
+                                                            <?php if ( $vr_item['has_api'] ) : ?>
+                                                                <form method="post" class="m-0">
+                                                                    <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
+                                                                    <input type="hidden" name="imovel_admin_section" value="verification_requests" />
+                                                                    <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $vr_item['user_id'] ); ?>" />
+                                                                    <input type="hidden" name="imovel_admin_imobisec_action" value="consult" />
+                                                                    <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-600" title="<?php esc_attr_e( 'Consultar CRECI na ImobiSec agora', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Consultar', 'imovel-parceiro-core' ); ?></button>
+                                                                </form>
+                                                                <form method="post" class="m-0" onsubmit="return confirm('<?php echo esc_js( __( 'A verificação forte consome 2 créditos. Confirmar?', 'imovel-parceiro-core' ) ); ?>');">
+                                                                    <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
+                                                                    <input type="hidden" name="imovel_admin_section" value="verification_requests" />
+                                                                    <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $vr_item['user_id'] ); ?>" />
+                                                                    <input type="hidden" name="imovel_admin_imobisec_action" value="strong" />
+                                                                    <button type="submit" class="w-full whitespace-nowrap rounded-lg border border-amber-300 bg-white px-2 py-1.5 text-xs font-bold text-amber-600" title="<?php esc_attr_e( 'Confirmar titularidade (CPF + nascimento + nome). Custa 2 créditos.', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Verificação forte', 'imovel-parceiro-core' ); ?></button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
 
-                                            $status_label = __( 'Desconhecido', 'imovel-parceiro-core' );
-                                            $status_badge = 'secondary';
-                                            switch ( $status ) {
-                                                case 'pending': $status_label = __( 'Pendente', 'imovel-parceiro-core' ); $status_badge = 'warning text-dark'; break;
-                                                case 'approved': $status_label = __( 'Aprovado', 'imovel-parceiro-core' ); $status_badge = 'success'; break;
-                                                case 'rejected': $status_label = __( 'Rejeitado', 'imovel-parceiro-core' ); $status_badge = 'danger'; break;
-                                                case 'additional_info_required': $status_label = __( 'Informação adicional necessária', 'imovel-parceiro-core' ); $status_badge = 'info text-dark'; break;
-                                            }
-
-                                            $verification_document_url = '';
-                                            if ( $user ) {
-                                                $doc_path = isset( $verification_data['document_path'] ) ? $verification_data['document_path'] : '';
-                                                if ( ! empty( $doc_path ) ) {
-                                                    $verification_document_url = add_query_arg(
-                                                        array(
-                                                            'action'  => 'houzez_secure_document',
-                                                            'user_id' => (int) $user->ID,
-                                                            'file'    => basename( $doc_path ),
-                                                        ),
-                                                        admin_url( 'admin-ajax.php' )
-                                                    );
-                                                } elseif ( isset( $verification_data['document_url'] ) && ! empty( $verification_data['document_url'] ) ) {
-                                                    $verification_document_url = $verification_data['document_url'];
-                                                } elseif ( isset( $verification_data['document_id'] ) && ! empty( $verification_data['document_id'] ) ) {
-                                                    $verification_document_url = wp_get_attachment_url( (int) $verification_data['document_id'] );
-                                                }
-                                            }
-                                        ?>
-                                        <tr data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>">
-                                            <td>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <?php echo get_avatar( $user ? $user->ID : 0, 40 ); ?>
-                                                    <div>
-                                                        <a href="<?php echo esc_url( admin_url( 'user-edit.php?user_id=' . ( $user ? $user->ID : 0 ) ) ); ?>" target="_blank" style="font-weight:600; color:#7a1e2b; text-decoration:none;"><?php echo $user ? esc_html( $user->display_name ) : esc_html__( 'Usuário', 'imovel-parceiro-core' ); ?></a>
-                                                        <div class="text-muted" style="font-size:12px;"><?php echo $user ? esc_html( $user->user_email ) : '-'; ?></div>
+                            <!-- Cards (mobile) -->
+                            <div class="mt-4 space-y-3 lg:hidden">
+                                <?php if ( empty( $vr_items ) ) : ?>
+                                    <p data-ipc-vr-empty class="rounded-2xl border border-slate-100 bg-white px-4 py-8 text-center text-sm text-slate-500"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></p>
+                                <?php else : ?>
+                                    <?php foreach ( $vr_items as $vr_item ) : ?>
+                                        <article class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm" data-ipc-vr-item data-search="<?php echo esc_attr( $vr_item['search'] ); ?>" data-status="<?php echo esc_attr( $vr_item['status'] ); ?>" data-doc="<?php echo esc_attr( $vr_item['doc_type'] ); ?>" data-api="<?php echo esc_attr( $vr_item['api_state'] ); ?>" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>">
+                                            <header class="flex items-start justify-between gap-3 p-4">
+                                                <div class="flex min-w-0 items-center gap-3">
+                                                    <?php echo get_avatar( $vr_item['user_id'], 44 ); ?>
+                                                    <div class="min-w-0">
+                                                        <p class="m-0 truncate text-sm font-bold text-slate-900"><?php echo esc_html( $vr_item['name'] ); ?></p>
+                                                        <p class="m-0 truncate text-xs text-slate-500"><?php echo esc_html( $vr_item['email'] ); ?></p>
+                                                        <p class="m-0 truncate text-xs text-slate-500"><?php echo esc_html( sprintf( __( 'Nome completo: %s', 'imovel-parceiro-core' ), $vr_item['fullname'] ) ); ?></p>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td><?php echo isset( $verification_data['full_name'] ) ? esc_html( $verification_data['full_name'] ) : '-'; ?></td>
-                                            <td><?php $verification_license = $user ? get_user_meta( $user->ID, 'fave_author_license', true ) : ''; echo '' !== $verification_license ? esc_html( $verification_license ) : '-'; ?></td>
-                                            <td>
-                                                <?php
-                                                $imobisec_row = ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) ? Imovel_Parceiro_ImobiSec::list_data( $user->ID ) : null;
-                                                if ( $imobisec_row ) :
-                                                ?>
-                                                    <span class="badge bg-<?php echo esc_attr( $imobisec_row['badge'] ); ?>" style="font-size:10px; padding:2px 6px; display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; word-break:break-all;" title="<?php echo esc_attr( $imobisec_row['label'] ); ?>"><?php echo esc_html( $imobisec_row['label_short'] ); ?></span>
-                                                    <?php if ( '' !== $imobisec_row['checked'] ) : ?>
-                                                        <div class="text-muted" style="font-size:11px;"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $imobisec_row['checked'] ) ) ); ?></div>
-                                                    <?php endif; ?>
-                                                    <?php if ( '' !== $imobisec_row['note'] ) : ?>
-                                                        <div class="text-muted" style="font-size:11px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><?php echo esc_html( $imobisec_row['note'] ); ?></div>
-                                                    <?php endif; ?>
-                                                <?php else : ?>
-                                                    -
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <?php if ( ! empty( $verification_document_url ) ) : ?>
-                                                    <a href="<?php echo esc_url( $verification_document_url ); ?>" class="view-document-btn" data-document-url="<?php echo esc_url( $verification_document_url ); ?>" data-document-title="<?php echo esc_attr( isset( $verification_data['document_type'] ) ? $verification_data['document_type'] : '' ); ?>" style="cursor:pointer; display:inline-block; padding:4px 10px; background:#f1f5f9; border:1px solid #dbe2ea; border-radius:999px; font-size:12px; font-weight:600; color:#334155; text-decoration:none;">
-                                                        <?php echo isset( $verification_data['document_type'] ) ? esc_html( $verification_data['document_type'] ) : '-'; ?>
-                                                    </a>
-                                                <?php else : ?>
-                                                    <span class="badge bg-secondary"><?php echo isset( $verification_data['document_type'] ) ? esc_html( $verification_data['document_type'] ) : '-'; ?></span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td><span class="badge bg-<?php echo esc_attr( $status_badge ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
-                                            <td class="text-muted"><?php echo isset( $verification_data['submitted_on'] ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $verification_data['submitted_on'] ) ) ) : '-'; ?></td>
-                                            <td style="width:16%; vertical-align:middle;">
-                                                <div class="d-flex flex-wrap gap-1" style="justify-content:flex-start;">
-                                                    <?php if ( 'pending' === $status ) : ?>
-                                                        <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
-                                                        <button type="button" class="btn btn-outline-danger btn-sm reject-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
-                                                        <button type="button" class="btn btn-outline-primary btn-sm request-info-btn" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Info', 'imovel-parceiro-core' ); ?></button>
-                                                        <?php if ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) && ! empty( $imobisec_row['note'] ) ) : ?>
-                                                            <button type="button" class="btn btn-outline-secondary btn-sm revoke-approval" data-user-id="<?php echo esc_attr( $user->ID ); ?>" title="<?php esc_attr_e( 'Revogar verificação pendente com erro', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
+                                                <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold uppercase ring-1 <?php echo esc_attr( $vr_item['status_class'] ); ?>"><?php echo esc_html( $vr_item['status_label'] ); ?></span>
+                                            </header>
+                                            <div class="grid grid-cols-2 gap-3 px-4 pb-4">
+                                                <div class="rounded-xl bg-slate-50 p-3">
+                                                    <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Creci', 'imovel-parceiro-core' ); ?></p>
+                                                    <p class="m-0 mt-1 font-mono text-sm font-semibold text-slate-700"><?php echo esc_html( $vr_item['license'] ); ?></p>
+                                                </div>
+                                                <div class="rounded-xl bg-slate-50 p-3">
+                                                    <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></p>
+                                                    <p class="m-0 mt-1 truncate text-sm font-semibold lowercase text-slate-700"><?php echo esc_html( $vr_item['doc_type'] ); ?></p>
+                                                </div>
+                                                <div class="rounded-xl bg-slate-50 p-3 <?php echo $vr_item['has_api'] ? 'col-span-2' : ''; ?>">
+                                                    <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></p>
+                                                    <span class="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ring-1 <?php echo esc_attr( $vr_item['api_class'] ); ?>">
+                                                        <?php if ( 'active' === $vr_item['api_state'] ) : ?>
+                                                            <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
                                                         <?php endif; ?>
-                                                    <?php elseif ( 'approved' === $status ) : ?>
-                                                        <button type="button" class="btn btn-outline-secondary btn-sm revoke-approval" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
-                                                    <?php elseif ( 'rejected' === $status ) : ?>
-                                                        <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
-                                                    <?php elseif ( 'additional_info_required' === $status ) : ?>
-                                                        <button type="button" class="btn btn-success btn-sm approve-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
-                                                        <button type="button" class="btn btn-outline-danger btn-sm reject-request" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
-                                                        <button type="button" class="btn btn-outline-primary btn-sm request-info-btn" data-user-id="<?php echo esc_attr( $user ? $user->ID : 0 ); ?>"><?php esc_html_e( 'Atualizar', 'imovel-parceiro-core' ); ?></button>
+                                                        <?php echo esc_html( $vr_item['api_label'] ); ?>
+                                                    </span>
+                                                    <?php if ( '' !== $vr_item['api_checked'] ) : ?>
+                                                        <p class="m-0 mt-1 text-xs font-medium text-slate-600"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $vr_item['api_checked'] ) ) ); ?></p>
                                                     <?php endif; ?>
-                                                    <?php if ( $user && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) : ?>
-                                                        <form method="post" style="display:inline;">
-                                                            <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
-                                                            <input type="hidden" name="imovel_admin_section" value="verification_requests" />
-                                                            <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $user->ID ); ?>" />
-                                                            <input type="hidden" name="imovel_admin_imobisec_action" value="consult" />
-                                                            <button type="submit" class="btn btn-outline-secondary btn-sm" title="<?php esc_attr_e( 'Consultar CRECI na ImobiSec agora', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Consultar', 'imovel-parceiro-core' ); ?></button>
-                                                        </form>
-                                                        <form method="post" style="display:inline;" onsubmit="return confirm('<?php echo esc_js( __( 'A verificação forte consome 2 créditos. Confirmar?', 'imovel-parceiro-core' ) ); ?>');">
-                                                            <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
-                                                            <input type="hidden" name="imovel_admin_section" value="verification_requests" />
-                                                            <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $user->ID ); ?>" />
-                                                            <input type="hidden" name="imovel_admin_imobisec_action" value="strong" />
-                                                            <button type="submit" class="btn btn-outline-warning btn-sm" title="<?php esc_attr_e( 'Confirmar titularidade (CPF + nascimento + nome). Custa 2 créditos.', 'imovel-parceiro-core' ); ?>"><?php esc_html_e( 'Verificação forte', 'imovel-parceiro-core' ); ?></button>
-                                                        </form>
+                                                    <?php if ( '' !== $vr_item['api_note'] ) : ?>
+                                                        <p class="m-0 mt-0.5 text-xs <?php echo esc_attr( $vr_item['api_note_cls'] ); ?>"><?php echo esc_html( $vr_item['api_note'] ); ?></p>
                                                     <?php endif; ?>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                                                <div class="col-span-2 flex items-center gap-2 text-xs text-slate-600">
+                                                    <span class="dashicons dashicons-calendar-alt"></span>
+                                                    <span class="font-bold uppercase tracking-wide"><?php esc_html_e( 'Data de envio', 'imovel-parceiro-core' ); ?></span>
+                                                    <span><?php echo esc_html( $vr_item['sent'] ); ?></span>
+                                                </div>
+                                            </div>
+                                            <footer class="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50 p-4">
+                                                <?php if ( 'pending' === $vr_item['status'] ) : ?>
+                                                    <button type="button" class="rounded-lg border border-emerald-300 bg-white px-2 py-2 text-xs font-bold text-emerald-700 approve-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
+                                                    <button type="button" class="rounded-lg border border-rose-300 bg-white px-2 py-2 text-xs font-bold text-rose-700 reject-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Rejeitar', 'imovel-parceiro-core' ); ?></button>
+                                                    <button type="button" class="col-span-2 rounded-lg border border-sky-300 bg-white px-2 py-2 text-xs font-bold text-sky-700 request-info-btn" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Solicitar informações', 'imovel-parceiro-core' ); ?></button>
+                                                <?php elseif ( 'approved' === $vr_item['status'] ) : ?>
+                                                    <button type="button" class="col-span-2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-600 revoke-approval" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Revogar', 'imovel-parceiro-core' ); ?></button>
+                                                <?php elseif ( 'rejected' === $vr_item['status'] || 'additional_info_required' === $vr_item['status'] ) : ?>
+                                                    <button type="button" class="col-span-2 rounded-lg border border-emerald-300 bg-white px-2 py-2 text-xs font-bold text-emerald-700 approve-request" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>"><?php esc_html_e( 'Aprovar', 'imovel-parceiro-core' ); ?></button>
+                                                <?php endif; ?>
+                                                <?php if ( $vr_item['has_api'] ) : ?>
+                                                    <form method="post" class="m-0">
+                                                        <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
+                                                        <input type="hidden" name="imovel_admin_section" value="verification_requests" />
+                                                        <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $vr_item['user_id'] ); ?>" />
+                                                        <input type="hidden" name="imovel_admin_imobisec_action" value="consult" />
+                                                        <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-600"><?php esc_html_e( 'Consultar', 'imovel-parceiro-core' ); ?></button>
+                                                    </form>
+                                                    <form method="post" class="col-span-2 m-0" onsubmit="return confirm('<?php echo esc_js( __( 'A verificação forte consome 2 créditos. Confirmar?', 'imovel-parceiro-core' ) ); ?>');">
+                                                        <?php wp_nonce_field( 'imovel_admin_update', '_imovel_admin_nonce' ); ?>
+                                                        <input type="hidden" name="imovel_admin_section" value="verification_requests" />
+                                                        <input type="hidden" name="imovel_admin_id" value="<?php echo esc_attr( $vr_item['user_id'] ); ?>" />
+                                                        <input type="hidden" name="imovel_admin_imobisec_action" value="strong" />
+                                                        <button type="submit" class="w-full rounded-lg border border-amber-300 bg-white px-2 py-2 text-xs font-bold text-amber-600">
+                                                            <span class="dashicons dashicons-shield-alt"></span>
+                                                            <?php esc_html_e( 'Verificação forte', 'imovel-parceiro-core' ); ?>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </footer>
+                                        </article>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
 
+                            <!-- Paginação -->
                             <?php if ( $verification_total_pages > 1 ) : ?>
-                                <div style="margin-top:20px; display:flex; justify-content:flex-end;">
-                                    <?php
-                                    $pagination_base = add_query_arg(
-                                        array(
-                                            'imovel_admin_section' => $current_section,
-                                            'imovel_admin_action' => 'list',
-                                            'imovel_admin_per_page' => $per_page,
-                                            'imovel_admin_paged' => '%#%',
-                                            'imovel_admin_verification_status' => $verification_status_filter,
-                                        ),
-                                        $dashboard_url
-                                    );
-                                    echo paginate_links(
-                                        array(
-                                            'base' => $pagination_base,
-                                            'format' => '',
-                                            'current' => $current_page,
-                                            'total' => $verification_total_pages,
-                                            'prev_text' => '«',
-                                            'next_text' => '»',
-                                        )
-                                    );
-                                    ?>
+                                <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <p class="m-0 text-xs text-slate-500">
+                                        <?php
+                                        $vr_from = (int) $verification_offset + 1;
+                                        $vr_to   = (int) $verification_offset + count( $vr_items );
+                                        echo esc_html( sprintf( __( 'Mostrando %d a %d de %d itens', 'imovel-parceiro-core' ), $vr_from, $vr_to, $vr_total ) );
+                                        ?>
+                                    </p>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-slate-500" for="ipc-vr-per-page"><?php esc_html_e( 'Itens por página:', 'imovel-parceiro-core' ); ?></label>
+                                        <select id="ipc-vr-per-page" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                                            <?php foreach ( array( 10, 20, 50, 100 ) as $vr_pp ) : ?>
+                                                <option value="<?php echo esc_attr( $vr_pp ); ?>" <?php selected( (int) $per_page, $vr_pp ); ?>><?php echo esc_html( $vr_pp ); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <?php
+                                        $vr_page_url = function ( $vr_num ) use ( $dashboard_url, $current_section, $per_page, $verification_status_filter ) {
+                                            return add_query_arg(
+                                                array(
+                                                    'imovel_admin_section' => $current_section,
+                                                    'imovel_admin_action' => 'list',
+                                                    'imovel_admin_per_page' => $per_page,
+                                                    'imovel_admin_paged' => $vr_num,
+                                                    'imovel_admin_verification_status' => $verification_status_filter,
+                                                ),
+                                                $dashboard_url
+                                            );
+                                        };
+                                        ?>
+                                        <?php if ( $current_page > 1 ) : ?>
+                                            <a href="<?php echo esc_url( $vr_page_url( $current_page - 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Anterior', 'imovel-parceiro-core' ); ?></a>
+                                        <?php endif; ?>
+                                        <?php for ( $vr_p = 1; $vr_p <= (int) $verification_total_pages; $vr_p++ ) : ?>
+                                            <a href="<?php echo esc_url( $vr_page_url( $vr_p ) ); ?>" class="rounded-lg px-3 py-1.5 text-xs font-bold no-underline <?php echo $vr_p === (int) $current_page ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'; ?>"><?php echo esc_html( $vr_p ); ?></a>
+                                        <?php endfor; ?>
+                                        <?php if ( $current_page < (int) $verification_total_pages ) : ?>
+                                            <a href="<?php echo esc_url( $vr_page_url( $current_page + 1 ) ); ?>" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 no-underline"><?php esc_html_e( 'Próximo', 'imovel-parceiro-core' ); ?></a>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
+
+                <script>
+                ( function () {
+                    var root = document.querySelector( '.ipc-vr' );
+                    if ( ! root ) { return; }
+                    var search  = root.querySelector( '#ipc-vr-search' );
+                    var status  = root.querySelector( '#ipc-vr-status' );
+                    var doc     = root.querySelector( '#ipc-vr-doc' );
+                    var api     = root.querySelector( '#ipc-vr-api' );
+                    var perPage = root.querySelector( '#ipc-vr-per-page' );
+                    var counter = root.querySelector( '[data-ipc-vr-count]' );
+                    var items   = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-item]' ) );
+                    var emptyEls = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-empty]' ) );
+                    var pills   = Array.prototype.slice.call( root.querySelectorAll( '.ipc-vr-pill' ) );
+
+                    function norm( value ) {
+                        return String( value || '' ).toLowerCase().trim();
+                    }
+
+                    function apply( pill ) {
+                        var term = norm( search ? search.value : '' );
+                        var st   = status ? status.value : '';
+                        var dc   = doc ? doc.value : '';
+                        var ap   = api ? api.value : '';
+                        var shown = 0;
+
+                        items.forEach( function ( el ) {
+                            var visible = true;
+                            if ( term && norm( el.getAttribute( 'data-search' ) ).indexOf( term ) === -1 ) { visible = false; }
+                            if ( st && el.getAttribute( 'data-status' ) !== st ) { visible = false; }
+                            if ( ap && el.getAttribute( 'data-api' ) !== ap ) { visible = false; }
+                            if ( dc ) {
+                                var type = norm( el.getAttribute( 'data-doc' ) );
+                                if ( dc === 'creci' && type.indexOf( 'creci' ) === -1 ) { visible = false; }
+                                if ( dc === 'rg' && type.indexOf( 'rg' ) === -1 && type.indexOf( 'identidade' ) === -1 ) { visible = false; }
+                                if ( dc === 'cpf' && type.indexOf( 'cpf' ) === -1 ) { visible = false; }
+                            }
+                            if ( pill === 'approved' && el.getAttribute( 'data-status' ) !== 'approved' ) { visible = false; }
+                            if ( pill === 'pending' && el.getAttribute( 'data-status' ) !== 'pending' ) { visible = false; }
+                            if ( pill === 'creci' && norm( el.getAttribute( 'data-doc' ) ).indexOf( 'creci' ) === -1 ) { visible = false; }
+                            el.style.display = visible ? '' : 'none';
+                            if ( visible ) { shown++; }
+                        } );
+
+                        emptyEls.forEach( function ( el ) { el.style.display = shown ? 'none' : ''; } );
+                        if ( counter ) {
+                            counter.textContent = '<?php echo esc_js( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ) ); ?>'.replace( '%d', shown ).replace( '%d', items.length );
+                        }
+                    }
+
+                    function clearAll() {
+                        if ( search ) { search.value = ''; }
+                        if ( status ) { status.value = ''; }
+                        if ( doc ) { doc.value = ''; }
+                        if ( api ) { api.value = ''; }
+                        apply( '' );
+                    }
+
+                    if ( search ) { search.addEventListener( 'input', function () { apply( '' ); } ); }
+                    [ status, doc, api ].forEach( function ( sel ) {
+                        if ( sel ) { sel.addEventListener( 'change', function () { apply( '' ); } ); }
+                    } );
+                    var applyBtn = root.querySelector( '#ipc-vr-apply' );
+                    if ( applyBtn ) { applyBtn.addEventListener( 'click', function () { apply( '' ); } ); }
+                    var clearBtn = root.querySelector( '#ipc-vr-clear' );
+                    if ( clearBtn ) { clearBtn.addEventListener( 'click', clearAll ); }
+                    pills.forEach( function ( pill ) {
+                        pill.addEventListener( 'click', function () {
+                            pills.forEach( function ( p ) { p.classList.remove( 'bg-slate-900', 'text-white' ); } );
+                            pill.classList.add( 'bg-slate-900', 'text-white' );
+                            if ( status ) { status.value = ''; }
+                            apply( pill.getAttribute( 'data-pill' ) );
+                        } );
+                    } );
+                    if ( perPage ) {
+                        perPage.addEventListener( 'change', function () {
+                            var url = new URL( window.location.href );
+                            url.searchParams.set( 'imovel_admin_per_page', perPage.value );
+                            url.searchParams.set( 'imovel_admin_paged', '1' );
+                            window.location.href = url.toString();
+                        } );
+                    }
+                } )();
+                </script>
+
 
                 <!-- Modals for Verification Actions -->
                 <!-- Rejection Modal -->

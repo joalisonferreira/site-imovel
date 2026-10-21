@@ -6,6 +6,7 @@ module.exports = {
     "./inc/**/*.php",
     "./assets/js/**/*.js",
     "./functions.php",
+    "../../plugins/imovel-parceiro-core/**/*.php",
   ],
   corePlugins: {
     preflight: false,
