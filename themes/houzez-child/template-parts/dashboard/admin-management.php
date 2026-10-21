@@ -1091,10 +1091,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
             <?php } ?>
         </div>
     <?php else : ?>
-        <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-0 sm:p-6 shadow-sm">
+        <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-3 sm:p-6 shadow-sm">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                <h5 style="margin:0;"><?php echo esc_html( $selected_entity['label'] ); ?></h5>
                 <?php if ( 'verification_requests' !== $current_section ) : ?>
+                    <h5 style="margin:0;"><?php echo esc_html( $selected_entity['label'] ); ?></h5>
                     <?php if ( in_array( $current_section, array( 'agents', 'clients', 'owners' ), true ) ) : ?>
                         <button type="button" class="btn btn-primary" id="imovel-user-new-btn"><?php esc_html_e( 'Novo usuário', 'imovel-parceiro-core' ); ?></button>
                     <?php else : ?>
@@ -1230,7 +1230,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <div class="flex flex-wrap items-center gap-3">
-                                <h1 class="m-0 text-xl font-extrabold text-slate-900 lg:text-2xl"><?php esc_html_e( 'Verificação de usuários', 'imovel-parceiro-core' ); ?></h1>
+                                <h1 class="m-0 text-xl font-extrabold text-slate-900 md:text-2xl"><?php esc_html_e( 'Verificação de usuários', 'imovel-parceiro-core' ); ?></h1>
                                 <span class="rounded-full px-3 py-1 text-xs font-bold <?php echo $vr_pending > 0 ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'; ?>">
                                     <?php echo $vr_pending > 0 ? esc_html( sprintf( __( '%d pendentes', 'imovel-parceiro-core' ), $vr_pending ) ) : esc_html__( 'Todos revisados', 'imovel-parceiro-core' ); ?>
                                 </span>
@@ -1241,12 +1241,12 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
 
                     <!-- Métricas (carrossel no mobile, grade no desktop) -->
                     <div class="mt-5">
-                        <div class="flex items-center justify-between lg:hidden">
+                        <div class="flex items-center justify-between md:hidden">
                             <span class="text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Métricas principais', 'imovel-parceiro-core' ); ?></span>
                             <span class="text-xs text-slate-400"><?php esc_html_e( 'Arraste para o lado →', 'imovel-parceiro-core' ); ?></span>
                         </div>
-                        <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
-                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                        <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm md:min-w-0">
                                 <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Total de solicitações', 'imovel-parceiro-core' ); ?></p>
                                 <div class="mt-2 flex items-center justify-between gap-2">
                                     <div>
@@ -1258,7 +1258,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     </span>
                                 </div>
                             </div>
-                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm md:min-w-0">
                                 <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Aguardando revisão', 'imovel-parceiro-core' ); ?></p>
                                 <div class="mt-2 flex items-center justify-between gap-2">
                                     <div>
@@ -1270,7 +1270,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     </span>
                                 </div>
                             </div>
-                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm md:min-w-0">
                                 <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Aprovados', 'imovel-parceiro-core' ); ?></p>
                                 <div class="mt-2 flex items-center justify-between gap-2">
                                     <div>
@@ -1282,7 +1282,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                     </span>
                                 </div>
                             </div>
-                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:min-w-0">
+                            <div class="min-w-[160px] shrink-0 snap-start rounded-xl border border-slate-100 bg-white p-4 shadow-sm md:min-w-0">
                                 <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Informações necessárias', 'imovel-parceiro-core' ); ?></p>
                                 <div class="mt-2 flex items-center justify-between gap-2">
                                     <div>
@@ -1309,7 +1309,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
 
                     <!-- Cartão principal -->
                     <div class="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 lg:px-6">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 md:px-6">
                             <div class="flex items-center gap-3">
                                 <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
                                     <span class="dashicons dashicons-admin-users"></span>
@@ -1322,19 +1322,19 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"><?php echo esc_html( sprintf( __( 'Total de itens: %d', 'imovel-parceiro-core' ), $vr_total ) ); ?></span>
                         </div>
 
-                        <div class="p-4 lg:p-6">
+                        <div class="p-4 md:p-6">
                             <!-- Filtros -->
-                            <div class="grid gap-3 lg:grid-cols-12">
-                                <div class="lg:col-span-4">
+                            <div class="grid gap-3 md:grid-cols-12">
+                                <div class="md:col-span-4">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-search"><?php esc_html_e( 'Buscar', 'imovel-parceiro-core' ); ?></label>
                                     <div class="relative">
-                                        <span class="pointer-events-none absolute left-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-slate-400">
-                                            <span class="dashicons dashicons-search leading-none"></span>
+                                        <span class="ipc-vr-search-icon">
+                                            <span class="dashicons dashicons-search"></span>
                                         </span>
                                         <input type="search" id="ipc-vr-search" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-slate-400" placeholder="<?php esc_attr_e( 'Buscar por nome, e-mail ou CRECI...', 'imovel-parceiro-core' ); ?>" value="" />
                                     </div>
                                 </div>
-                                <div class="lg:col-span-2">
+                                <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-status"><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></label>
                                     <select id="ipc-vr-status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></option>
@@ -1344,7 +1344,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                         <option value="additional_info_required"><?php esc_html_e( 'Informação adicional', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
-                                <div class="lg:col-span-2">
+                                <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-doc"><?php esc_html_e( 'Documento', 'imovel-parceiro-core' ); ?></label>
                                     <select id="ipc-vr-doc" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos os documentos', 'imovel-parceiro-core' ); ?></option>
@@ -1353,7 +1353,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                         <option value="cpf"><?php esc_html_e( 'CPF', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
-                                <div class="lg:col-span-2">
+                                <div class="md:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-slate-600" for="ipc-vr-api"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></label>
                                     <select id="ipc-vr-api" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
                                         <option value=""><?php esc_html_e( 'Todos', 'imovel-parceiro-core' ); ?></option>
@@ -1362,16 +1362,16 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                         <option value="none"><?php esc_html_e( 'Não consultado', 'imovel-parceiro-core' ); ?></option>
                                     </select>
                                 </div>
-                                <div class="flex items-end gap-2 lg:col-span-2">
-                                    <button type="button" id="ipc-vr-apply" class="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
-                                    <button type="button" id="ipc-vr-clear" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
+                                <div class="flex items-end gap-2 md:col-span-2">
+                                    <button type="button" id="ipc-vr-apply" class="ipc-vr-apply flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"><?php esc_html_e( 'Filtrar', 'imovel-parceiro-core' ); ?></button>
+                                    <button type="button" id="ipc-vr-clear" class="ipc-vr-clear rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" title="<?php esc_attr_e( 'Limpar filtros', 'imovel-parceiro-core' ); ?>">
                                         <span class="dashicons dashicons-dashicon"></span>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- Filtros rápidos (mobile) -->
-                            <div class="mt-3 flex gap-2 overflow-x-auto lg:hidden">
+                            <div class="mt-3 flex gap-2 overflow-x-auto md:hidden">
                                 <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="all"><?php esc_html_e( 'Todos os pedidos', 'imovel-parceiro-core' ); ?></button>
                                 <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="approved"><?php echo esc_html( sprintf( __( 'Aprovados (%d)', 'imovel-parceiro-core' ), $vr_approved ) ); ?></button>
                                 <button type="button" class="ipc-vr-pill shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600" data-pill="pending"><?php echo esc_html( sprintf( __( 'Em análise (%d)', 'imovel-parceiro-core' ), $vr_pending ) ); ?></button>
@@ -1383,7 +1383,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </p>
 
                             <!-- Tabela (desktop) -->
-                            <div class="mt-4 hidden overflow-x-auto lg:block">
+                            <div class="ipc-vr-table-wrap mt-4 hidden overflow-x-auto md:block">
                                 <table class="w-full min-w-[1020px] border-collapse">
                                     <thead>
                                         <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -1404,7 +1404,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                             </tr>
                                         <?php else : ?>
                                             <?php foreach ( $vr_items as $vr_item ) : ?>
-                                                <tr class="border-b border-slate-100 align-top transition hover:bg-slate-50/60" data-ipc-vr-item data-search="<?php echo esc_attr( $vr_item['search'] ); ?>" data-status="<?php echo esc_attr( $vr_item['status'] ); ?>" data-doc="<?php echo esc_attr( $vr_item['doc_type'] ); ?>" data-api="<?php echo esc_attr( $vr_item['api_state'] ); ?>" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>">
+                                                <tr class="border-b border-slate-100 align-top transition hover:bg-slate-50/60" data-ipc-vr-item data-ipc-vr-row data-search="<?php echo esc_attr( $vr_item['search'] ); ?>" data-status="<?php echo esc_attr( $vr_item['status'] ); ?>" data-doc="<?php echo esc_attr( $vr_item['doc_type'] ); ?>" data-api="<?php echo esc_attr( $vr_item['api_state'] ); ?>" data-user-id="<?php echo esc_attr( $vr_item['user_id'] ); ?>">
                                                     <td class="px-3 py-3">
                                                         <div class="flex items-center gap-2">
                                                             <?php echo get_avatar( $vr_item['user_id'], 40 ); ?>
@@ -1486,7 +1486,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Cards (mobile) -->
-                            <div class="mt-4 space-y-3 lg:hidden">
+                            <div class="mt-4 space-y-3 md:hidden">
                                 <?php if ( empty( $vr_items ) ) : ?>
                                     <p data-ipc-vr-empty class="rounded-2xl border border-slate-100 bg-white px-4 py-8 text-center text-sm text-slate-500"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></p>
                                 <?php else : ?>
@@ -1628,6 +1628,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     var perPage = root.querySelector( '#ipc-vr-per-page' );
                     var counter = root.querySelector( '[data-ipc-vr-count]' );
                     var items   = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-item]' ) );
+                    // A tabela (desktop) e os cards (mobile) renderizam os MESMOS itens:
+                    // a contagem usa apenas as linhas da tabela para não duplicar.
+                    var rows    = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-row]' ) );
+                    var total   = rows.length;
                     var emptyEls = Array.prototype.slice.call( root.querySelectorAll( '[data-ipc-vr-empty]' ) );
                     var pills   = Array.prototype.slice.call( root.querySelectorAll( '.ipc-vr-pill' ) );
 
@@ -1657,12 +1661,12 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             if ( pill === 'pending' && el.getAttribute( 'data-status' ) !== 'pending' ) { visible = false; }
                             if ( pill === 'creci' && norm( el.getAttribute( 'data-doc' ) ).indexOf( 'creci' ) === -1 ) { visible = false; }
                             el.style.display = visible ? '' : 'none';
-                            if ( visible ) { shown++; }
+                            if ( visible && el.hasAttribute( 'data-ipc-vr-row' ) ) { shown++; }
                         } );
 
                         emptyEls.forEach( function ( el ) { el.style.display = shown ? 'none' : ''; } );
                         if ( counter ) {
-                            counter.textContent = '<?php echo esc_js( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ) ); ?>'.replace( '%d', shown ).replace( '%d', items.length );
+                            counter.textContent = '<?php echo esc_js( __( 'Mostrando %d de %d resultados com os filtros ativos.', 'imovel-parceiro-core' ) ); ?>'.replace( '%d', shown ).replace( '%d', total );
                         }
                     }
 
@@ -1684,8 +1688,10 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                     if ( clearBtn ) { clearBtn.addEventListener( 'click', clearAll ); }
                     pills.forEach( function ( pill ) {
                         pill.addEventListener( 'click', function () {
-                            pills.forEach( function ( p ) { p.classList.remove( 'bg-slate-900', 'text-white' ); } );
-                            pill.classList.add( 'bg-slate-900', 'text-white' );
+                            pills.forEach( function ( p ) {
+                                p.classList.remove( 'bg-slate-900', 'text-white', 'is-active' );
+                            } );
+                            pill.classList.add( 'bg-slate-900', 'text-white', 'is-active' );
                             if ( status ) { status.value = ''; }
                             apply( pill.getAttribute( 'data-pill' ) );
                         } );

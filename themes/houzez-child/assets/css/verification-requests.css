@@ -1,0 +1,75 @@
+/**
+ * Ajustes visuais da tela "Gestao > Verificacao".
+ *
+ * Este arquivo e uma rede de seguranca: as classes utilitarias do Tailwind
+ * vivem em dashboard.css, que e um ARTEFATO DE BUILD e pode estar defasado em
+ * producao. As regras abaixo tem especificidade maior (.ipc-vr .ipc-vr-*)
+ * e nao dependem do rebuild para o resultado visual correto.
+ */
+
+/* Botao Filtrar (verde de confirmacao) */
+.ipc-vr .ipc-vr-apply {
+    background-color: #059669;
+    border-color: #059669;
+    color: #fff;
+}
+
+.ipc-vr .ipc-vr-apply:hover,
+.ipc-vr .ipc-vr-apply:focus {
+    background-color: #047857;
+    border-color: #047857;
+    color: #fff;
+}
+
+/* Botao limpar filtros */
+.ipc-vr .ipc-vr-clear {
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+
+.ipc-vr .ipc-vr-clear:hover,
+.ipc-vr .ipc-vr-clear:focus {
+    background-color: #f8fafc;
+    color: #334155;
+}
+
+/* Icone de pesquisa: centralizado verticalmente dentro do campo */
+.ipc-vr .ipc-vr-search-icon {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.ipc-vr .ipc-vr-search-icon .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+/* Pílulas de filtro rápido: estado ativo */
+.ipc-vr .ipc-vr-pill.is-active {
+    background-color: #0f172a;
+    border-color: #0f172a;
+    color: #fff;
+}
+
+/* Tabela (desktop): mantém o scroll horizontal sem estourar o card */
+.ipc-vr .ipc-vr-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ipc-vr .ipc-vr-table-wrap table {
+    width: 100%;
+    min-width: 1020px;
+    border-collapse: collapse;
+}
