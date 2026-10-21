@@ -194,11 +194,14 @@ function houzez_child_enqueue_dashboard_assets() {
         );
     }
 
+    // Versao por data de modificacao: o JS do dashboard muda com frequencia e
+    // com versao fixa o browser servia o arquivo antigo.
+    $dashboard_js = get_stylesheet_directory() . '/assets/js/dashboard.js';
     wp_enqueue_script(
         'houzez-child-dashboard',
         get_stylesheet_directory_uri() . '/assets/js/dashboard.js',
         array(),
-        '1.0.0',
+        file_exists( $dashboard_js ) ? (string) filemtime( $dashboard_js ) : '1.0.0',
         true
     );
 }

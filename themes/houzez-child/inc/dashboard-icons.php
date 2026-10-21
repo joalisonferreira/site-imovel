@@ -91,7 +91,9 @@ function houzez_dash_icon( $name, $class = 'h-5 w-5' ) {
         return '';
     }
 
-    $class = preg_replace( '/[^A-Za-z0-9_\-\s]/', '', $class );
+    // Mantém o ponto (ex.: h-3.5) e os caracteres de valores arbitrários do Tailwind
+    // (ex.: w-[calc(100%-8px)]); remove o resto para não gerar classe inválida.
+    $class = preg_replace( '/[^A-Za-z0-9_\-\s\.\[\]\%\(\)\/]/', '', $class );
     if ( '' === $class ) {
         $class = 'h-5 w-5';
     }

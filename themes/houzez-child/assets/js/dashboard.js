@@ -184,11 +184,15 @@
               return;
             }
 
-            var item = btn.closest('.ipc-notification-item');
+            var item = btn.closest('.ipc-notification-item') || btn.closest('.ipc-notif-row');
             var host = (item && item.closest('li')) || item;
 
             if (host && host.parentNode) {
               if (btn.closest('.ipc-notifications-dropdown-panel')) {
+                host.parentNode.removeChild(host);
+                updateUnreadCount(result.data && result.data.unread_count);
+                toast('Notificação excluída.', 'success');
+              } else if (item && item.classList.contains('ipc-notif-row')) {
                 host.parentNode.removeChild(host);
                 updateUnreadCount(result.data && result.data.unread_count);
                 toast('Notificação excluída.', 'success');
@@ -260,7 +264,7 @@
               return;
             }
 
-            if (document.querySelector('.ipc-notifs-list')) {
+            if (document.querySelector('.ipc-notif-panel__body') || document.querySelector('.ipc-notifs-list')) {
               window.location.reload();
               return;
             }
@@ -286,7 +290,7 @@
   function ipcToast(message, type) {
     type = type || 'info';
     var toast = document.createElement('div');
-    toast.className = 'ipc-toast ipc-toast--' + type;
+    toast.className = 'ipc-toast ipc-toast--' + (type || '');
     toast.setAttribute('role', 'status');
     toast.textContent = String(message || '');
     document.body.appendChild(toast);
@@ -303,6 +307,193 @@
     }, 5200);
   }
 
+  /* ==========================================================================
+     Página de notificações — "marcar todas como lidas" reflete na lista
+     e clique no card marca a notificação como lida.
+     ========================================================================== */
+  (function () {
+    'use strict';
+
+    function list() {
+      return document.querySelector('.ipc-notif-panel__body');
+    }
+
+    // Reflete no DOM que todas as notificações foram lidas.
+    function markAllReadDom() {
+      var rows = document.querySelectorAll('.ipc-notif-row.is-unread');
+      Array.prototype.forEach.call(rows, function (row) {
+        row.classList.remove('is-unread');
+        row.classList.add('is-read');
+        var badge = row.querySelector('.ipc-notif-new');
+        if (badge && badge.parentNode) {
+          badge.parentNode.removeChild(badge);
+        }
+      });
+
+      var stat = document.querySelector('.ipc-notif-stat.is-alert .ipc-notif-stat__value');
+      if (stat) {
+        stat.textContent = '0';
+      }
+
+      var alertStat = document.querySelector('.ipc-notif-stat.is-alert');
+      if (alertStat) {
+        alertStat.classList.remove('is-alert');
+      }
+
+      var badgeTop = document.querySelector('.ipc-notifications-badge');
+      if (badgeTop) {
+        badgeTop.style.display = 'none';
+        badgeTop.textContent = '0';
+      }
+
+      var toggle = document.querySelector('.ipc-notifications-toggle');
+      if (toggle) {
+        toggle.classList.remove('has-unread');
+      }
+    }
+
+    // Reflete no DOM que uma notificação foi lida.
+    function markRowAsRead(row) {
+      if (!row || !row.classList.contains('is-unread')) {
+        return;
+      }
+
+      row.classList.remove('is-unread');
+      row.classList.add('is-read');
+
+      var badge = row.querySelector('.ipc-notif-new');
+      if (badge && badge.parentNode) {
+        badge.parentNode.removeChild(badge);
+      }
+
+      var stat = document.querySelector('.ipc-notif-stat.is-alert .ipc-notif-stat__value');
+      if (stat) {
+        var current = parseInt(stat.textContent, 10) || 0;
+        stat.textContent = String(Math.max(0, current - 1));
+      }
+    }
+
+    function markAllRead() {
+      var btn = document.querySelector('.ipc-notif-mark-all');
+      if (!btn || !window.ipcNotifications || !window.ipcNotifications.ajax_url) {
+        return;
+      }
+
+      btn.disabled = true;
+
+      var formData = new FormData();
+      formData.append('action', 'imovel_parceiro_notifications_mark_all_read');
+      formData.append('nonce', window.ipcNotifications.nonce);
+
+      fetch(window.ipcNotifications.ajax_url, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (result) {
+          if (!(result && result.success)) {
+            btn.disabled = false;
+            ipcToast((result && result.data && result.data.message) || 'Não foi possível marcar as notificações como lidas.', 'error');
+            return;
+          }
+
+          markAllReadDom();
+          ipcToast('Todas as notificações foram marcadas como lidas.', 'success');
+        })
+        .catch(function () {
+          btn.disabled = false;
+          ipcToast('Erro de comunicação com o servidor.', 'error');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.addEventListener('click', function (event) {
+        var btn = event.target.closest && event.target.closest('.ipc-notif-mark-all');
+        if (btn) {
+          event.preventDefault();
+          event.stopPropagation();
+          markAllRead();
+          return;
+        }
+
+        if (!list()) {
+          return;
+        }
+
+        // "Ler mensagem completa": expande o texto truncado do card.
+        var more = event.target.closest && event.target.closest('[data-ipc-notif-more]');
+        if (more) {
+          event.preventDefault();
+          event.stopPropagation();
+          var row = more.closest('.ipc-notif-row');
+          if (row) {
+            var expanded = row.classList.toggle('is-expanded');
+            more.textContent = expanded ? 'Mostrar menos' : 'Ler mensagem completa';
+          }
+          return;
+        }
+
+        // Clique no corpo do card (fora do link, da lixeira e do botão) navega.
+        var card = event.target.closest && event.target.closest('.ipc-notif-row');
+        if (!card) {
+          return;
+        }
+
+        // Clique no título: o plugin (notifications.js) marca como lida e navega.
+        // Aqui só refletimos o estado "lida" no card.
+        if (event.target.closest('.ipc-notif-row__link')) {
+          markRowAsRead(card);
+          return;
+        }
+
+        if (event.target.closest('a') || event.target.closest('.ipc-notification-delete')) {
+          return;
+        }
+
+        var link = card.querySelector('.ipc-notif-row__link');
+        if (link) {
+          link.click();
+          return;
+        }
+
+        var href = card.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      });
+
+      // O dropdown do sino (plugin) também marca tudo como lido: refletiu aqui.
+      document.addEventListener('ipc:notifications-marked-all', function () {
+        markAllReadDom();
+      });
+
+      // Mostra o botão "Ler mensagem completa" só quando o texto foi truncado.
+      var texts = document.querySelectorAll('[data-ipc-notif-text]');
+      Array.prototype.forEach.call(texts, function (text) {
+        var row = text.closest ? text.closest('.ipc-notif-row') : null;
+        if (!row) {
+          return;
+        }
+
+        row.classList.add('is-measuring');
+        var fullHeight = text.scrollHeight;
+        row.classList.remove('is-measuring');
+        var clampedHeight = text.offsetHeight;
+
+        if (fullHeight - clampedHeight > 4) {
+          var more = text.parentNode.querySelector('[data-ipc-notif-more]');
+          if (more) {
+            more.hidden = false;
+          }
+        }
+      });
+    });
+  })();
+
+
   function base64UrlToUint8Array(base64String) {
     var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -318,7 +509,7 @@
     document.addEventListener(
       'click',
       function (event) {
-        var btn = event.target.closest && event.target.closest('.ipc-notifications-enable-push');
+        var btn = event.target.closest && event.target.closest('.ipc-notifications-enable-push, .ipc-notif-enable-push');
         if (!btn) {
           return;
         }
@@ -400,7 +591,12 @@
             }).then(function (result) {
               if (result && result.success) {
                 toast('Notificações do navegador ativadas com sucesso.', 'success');
-                btn.textContent = 'Ativado';
+                var btnLabel = btn.querySelector('span');
+                if (btnLabel) {
+                  btnLabel.textContent = 'Ativado';
+                } else {
+                  btn.textContent = 'Ativado';
+                }
                 btn.classList.add('is-activated');
                 btn.setAttribute('aria-pressed', 'true');
                 return;

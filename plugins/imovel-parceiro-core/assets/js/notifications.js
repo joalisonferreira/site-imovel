@@ -112,6 +112,8 @@ jQuery(function($){
                 unreadCount = 0;
                 updateBadges();
                 refreshNotifications();
+                // Avisa a página de notificações para atualizar a lista.
+                document.dispatchEvent(new CustomEvent('ipc:notifications-marked-all'));
             }
         });
     }
