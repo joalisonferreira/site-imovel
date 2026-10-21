@@ -30,7 +30,9 @@ jQuery(function($){
                     'padding:12px 18px;font-size:14px;font-weight:500;box-shadow:0 12px 32px rgba(2,6,23,.35);' +
                     'opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center;z-index:10060}' +
                     '#ipc-contact-toast.ipc-show{opacity:1;transform:translateX(-50%) translateY(0)}' +
-                    '.ipc-contact-locked{opacity:.65;cursor:not-allowed}';
+                    '.ipc-contact-locked{opacity:.65;cursor:not-allowed}' +
+                    '.ipc-contact-locked .show-on-click{display:none !important}' +
+                    '.ipc-contact-locked .hide-on-click{display:inline !important}';
                 document.head.appendChild(style);
             }
             var el = document.getElementById('ipc-contact-toast');
@@ -114,6 +116,10 @@ jQuery(function($){
                     btn.setAttribute('aria-disabled', 'true');
                 });
                 Array.prototype.forEach.call(box.querySelectorAll('a'), function (link) {
+                    // O tema revela o telefone via CSS (:focus) — remove o span do número.
+                    Array.prototype.forEach.call(link.querySelectorAll('.show-on-click'), function (span) {
+                        span.parentNode.removeChild(span);
+                    });
                     if (!link.getAttribute('href') || link.getAttribute('href') === '#') {
                         return;
                     }
