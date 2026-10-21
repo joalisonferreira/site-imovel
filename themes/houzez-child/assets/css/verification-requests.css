@@ -94,6 +94,20 @@
     line-height: 1;
 }
 
+/* Link do tipo de documento no card: clicavel para abrir o documento enviado */
+.ipc-vr .ipc-vr-doc-link {
+    color: #334155;
+    text-decoration: underline;
+    text-decoration-color: #cbd5e1;
+    text-underline-offset: 3px;
+}
+
+.ipc-vr .ipc-vr-doc-link:hover,
+.ipc-vr .ipc-vr-doc-link:focus {
+    color: #dc2626;
+    text-decoration-color: #dc2626;
+}
+
 /* Pílulas de filtro rápido: estado ativo */
 .ipc-vr .ipc-vr-pill.is-active {
     background-color: #0f172a;

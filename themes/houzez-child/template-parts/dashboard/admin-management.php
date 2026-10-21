@@ -1600,7 +1600,11 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                                                 </div>
                                                 <div class="rounded-xl bg-slate-50 p-3">
                                                     <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'Tipo de documento', 'imovel-parceiro-core' ); ?></p>
-                                                    <p class="m-0 mt-1 truncate text-sm font-semibold lowercase text-slate-700"><?php echo esc_html( $vr_item['doc_type'] ); ?></p>
+                                                    <?php if ( '' !== $vr_item['doc_url'] ) : ?>
+                                                        <a href="<?php echo esc_url( $vr_item['doc_url'] ); ?>" class="view-document-btn ipc-vr-doc-link m-0 mt-1 block truncate cursor-pointer text-sm font-semibold lowercase text-slate-700" data-document-url="<?php echo esc_url( $vr_item['doc_url'] ); ?>" data-document-title="<?php echo esc_attr( $vr_item['doc_type'] ); ?>"><?php echo esc_html( $vr_item['doc_type'] ); ?></a>
+                                                    <?php else : ?>
+                                                        <p class="m-0 mt-1 truncate text-sm font-semibold lowercase text-slate-700"><?php echo esc_html( $vr_item['doc_type'] ); ?></p>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div class="rounded-xl bg-slate-50 p-3 <?php echo $vr_item['has_api'] ? 'col-span-2' : ''; ?>">
                                                     <p class="m-0 text-xs font-bold uppercase tracking-wide text-slate-500"><?php esc_html_e( 'CRECI (API)', 'imovel-parceiro-core' ); ?></p>
