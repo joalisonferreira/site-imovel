@@ -1473,7 +1473,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </p>
 
                             <!-- Tabela (desktop) -->
-                            <div class="ipc-vr-table-wrap mt-4 hidden overflow-x-auto md:block">
+                            <div class="ipc-vr-table-wrap mt-4 hidden overflow-x-auto">
                                 <table class="w-full min-w-[1020px] border-collapse">
                                     <thead>
                                         <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -1576,7 +1576,7 @@ foreach ( $entity_configs as $ipc_key => $ipc_config ) {
                             </div>
 
                             <!-- Cards (mobile) -->
-                                <div class="ipc-vr-cards mt-4 space-y-3 md:hidden">
+                                <div class="ipc-vr-cards mt-4 space-y-3">
                                 <?php if ( empty( $vr_items ) ) : ?>
                                     <p data-ipc-vr-empty class="rounded-2xl border border-slate-100 bg-white px-4 py-8 text-center text-sm text-slate-500"><?php esc_html_e( 'Nenhuma solicitação de verificação encontrada.', 'imovel-parceiro-core' ); ?></p>
                                 <?php else : ?>
