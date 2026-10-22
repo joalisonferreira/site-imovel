@@ -611,11 +611,17 @@ class Imovel_Parceiro_Free_Plan_Expiration {
      * Data de término da assinatura gratuita (timestamp).
      *
      * Ordem de confiança:
-     *  1. 'end'      — data que o próprio WCS gravou ao entrar em
-     *                   'pending-cancel' (já é início + validade);
-     *  2. 'next_payment' — data da próxima cobrança (produto gratuito roda
+     *  1. meta '_imovel_parceiro_free_plan_expires_at' — data de término
+     *     gravada pelo próprio plugin (é a validade real do plano);
+     *  2. 'end'      — data que o próprio WCS gravou ao entrar em
+     *                   'pending-cancel' (já é início + validade). Ignorada
+     *                   quando a assinatura está cancelada/expirada, porque
+     *                   nesses status o WCS sobrescreve esse campo com o
+     *                   momento do cancelamento (o que faria o plano parecer
+     *                   vencido antes da hora);
+     *  3. 'next_payment' — data da próxima cobrança (produto gratuito roda
      *                   com intervalo de 3 meses = início + validade);
-     *  3. 'start' + validade do pacote — recálculo quando não há datas.
+     *  4. 'start' + validade do pacote — recálculo quando não há datas.
      *
      * @param WC_Subscription $subscription
      * @param int              $package_id
@@ -628,21 +634,29 @@ class Imovel_Parceiro_Free_Plan_Expiration {
 
         $package_id = $package_id ? absint( $package_id ) : $this->package_id_for_subscription( $subscription );
 
-        $end = $this->date_timestamp( $subscription, 'end' );
-        if ( $end ) {
-            return $end;
-        }
-
-        $next = $this->date_timestamp( $subscription, 'next_payment' );
-        if ( $next ) {
-            return $next;
-        }
-
+        // 1) Data de término registrada pelo plugin.
         $stored = absint( $subscription->get_meta( self::EXPIRES_META ) );
         if ( $stored ) {
             return $stored;
         }
 
+        $status = $subscription->get_status();
+
+        // 2) Data de término que o WooCommerce gravou (pending-cancel).
+        if ( ! in_array( $status, array( 'cancelled', 'expired', 'trash' ), true ) ) {
+            $end = $this->date_timestamp( $subscription, 'end' );
+            if ( $end ) {
+                return $end;
+            }
+        }
+
+        // 3) Próxima cobrança (ciclo de 3 meses do plano gratuito).
+        $next = $this->date_timestamp( $subscription, 'next_payment' );
+        if ( $next && $next > time() ) {
+            return $next;
+        }
+
+        // 4) Início da assinatura + validade definida no pacote.
         $start = $this->date_timestamp( $subscription, 'start' );
         if ( $start ) {
             return $this->add_validity( $start, $package_id );
