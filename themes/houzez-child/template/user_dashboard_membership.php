@@ -61,10 +61,17 @@ get_template_part( 'template-parts/dashboard/sidebar' );
                     $ends_on = $subscription->get_date( 'end', 'site' );
                     $next_payment = $subscription->get_date( 'next_payment', 'site' );
                     $status = $subscription->get_status();
+                    $is_free_plan = class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' )
+                        && Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::is_free_package( $package_id );
                     $status_labels = array(
                         'active' => __( 'Ativa', 'imovel-parceiro-core' ),
                         'pending-cancel' => __( 'Cancelamento agendado', 'imovel-parceiro-core' ),
                     );
+                    if ( $is_free_plan ) {
+                        // No plano gratuito o "pending-cancel" é a expiração
+                        // natural do período de uso, não um cancelamento.
+                        $status_labels['pending-cancel'] = __( 'Ativa', 'imovel-parceiro-core' );
+                    }
                     $billing_cycle = function_exists( 'wcs_get_subscription_period_strings' )
                         ? wcs_get_subscription_period_strings( $subscription->get_billing_interval(), $subscription->get_billing_period() )
                         : $subscription->get_billing_interval() . ' ' . $subscription->get_billing_period();
@@ -72,6 +79,10 @@ get_template_part( 'template-parts/dashboard/sidebar' );
                     $subscription_actions = function_exists( 'wcs_get_all_user_actions_for_subscription' )
                         ? wcs_get_all_user_actions_for_subscription( $subscription, get_current_user_id() )
                         : array();
+                    if ( $is_free_plan ) {
+                        // Reativar reiniciaria o ciclo de 3 meses do plano gratuito.
+                        unset( $subscription_actions['reactivate'] );
+                    }
                     $action_labels = array(
                         'cancel' => __( 'Cancelar assinatura', 'imovel-parceiro-core' ),
                         'suspend' => __( 'Suspender assinatura', 'imovel-parceiro-core' ),
@@ -89,10 +100,10 @@ get_template_part( 'template-parts/dashboard/sidebar' );
                         <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Status', 'imovel-parceiro-core' ); ?></span><span class="dashboard-label <?php echo 'active' === $status ? 'bg-success' : 'bg-warning'; ?>"><?php echo esc_html( $status_labels[ $status ] ?? $status ); ?></span></li>
                         <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Assinatura', 'imovel-parceiro-core' ); ?></span><span>#<?php echo esc_html( $subscription->get_id() ); ?></span></li>
                         <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Ciclo de cobrança', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( $billing_cycle ); ?></span></li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Valor recorrente', 'imovel-parceiro-core' ); ?></span><strong><?php echo wp_kses_post( wc_price( $subscription->get_total() ) ); ?></strong></li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Valor recorrente', 'imovel-parceiro-core' ); ?></span><strong><?php echo $is_free_plan ? esc_html__( 'Gratuito', 'imovel-parceiro-core' ) : wp_kses_post( wc_price( $subscription->get_total() ) ); ?></strong></li>
                         <li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Método de pagamento', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( $subscription->get_payment_method_title() ); ?></span></li>
                         <?php if ( $next_payment ) : ?><li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Próxima cobrança', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $next_payment ) ) ); ?></span></li><?php endif; ?>
-                        <?php if ( $ends_on ) : ?><li class="list-group-item d-flex justify-content-between align-items-center"><span><?php esc_html_e( 'Termina em', 'imovel-parceiro-core' ); ?></span><span><?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $ends_on ) ) ); ?></span></li><?php endif; ?>
+                        <?php if ( $ends_on ) : ?><li class="list-group-item d-flex justify-content-between align-items-center"><span><?php echo esc_html( $is_free_plan ? __( 'Expira em', 'imovel-parceiro-core' ) : __( 'Termina em', 'imovel-parceiro-core' ) ); ?></span><span><?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $ends_on ) ) ); ?></span></li><?php endif; ?>
                     </ul>
                     <div class="houzez-membership-btn mt-3 d-flex flex-wrap gap-2">
                         <a href="<?php echo esc_url( $manage_url ); ?>" class="btn btn-primary-outlined"><?php esc_html_e( 'Gerenciar assinatura', 'imovel-parceiro-core' ); ?></a>

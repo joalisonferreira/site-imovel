@@ -112,6 +112,16 @@ class Imovel_Parceiro_Subscriptions {
 
     public static function package_expiry_ts( $user_id, $package_id, $activation ) {
         $package_id = absint( $package_id );
+
+        // Planos gratuitos têm validade própria (ex.: 3 meses), definida no
+        // pacote — não no ciclo de cobrança do Houzez.
+        if ( class_exists( 'Imovel_Parceiro_Free_Plan_Expiration' ) && Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::is_free_package( $package_id ) ) {
+            $free_expiry = Imovel_Parceiro_Free_Plan_Expiration::expiry_for_user( $user_id, $package_id, $activation );
+            if ( $free_expiry ) {
+                return $free_expiry;
+            }
+        }
+
         $unit = absint( get_post_meta( $package_id, 'fave_billing_unit', true ) );
         $period = strtolower( (string) get_post_meta( $package_id, 'fave_billing_time_unit', true ) );
         if ( ! $unit || ! $period ) {
@@ -258,6 +268,40 @@ class Imovel_Parceiro_Subscriptions {
         $billing = self::billing_type_for_user( $user_id );
         $recurring = (int) get_user_meta( $user_id, 'houzez_is_recurring_membership', true );
         $payment_method = get_user_meta( $user_id, 'houzez_payment_method', true );
+
+        // Plano gratuito: prazo definido, sem renovação automática.
+        $is_free = class_exists( 'Imovel_Parceiro_Houzez_WooCommerce_Subscriptions' )
+            && Imovel_Parceiro_Houzez_WooCommerce_Subscriptions::is_free_package( $package_id );
+
+        if ( $is_free ) {
+            $subject = __( 'Seu plano gratuito está terminando', 'imovel-parceiro-core' );
+
+            $lines = array(
+                sprintf( __( 'Olá, %s!', 'imovel-parceiro-core' ), $user->display_name ),
+                '',
+                sprintf( __( 'O período de acesso do plano gratuito "%s" está terminando.', 'imovel-parceiro-core' ), $package_name ),
+                '',
+                '📅 ' . __( 'Data de término: ', 'imovel-parceiro-core' ) . date_i18n( get_option( 'date_format' ), $expiry_ts ),
+                '⏳ ' . __( 'Faltam aproximadamente 5 dias para o seu plano gratuito expirar.', 'imovel-parceiro-core' ),
+                '',
+                __( 'O plano gratuito tem prazo de uso definido e não se renova automaticamente. Nenhuma cobrança será feita.', 'imovel-parceiro-core' ),
+                '',
+                __( 'Se quiser continuar anunciando depois dessa data, escolha um plano:', 'imovel-parceiro-core' ),
+                Imovel_Parceiro_Subscriptions::plans_url(),
+                '',
+                __( 'Os imóveis que você já publicou continuam no ar.', 'imovel-parceiro-core' ),
+                '',
+                __( 'Atenciosamente,', 'imovel-parceiro-core' ),
+                __( 'Equipe Imóvel Parceiro', 'imovel-parceiro-core' ),
+            );
+
+            $body = implode( "\n", $lines );
+
+            if ( function_exists( 'houzez_send_emails' ) ) {
+                return (bool) houzez_send_emails( $user->user_email, $subject, $body );
+            }
+            return (bool) wp_mail( $user->user_email, $subject, $body );
+        }
 
         $subject = __( 'Sua assinatura está próxima do vencimento', 'imovel-parceiro-core' );
 

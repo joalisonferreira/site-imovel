@@ -573,9 +573,20 @@ class Imovel_Parceiro_Houzez_WooCommerce_Subscriptions {
             }
             foreach ( $subscription->get_items() as $item ) {
                 $package_id = absint( get_post_meta( $item->get_product_id(), self::PRODUCT_PACKAGE_META, true ) );
-                if ( $package_id ) {
-                    return $package_id;
+                if ( ! $package_id ) {
+                    continue;
                 }
+                // Plano gratuito com prazo de uso: quando a validade termina,
+                // a assinatura deixa de valer mesmo que o WooCommerce ainda a
+                // marque como ativa (ou como cancelamento agendado).
+                if (
+                    self::is_free_package( $package_id )
+                    && class_exists( 'Imovel_Parceiro_Free_Plan_Expiration' )
+                    && Imovel_Parceiro_Free_Plan_Expiration::is_subscription_expired( $subscription )
+                ) {
+                    continue 2;
+                }
+                return $package_id;
             }
         }
         return 0;

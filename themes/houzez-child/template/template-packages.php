@@ -361,7 +361,55 @@ foreach ( $plans_groups['table'] as $table_plan ) {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                     </button>
                     <div class="ipc-faq-content" hidden>
-                        O plano gratuito tem duração integral de 3 meses. Você pode cadastrar imóveis ilimitados, usar 5 destaques e 15 fotos por propriedade, sem precisar informar dados de pagamento na ativação.
+                        <?php
+                        // Texto do FAQ montado com os dados reais do pacote gratuito.
+                        $ipc_free_plan = null;
+                        foreach ( array( 'agent', 'agency', 'table' ) as $ipc_group ) {
+                            if ( empty( $plans_groups[ $ipc_group ] ) || ! is_array( $plans_groups[ $ipc_group ] ) ) {
+                                continue;
+                            }
+                            foreach ( $plans_groups[ $ipc_group ] as $ipc_plan ) {
+                                if ( ! empty( $ipc_plan['is_free'] ) ) {
+                                    $ipc_free_plan = $ipc_plan;
+                                    break 2;
+                                }
+                            }
+                        }
+
+                        if ( $ipc_free_plan ) {
+                            $ipc_validity = ! empty( $ipc_free_plan['validity_label'] )
+                                ? $ipc_free_plan['validity_label']
+                                : __( '3 meses de acesso', 'imovel-parceiro-core' );
+
+                            if ( ! empty( $ipc_free_plan['unlimited'] ) ) {
+                                $ipc_listings = __( 'imóveis ilimitados', 'imovel-parceiro-core' );
+                            } else {
+                                $ipc_listings = sprintf(
+                                    __( '%d imóveis', 'imovel-parceiro-core' ),
+                                    (int) $ipc_free_plan['listings']
+                                );
+                            }
+
+                            $ipc_featured = ! empty( $ipc_free_plan['featured'] )
+                                ? sprintf( __( '%d destaques', 'imovel-parceiro-core' ), (int) $ipc_free_plan['featured'] )
+                                : __( 'sem destaques', 'imovel-parceiro-core' );
+
+                            $ipc_images = ! empty( $ipc_free_plan['images'] )
+                                ? sprintf( __( '%d fotos por propriedade', 'imovel-parceiro-core' ), (int) $ipc_free_plan['images'] )
+                                : __( 'sem limite de fotos por propriedade', 'imovel-parceiro-core' );
+
+                            printf(
+                                /* translators: 1: validade do plano, 2: limite de imóveis, 3: destaques, 4: fotos. */
+                                esc_html__( 'O plano gratuito tem duração integral de %1$s. Você pode cadastrar %2$s, usar %3$s e %4$s, sem precisar informar dados de pagamento na ativação. O período é contado a partir da contratação e o plano não se renova automaticamente.', 'imovel-parceiro-core' ),
+                                esc_html( $ipc_validity ),
+                                esc_html( $ipc_listings ),
+                                esc_html( $ipc_featured ),
+                                esc_html( $ipc_images )
+                            );
+                        } else {
+                            esc_html_e( 'O plano gratuito tem duração integral de 3 meses, com imóveis ilimitados, sem precisar informar dados de pagamento na ativação.', 'imovel-parceiro-core' );
+                        }
+                        ?>
                     </div>
                 </div>
                 <div class="ipc-faq-item">
