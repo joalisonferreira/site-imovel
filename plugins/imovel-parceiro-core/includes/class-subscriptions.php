@@ -27,6 +27,31 @@ class Imovel_Parceiro_Subscriptions {
         add_action( 'woocommerce_order_status_completed', array( $this, 'on_payment_complete' ), 20, 1 );
         add_action( 'woocommerce_order_status_processing', array( $this, 'on_payment_complete' ), 20, 1 );
         add_action( 'houzez_after_user_membership_cancelled', array( $this, 'on_membership_cancelled' ), 10, 2 );
+        add_filter( 'wcs_view_subscription_actions', array( $this, 'filter_user_subscription_actions' ), 99, 3 );
+    }
+
+    /**
+     * Remove as acoes de suspender e reativar das assinaturas do usuario.
+     *
+     * O site nao oferece suspensao nem reativacao de assinatura: o usuario
+     * cancela (o acesso termina no fim do periodo pago) e reassina quando
+     * quiser voltar. Sem essa filtro, o WooCommerce Subscriptions exibe o
+     * botao de suspender (quando o gateway suporta) e o de reativar na tela
+     * nativa da assinatura.
+     *
+     * @param array           $actions
+     * @param WC_Subscription $subscription
+     * @param int             $user_id
+     * @return array
+     */
+    public function filter_user_subscription_actions( $actions, $subscription, $user_id ) {
+        if ( ! is_array( $actions ) ) {
+            return $actions;
+        }
+
+        unset( $actions['suspend'], $actions['reactivate'] );
+
+        return $actions;
     }
 
     public static function instance() {

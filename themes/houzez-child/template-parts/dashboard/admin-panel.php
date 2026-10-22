@@ -578,6 +578,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             'verification_requests' => __( 'Verificação', 'imovel-parceiro-core' ),
             'imobisec' => __( 'CRECI/Cofeci', 'imovel-parceiro-core' ),
             'packages' => __( 'Planos', 'imovel-parceiro-core' ),
+            'subscriptions' => __( 'Assinaturas', 'imovel-parceiro-core' ),
             'coupons' => __( 'Cupons', 'imovel-parceiro-core' ),
             'orcamentos' => __( 'Orçamentos', 'imovel-parceiro-core' ),
             'reviews' => __( 'Avaliações', 'imovel-parceiro-core' ),
@@ -604,6 +605,7 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
             ),
             __( 'Planos & conteúdo', 'imovel-parceiro-core' ) => array(
                 'packages' => array( 'package' ),
+                'subscriptions' => array( 'credit-card' ),
                 'coupons' => array( 'percent' ),
                 'orcamentos' => array( 'message-circle' ),
                 'reviews' => array( 'star' ),
@@ -673,6 +675,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                             <?php esc_html_e( 'Validação automática de CRECI via ImobiSec e revalidação periódica.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'orcamentos' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Acompanhe as solicitações de personalização enviadas pelos interessados em planos sob consulta.', 'imovel-parceiro-core' ); ?>
+                        <?php elseif ( 'subscriptions' === $current_management_section ) : ?>
+                            <?php esc_html_e( 'Consulte as assinaturas do site, os planos contratados e os prazos de vencimento.', 'imovel-parceiro-core' ); ?>
                         <?php elseif ( 'coupons' === $current_management_section ) : ?>
                             <?php esc_html_e( 'Crie e gerencie os cupons de desconto aplicáveis aos planos recorrentes.', 'imovel-parceiro-core' ); ?>
                         <?php else : ?>
@@ -715,6 +719,10 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                             <p class="ipc-admin-rail-label"><?php echo esc_html( $ipc_rail_label ); ?></p>
                             <?php foreach ( $ipc_rail_items as $ipc_rail_key => $ipc_rail_item_cfg ) : ?>
                                 <?php
+                                if ( 'subscriptions' === $ipc_rail_key
+                                    && ( ! class_exists( 'Imovel_Parceiro_Subscription_Management' ) || ! Imovel_Parceiro_Subscription_Management::can_manage() ) ) {
+                                    continue;
+                                }
                                 $ipc_rail_icon = $ipc_rail_item_cfg[0];
                                 $ipc_is_current = ( 'is-active' === ( $ipc_rail_item_cfg[1] ?? '' ) );
                                 if ( '' === $ipc_rail_key ) {
@@ -909,6 +917,8 @@ function imovel_parceiro_admin_humanize_details( $meta, $event_key = '' ) {
                 <?php Imovel_Parceiro_Package_Extras::render_dashboard_section(); ?>
             <?php elseif ( 'imobisec' === $current_management_section && class_exists( 'Imovel_Parceiro_ImobiSec' ) ) : ?>
                 <?php Imovel_Parceiro_ImobiSec::render_dashboard_section(); ?>
+            <?php elseif ( 'subscriptions' === $current_management_section && class_exists( 'Imovel_Parceiro_Subscription_Management' ) ) : ?>
+                <?php Imovel_Parceiro_Subscription_Management::render_dashboard_section(); ?>
             <?php else : ?>
                 <?php get_template_part( 'template-parts/dashboard/admin-management' ); ?>
             <?php endif; ?>

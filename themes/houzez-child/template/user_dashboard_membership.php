@@ -79,14 +79,11 @@ get_template_part( 'template-parts/dashboard/sidebar' );
                     $subscription_actions = function_exists( 'wcs_get_all_user_actions_for_subscription' )
                         ? wcs_get_all_user_actions_for_subscription( $subscription, get_current_user_id() )
                         : array();
-                    if ( $is_free_plan ) {
-                        // Reativar reiniciaria o ciclo de 3 meses do plano gratuito.
-                        unset( $subscription_actions['reactivate'] );
-                    }
+                    // O site nao oferece suspender nem reativar assinatura:
+                    // o usuario cancela e reassina quando quiser voltar.
+                    unset( $subscription_actions['suspend'], $subscription_actions['reactivate'] );
                     $action_labels = array(
                         'cancel' => __( 'Cancelar assinatura', 'imovel-parceiro-core' ),
-                        'suspend' => __( 'Suspender assinatura', 'imovel-parceiro-core' ),
-                        'reactivate' => __( 'Reativar assinatura suspensa', 'imovel-parceiro-core' ),
                         'resubscribe' => __( 'Reassinar', 'imovel-parceiro-core' ),
                         'pay' => __( 'Pagar renovação pendente', 'imovel-parceiro-core' ),
                         'change_payment_method' => __( 'Alterar método de pagamento', 'imovel-parceiro-core' ),
