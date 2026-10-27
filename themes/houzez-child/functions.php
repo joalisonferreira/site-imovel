@@ -246,8 +246,9 @@ function houzez_child_enqueue_auth_assets() {
         'houzez-child-auth',
         'ipcAuth',
         array(
-            'ajaxurl'   => admin_url( 'admin-ajax.php' ),
-            'redirects' => array(
+            'ajaxurl'     => admin_url( 'admin-ajax.php' ),
+            'creci_nonce' => wp_create_nonce( 'ipc_check_creci' ),
+            'redirects'   => array(
                 'houzez_owner'  => houzez_child_ipc_page_url( 'cadastrar-imovel' ),
                 'houzez_agent'  => houzez_child_ipc_page_url( 'pacotes' ),
                 'houzez_agency' => houzez_child_ipc_page_url( 'pacotes' ),

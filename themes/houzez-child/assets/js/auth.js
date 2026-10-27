@@ -341,6 +341,13 @@
                 }
                 return 'Informe um CRECI válido (somente números).';
             }
+            var uf = form.querySelector('select[name="imovel_creci_uf"]');
+            if (!uf || !/^[A-Za-z]{2}$/.test(String(uf.value || '').trim())) {
+                if (uf) {
+                    uf.classList.add('is-invalid');
+                }
+                return 'Informe a UF do CRECI (estado onde ele está registrado).';
+            }
         }
         return '';
     }
@@ -433,6 +440,119 @@
         if (loader) {
             loader.classList.toggle('loader-show', loading);
         }
+    }
+
+    /* ---------- validação de CRECI no próprio cadastro ---------- */
+    function creciTokenField(form) {
+        return form.querySelector('[data-ipc-wz-creci-token]');
+    }
+
+    function setCreciStatus(form, type, message) {
+        var box = form.querySelector('[data-ipc-wz-creci-status]');
+        if (!box) {
+            return;
+        }
+        if (!message) {
+            box.hidden = true;
+            box.textContent = '';
+            box.className = 'ipc-wz-help';
+            return;
+        }
+        box.hidden = false;
+        box.className = 'ipc-wz-help' + (type === 'error' ? ' ipc-wz-help--error' : (type === 'success' ? ' ipc-wz-help--ok' : ''));
+        box.textContent = message;
+    }
+
+    function clearCreciCheck(form) {
+        var token = creciTokenField(form);
+        if (token) {
+            token.value = '';
+            token.removeAttribute('data-creci-for');
+        }
+        setCreciStatus(form, '', '');
+    }
+
+    /**
+     * Consulta o CRECI ao sair do passo 2.
+     * `done('')` segue o wizard; mensagem = erro definitivo (bloqueia).
+     * Falha de rede/API nunca bloqueia o cadastro.
+     */
+    function checkCreci(form, done) {
+        var creci = form.querySelector('input[name="creci"]');
+        var uf = form.querySelector('select[name="imovel_creci_uf"]');
+        var token = creciTokenField(form);
+        var signature = (uf ? String(uf.value || '').trim().toUpperCase() : '') + '|' + (creci ? digits(creci.value) : '');
+
+        // Já validado para este mesmo CRECI/UF: não gasta outra consulta.
+        if (token && token.value && token.getAttribute('data-creci-for') === signature) {
+            done('');
+            return;
+        }
+
+        if (!window.jQuery || !window.ipcAuth || !window.ipcAuth.creci_nonce) {
+            done('');
+            return;
+        }
+
+        var btn = form.querySelector('[data-ipc-wz-next="3"]');
+        if (btn) {
+            btn.setAttribute('disabled', 'disabled');
+        }
+        var finish = function () {
+            if (btn) {
+                btn.removeAttribute('disabled');
+            }
+        };
+
+        setCreciStatus(form, '', 'Validando CRECI...');
+
+        var doc = form.querySelector('input[name="person_document"]');
+        var fullName = form.querySelector('input[name="ipc_full_name"]');
+
+        window.jQuery.ajax({
+            type: 'POST',
+            dataType: 'json',
+            url: ajaxUrl(),
+            timeout: 15000,
+            data: {
+                action: 'ipc_check_creci',
+                security: window.ipcAuth.creci_nonce,
+                role: checkedRole(form),
+                creci: creci ? digits(creci.value) : '',
+                imovel_creci_uf: uf ? String(uf.value || '').trim().toUpperCase() : '',
+                person_type: docType(form),
+                person_document: doc ? digits(doc.value) : '',
+                ipc_full_name: fullName ? fullName.value.trim() : ''
+            },
+            success: function (response) {
+                finish();
+                var data = (response && response.data) || {};
+                if (!response || !response.success) {
+                    var msg = data.msg || (response && response.msg) || 'Confira o CRECI informado.';
+                    if (data.field) {
+                        var field = form.querySelector('[name="' + data.field + '"]');
+                        if (field) {
+                            field.classList.add('is-invalid');
+                        }
+                    }
+                    setCreciStatus(form, 'error', msg);
+                    done(msg);
+                    return;
+                }
+                if (data.token && token) {
+                    token.value = data.token;
+                    token.setAttribute('data-creci-for', signature);
+                }
+                setCreciStatus(form, data.block ? 'error' : (data.code === 'ok' ? 'success' : ''), data.msg || '');
+                done(data.block ? (data.msg || 'Confira o CRECI informado.') : '');
+            },
+            error: function () {
+                finish();
+                clearCreciCheck(form);
+                setCreciStatus(form, '', 'Não foi possível validar o CRECI agora. Você pode continuar — a equipe fará a conferência.');
+                done('');
+            }
+        });
     }
 
     function formMessage(form, type, text) {
@@ -544,7 +664,25 @@
                         submitWizard(form, retry + 1);
                         return;
                     }
-                    formMessage(form, 'error', msg);
+                    var errData = (response && response.data) || {};
+                    var errStep = parseInt(errData.step, 10);
+                    if (errStep >= 1 && errStep <= 3) {
+                        showStep(form, errStep);
+                        showError(form, errStep, msg);
+                        if (errData.field) {
+                            var errField = form.querySelector('[name="' + errData.field + '"]');
+                            if (errField) {
+                                errField.classList.add('is-invalid');
+                                try {
+                                    errField.focus();
+                                } catch (e) {
+                                    /* noop */
+                                }
+                            }
+                        }
+                    } else {
+                        formMessage(form, 'error', msg);
+                    }
                 }
                 resetCaptcha(form);
                 setLoading(form, false);
@@ -635,6 +773,7 @@
             if (target.matches('input[name="role"]')) {
                 syncProfileUI(form);
                 showError(form, 1, '');
+                clearCreciCheck(form);
             }
             if (target.matches('[data-ipc-wz-doctype]')) {
                 var hidden = form.querySelector('[data-ipc-wz-person-type]');
@@ -642,6 +781,10 @@
                     hidden.value = target.value === 'cnpj' ? 'cnpj' : 'cpf';
                 }
                 syncProfileUI(form);
+                clearCreciCheck(form);
+            }
+            if (target.matches('select[name="imovel_creci_uf"]')) {
+                clearCreciCheck(form);
             }
         });
 
@@ -681,6 +824,19 @@
                     return;
                 }
                 showError(form, current, '');
+                // Corretor/imobiliária: valida o CRECI na base antes de seguir.
+                if (to === 3 && needsStep2(form) && AGENT_ROLES.indexOf(checkedRole(form)) !== -1) {
+                    checkCreci(form, function (blockMessage) {
+                        if (blockMessage) {
+                            showStep(form, 2);
+                            showError(form, 2, blockMessage);
+                            return;
+                        }
+                        showError(form, 2, '');
+                        showStep(form, 3);
+                    });
+                    return;
+                }
                 showStep(form, to);
                 return;
             }
@@ -717,6 +873,7 @@
                 if (creciDigits !== target.value) {
                     target.value = creciDigits;
                 }
+                clearCreciCheck(form);
             }
             if (target.matches('input[name="register_pass"]')) {
                 paintStrength(form);

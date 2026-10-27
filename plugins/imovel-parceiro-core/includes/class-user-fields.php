@@ -266,6 +266,15 @@ class Imovel_Parceiro_User_Fields {
             if ( self::license_taken( $creci ) ) {
                 $this->registration_error( __( 'Este CRECI já está cadastrado por outro usuário.', 'imovel-parceiro-core' ) );
             }
+
+            // UF é obrigatória: a consulta ImobiSec é por UF + número.
+            $uf = isset( $_POST['imovel_creci_uf'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_creci_uf'] ) ) : '';
+            $uf = class_exists( 'Imovel_Parceiro_ImobiSec' )
+                ? Imovel_Parceiro_ImobiSec::normalize_uf( $uf )
+                : strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', $uf ), 0, 2 ) );
+            if ( '' === $uf ) {
+                $this->registration_error( __( 'Informe a UF do CRECI (estado onde ele está registrado).', 'imovel-parceiro-core' ), 'imovel_creci_uf' );
+            }
         }
     }
 
@@ -311,13 +320,18 @@ class Imovel_Parceiro_User_Fields {
         return false;
     }
 
-    private function registration_error( $message ) {
-        echo json_encode(
-            array(
-                'success' => false,
-                'msg'     => $message,
-            )
+    private function registration_error( $message, $field = '' ) {
+        $payload = array(
+            'success' => false,
+            'msg'     => $message,
         );
+        if ( '' !== $field ) {
+            $payload['data'] = array(
+                'step'  => 2,
+                'field' => $field,
+            );
+        }
+        echo json_encode( $payload );
         wp_die();
     }
 
@@ -441,6 +455,16 @@ class Imovel_Parceiro_User_Fields {
 
         if ( '' !== $creci ) {
             update_user_meta( $user_id, self::LICENSE_META, $creci );
+        }
+
+        // UF do CRECI (necessária para a consulta ImobiSec).
+        $creci_uf = isset( $_POST['imovel_creci_uf'] ) ? sanitize_text_field( wp_unslash( $_POST['imovel_creci_uf'] ) ) : '';
+        $creci_uf = class_exists( 'Imovel_Parceiro_ImobiSec' )
+            ? Imovel_Parceiro_ImobiSec::normalize_uf( $creci_uf )
+            : strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', $creci_uf ), 0, 2 ) );
+        if ( '' !== $creci_uf ) {
+            $uf_meta = defined( 'Imovel_Parceiro_ImobiSec::UF_META' ) ? Imovel_Parceiro_ImobiSec::UF_META : 'imovel_parceiro_creci_uf';
+            update_user_meta( $user_id, $uf_meta, $creci_uf );
         }
 
         // Se o número é WhatsApp, preenche também o campo de WhatsApp.

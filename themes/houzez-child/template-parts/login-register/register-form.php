@@ -134,9 +134,26 @@ if ( ! $privacy_url ) {
                 <input id="ipc_wz_doc" type="text" name="person_document" inputmode="numeric" placeholder="000.000.000-00" />
             </div>
         </div>
-        <div class="ipc-wz-field" data-ipc-wz-creci-wrap="1" hidden>
-            <label for="ipc_wz_creci"><?php esc_html_e('CRECI', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
-            <input id="ipc_wz_creci" type="text" name="creci" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="<?php esc_attr_e('Ex: 123456', 'houzez'); ?>" />
+        <div data-ipc-wz-creci-wrap="1" hidden>
+            <div class="ipc-wz-grid">
+                <div class="ipc-wz-field">
+                    <label for="ipc_wz_creci"><?php esc_html_e('CRECI', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
+                    <input id="ipc_wz_creci" type="text" name="creci" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="<?php esc_attr_e('Ex: 123456', 'houzez'); ?>" />
+                </div>
+                <div class="ipc-wz-field">
+                    <label for="ipc_wz_creci_uf"><?php esc_html_e('UF do CRECI', 'houzez'); ?> <span class="ipc-wz-req">*</span></label>
+                    <select id="ipc_wz_creci_uf" name="imovel_creci_uf" autocomplete="off">
+                        <option value=""><?php esc_html_e('Selecione', 'houzez'); ?></option>
+                        <?php if ( class_exists('Imovel_Parceiro_ImobiSec') ) : ?>
+                            <?php foreach ( Imovel_Parceiro_ImobiSec::states() as $ipc_creci_uf ) : ?>
+                                <option value="<?php echo esc_attr($ipc_creci_uf); ?>"><?php echo esc_html($ipc_creci_uf); ?></option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                </div>
+            </div>
+            <input type="hidden" name="ipc_creci_token" value="" data-ipc-wz-creci-token="1" />
+            <p class="ipc-wz-help" data-ipc-wz-creci-status="1" hidden></p>
         </div>
         </div>
 

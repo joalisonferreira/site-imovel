@@ -45,6 +45,13 @@ class Imovel_Parceiro_ImobiSec {
     const CRON_HOOK       = 'imovel_parceiro_imobisec_revalidate';
     const REST_ROUTE      = 'imovel-parceiro/v1/imobisec-webhook';
 
+    /**
+     * Resultado da consulta feita no cadastro (cache por requisição).
+     *
+     * @var array|null
+     */
+    protected $registration_verdict = null;
+
     public function __construct() {
         // Captura UF + nascimento no envio (inicial e info adicional).
         add_action( 'houzez_before_verification_request', array( $this, 'capture_identity_fields' ), 10, 2 );
@@ -55,6 +62,12 @@ class Imovel_Parceiro_ImobiSec {
         // Auto-check após o envio da verificação.
         add_action( 'houzez_after_verification_request', array( $this, 'maybe_auto_check' ), 20, 2 );
         add_action( 'houzez_after_additional_info_submission', array( $this, 'maybe_auto_check' ), 20, 2 );
+
+        // Validação de CRECI direto no cadastro (wizard de registro).
+        add_action( 'wp_ajax_nopriv_ipc_check_creci', array( $this, 'ajax_check_creci' ) );
+        add_action( 'wp_ajax_ipc_check_creci', array( $this, 'ajax_check_creci' ) );
+        add_action( 'houzez_before_register', array( $this, 'validate_registration_creci' ), 20 );
+        add_action( 'houzez_after_register', array( $this, 'apply_registration_result' ), 20 );
 
         // Revalidação periódica + webhook.
         add_action( 'init', array( $this, 'maybe_schedule_cron' ) );
@@ -74,6 +87,18 @@ class Imovel_Parceiro_ImobiSec {
         );
     }
 
+    /**
+     * Normaliza a UF do CRECI (2 letras maiúsculas) ou retorna ''.
+     */
+    public static function normalize_uf( $uf ) {
+        $uf = strtoupper( trim( (string) $uf ) );
+        $uf = preg_replace( '/[^A-Z]/', '', $uf );
+        if ( 2 !== strlen( $uf ) ) {
+            return '';
+        }
+        return in_array( $uf, self::states(), true ) ? $uf : '';
+    }
+
     public static function defaults() {
         return array(
             'api_key'       => '',
@@ -86,6 +111,8 @@ class Imovel_Parceiro_ImobiSec {
             'mock_mode'     => 0,
             'webhook_secret'=> '',
             'last_credits'  => '',
+            'registration_check' => 1, // consulta o CRECI no passo 2 do cadastro
+            'registration_block' => 1, // bloqueia cadastro com CRECI inexistente/inativo
         );
     }
 
@@ -124,6 +151,14 @@ class Imovel_Parceiro_ImobiSec {
         }
         $out['min_credits'] = max( 0, absint( isset( $input['min_credits'] ) ? $input['min_credits'] : 0 ) );
         $out['mock_mode']   = ! empty( $input['mock_mode'] ) ? 1 : 0;
+        // Checkboxes: só atualiza quando o campo veio no POST (o formulário
+        // manda hidden 0 + checkbox 1), evitando zerar em salvamentos antigos.
+        if ( array_key_exists( 'registration_check', $input ) ) {
+            $out['registration_check'] = ! empty( $input['registration_check'] ) ? 1 : 0;
+        }
+        if ( array_key_exists( 'registration_block', $input ) ) {
+            $out['registration_block'] = ! empty( $input['registration_block'] ) ? 1 : 0;
+        }
         if ( ! empty( $input['regenerate_secret'] ) || '' === $current['webhook_secret'] ) {
             $out['webhook_secret'] = wp_generate_password( 32, false );
         }
@@ -147,7 +182,7 @@ class Imovel_Parceiro_ImobiSec {
     /* HTTP client                                                         */
     /* ------------------------------------------------------------------ */
 
-    protected function api_request( $method, $path, $body = null, $extra_headers = array() ) {
+    protected function api_request( $method, $path, $body = null, $extra_headers = array(), $timeout = 25 ) {
         $settings = self::settings();
         $url      = self::BASE_URL . $path;
 
@@ -163,7 +198,7 @@ class Imovel_Parceiro_ImobiSec {
         $args = array(
             'method'  => $method,
             'headers' => $headers,
-            'timeout' => 25,
+            'timeout' => max( 1, (int) $timeout ),
         );
         if ( null !== $body ) {
             $args['body'] = wp_json_encode( $body );
@@ -226,8 +261,13 @@ class Imovel_Parceiro_ImobiSec {
         return $base . '/' . rawurlencode( $state ) . '/' . rawurlencode( $number ) . '/' . rawurlencode( $type );
     }
 
-    public function get_creci( $state, $number, $type ) {
-        return $this->api_request( 'GET', $this->creci_path( $state, $number, $type ) );
+    public function get_creci( $state, $number, $type, $timeout = 25 ) {
+        // Fundo de teste/homologação: permite injetar a resposta sem rede.
+        $pre = apply_filters( 'imovel_parceiro_imobisec_pre_get_creci', null, $state, $number, $type );
+        if ( null !== $pre ) {
+            return $pre;
+        }
+        return $this->api_request( 'GET', $this->creci_path( $state, $number, $type ), null, array(), $timeout );
     }
 
     /**
@@ -350,6 +390,43 @@ class Imovel_Parceiro_ImobiSec {
         );
     }
 
+    /**
+     * Candidato a partir de dados brutos (cadastro, antes de existir usuário).
+     *
+     * @param array $data number, state, type (PF|PJ ou person_type), cpf, birth, name.
+     * @return array|WP_Error
+     */
+    public static function candidate_from_data( $data ) {
+        $data = is_array( $data ) ? $data : array();
+
+        $number = isset( $data['number'] ) ? preg_replace( '/\D/', '', (string) $data['number'] ) : '';
+        $number = ltrim( $number, '0' );
+        if ( '' === $number ) {
+            return new WP_Error( 'no_creci', __( 'Informe o CRECI (somente números).', 'imovel-parceiro-core' ) );
+        }
+
+        $state = self::normalize_uf( isset( $data['state'] ) ? $data['state'] : '' );
+        if ( '' === $state ) {
+            return new WP_Error( 'no_uf', __( 'Informe a UF do CRECI.', 'imovel-parceiro-core' ) );
+        }
+
+        $type_raw = strtoupper( trim( (string) ( isset( $data['type'] ) ? $data['type'] : '' ) ) );
+        $type     = ( 'PJ' === $type_raw || 'CNPJ' === $type_raw ) ? 'PJ' : 'PF';
+
+        $cpf   = isset( $data['cpf'] ) ? preg_replace( '/\D/', '', (string) $data['cpf'] ) : '';
+        $birth = isset( $data['birth'] ) ? trim( (string) $data['birth'] ) : '';
+        $name  = isset( $data['name'] ) ? trim( wp_strip_all_tags( (string) $data['name'] ) ) : '';
+
+        return array(
+            'number' => $number,
+            'state'  => $state,
+            'type'   => $type,
+            'cpf'    => ( 11 === strlen( $cpf ) ) ? $cpf : '',
+            'birth'  => preg_match( '/^\d{4}-\d{2}-\d{2}$/', $birth ) ? $birth : '',
+            'name'   => $name,
+        );
+    }
+
     /* ------------------------------------------------------------------ */
     /* UF + nascimento no envio da verificação                             */
     /* ------------------------------------------------------------------ */
@@ -460,6 +537,116 @@ class Imovel_Parceiro_ImobiSec {
             $label .= ( '' !== $label ? ' — ' : '' ) . $name;
         }
         return '' !== $label ? $label : '-';
+    }
+
+    /**
+     * Avalia a consulta do CRECI para o cadastro.
+     *
+     * Códigos: ok | name_mismatch | not_found | inactive | unavailable |
+     * denied | rate_limited | unexpected.
+     *
+     * `block` já considera a opção registration_block: só erros DEFINITIVOS
+     * bloqueiam (CRECI inexistente ou status que impede o exercício). Falha de
+     * rede, chave inválida, limite de requisições ou erro do servidor NUNCA
+     * bloqueiam — o cadastro segue e a equipe confere manualmente.
+     */
+    public static function evaluate_creci( $candidate, $res ) {
+        $settings = self::settings();
+        $code     = isset( $res['code'] ) ? (int) $res['code'] : 0;
+        $label    = sprintf( '%s/%s', isset( $candidate['number'] ) ? $candidate['number'] : '', isset( $candidate['state'] ) ? $candidate['state'] : '' );
+
+        $out = array(
+            'code'       => 'unexpected',
+            'block'      => false,
+            'msg'        => '',
+            'http'       => $code,
+            'api_status' => '',
+            'api_name'   => '',
+        );
+
+        if ( 0 === $code ) {
+            $out['code'] = 'unavailable';
+            $out['msg']  = __( 'Não foi possível consultar o CRECI agora. Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' );
+            return $out;
+        }
+
+        if ( 401 === $code || 403 === $code ) {
+            $out['code'] = 'denied';
+            $out['msg']  = __( 'A validação automática do CRECI está indisponível no momento. Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' );
+            return $out;
+        }
+
+        if ( 429 === $code ) {
+            $out['code'] = 'rate_limited';
+            $out['msg']  = __( 'Muitas consultas de CRECI em pouco tempo. Tente novamente em alguns minutos ou continue o cadastro para conferência manual.', 'imovel-parceiro-core' );
+            return $out;
+        }
+
+        if ( 404 === $code ) {
+            $out['code']  = 'not_found';
+            $out['block'] = ! empty( $settings['registration_block'] );
+            $out['msg']   = $out['block']
+                ? sprintf( __( 'CRECI %s não encontrado na base do CRECI. Confira o número e a UF antes de continuar.', 'imovel-parceiro-core' ), $label )
+                : sprintf( __( 'CRECI %s não encontrado na base do CRECI. Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' ), $label );
+            return $out;
+        }
+
+        if ( 200 !== $code || ! is_array( $res['data'] ) ) {
+            $out['code'] = 'unexpected';
+            $out['msg']  = sprintf(
+                __( 'Não foi possível validar o CRECI agora (HTTP %d). Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' ),
+                $code
+            );
+            return $out;
+        }
+
+        $data     = $res['data'];
+        $status   = strtoupper( trim( (string) ( isset( $data['status'] ) ? $data['status'] : '' ) ) );
+        $api_name = isset( $data['name'] ) ? trim( (string) $data['name'] ) : '';
+
+        $out['api_status'] = $status;
+        $out['api_name']   = $api_name;
+
+        if ( ! self::is_active_status( $status ) ) {
+            /**
+             * Status que impedem o cadastro como corretor/imobiliária. A lista
+             * pode ser ajustada por filtro (contorno para nomes de status
+             * diferentes no contrato da API).
+             */
+            $blocked_statuses = apply_filters(
+                'imovel_parceiro_registration_creci_blocked_statuses',
+                array( 'SUSPENSO', 'SUSPENDED', 'CANCELADO', 'CANCELLED', 'BAIXADO', 'INATIVO', 'INACTIVE', 'CASSADO' ),
+                $out
+            );
+            $is_blocked = in_array( $status, array_map( 'strtoupper', (array) $blocked_statuses ), true );
+
+            $out['code']  = 'inactive';
+            $out['block'] = $is_blocked && ! empty( $settings['registration_block'] );
+            $out['msg']   = $out['block']
+                ? sprintf(
+                    /* translators: 1: CRECI number/UF, 2: status na base. */
+                    __( 'O CRECI %1$s consta como %2$s na base e não pode ser usado neste cadastro. Confira o número e a UF ou regularize o registro.', 'imovel-parceiro-core' ),
+                    $label,
+                    '' !== $status ? $status : __( 'inativo', 'imovel-parceiro-core' )
+                )
+                : sprintf(
+                    /* translators: 1: CRECI number/UF, 2: status na base. */
+                    __( 'O CRECI %1$s consta como %2$s. Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' ),
+                    $label,
+                    '' !== $status ? $status : __( 'inativo', 'imovel-parceiro-core' )
+                );
+            return $out;
+        }
+
+        if ( self::names_compatible( isset( $candidate['name'] ) ? $candidate['name'] : '', $api_name ) ) {
+            $out['code'] = 'ok';
+            $out['msg']  = __( 'CRECI ativo e nome compatível com a base do CRECI.', 'imovel-parceiro-core' );
+            return $out;
+        }
+
+        $out['code'] = 'name_mismatch';
+        $out['msg']  = __( 'CRECI ativo, mas o nome na base do CRECI é diferente do informado. Você pode continuar o cadastro — a equipe vai conferir os documentos.', 'imovel-parceiro-core' );
+        return $out;
     }
 
     protected function persist_basic( $user_id, $data ) {
@@ -874,6 +1061,410 @@ class Imovel_Parceiro_ImobiSec {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Validação de CRECI no cadastro (wizard de registro)                 */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * IP real do visitante (Cloudflare envia o IP via header).
+     */
+    protected function client_ip() {
+        $candidates = array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR' );
+        foreach ( $candidates as $key ) {
+            if ( empty( $_SERVER[ $key ] ) ) {
+                continue;
+            }
+            $raw = (string) wp_unslash( $_SERVER[ $key ] );
+            foreach ( explode( ',', $raw ) as $part ) {
+                $ip = trim( $part );
+                if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+                    return $ip;
+                }
+            }
+        }
+        return '0.0.0.0';
+    }
+
+    /**
+     * Consulta o CRECI com cache curto para não gastar créditos à toa.
+     *
+     * @return array Resposta no formato de api_request().
+     */
+    protected function lookup_candidate( $candidate, $timeout = 8 ) {
+        $settings  = self::settings();
+        $cache_key = 'ipc_creci_lookup_' . md5(
+            ( ! empty( $settings['mock_mode'] ) ? 'mock|' : 'live|' ) . $candidate['state'] . '|' . $candidate['number'] . '|' . $candidate['type']
+        );
+
+        $cached = get_transient( $cache_key );
+        if ( is_array( $cached ) && isset( $cached['code'] ) ) {
+            return $cached;
+        }
+
+        $res = $this->get_creci( $candidate['state'], $candidate['number'], $candidate['type'], $timeout );
+
+        $ttl = 0;
+        if ( 200 === (int) $res['code'] ) {
+            $ttl = HOUR_IN_SECONDS;
+        } elseif ( 404 === (int) $res['code'] ) {
+            $ttl = 5 * MINUTE_IN_SECONDS;
+        }
+        $ttl = (int) apply_filters( 'imovel_parceiro_creci_lookup_cache_ttl', $ttl, $res, $candidate );
+        if ( $ttl > 0 ) {
+            set_transient( $cache_key, $res, $ttl );
+        }
+
+        return $res;
+    }
+
+    /**
+     * Candidato montado a partir do POST do cadastro.
+     *
+     * @return array|WP_Error
+     */
+    protected function registration_candidate_from_post() {
+        $person = isset( $_POST['person_type'] ) ? sanitize_key( wp_unslash( $_POST['person_type'] ) ) : '';
+        return self::candidate_from_data(
+            array(
+                'number' => isset( $_POST['creci'] ) ? wp_unslash( $_POST['creci'] ) : '',
+                'state'  => isset( $_POST['imovel_creci_uf'] ) ? wp_unslash( $_POST['imovel_creci_uf'] ) : '',
+                'type'   => ( 'cnpj' === $person ) ? 'PJ' : 'PF',
+                'cpf'    => isset( $_POST['person_document'] ) ? wp_unslash( $_POST['person_document'] ) : '',
+                'name'   => isset( $_POST['ipc_full_name'] ) ? wp_unslash( $_POST['ipc_full_name'] ) : '',
+            )
+        );
+    }
+
+    /**
+     * Resultado guardado pelo passo 2 (token) ou pela consulta feita no
+     * próprio servidor durante o registro.
+     *
+     * @return array|null
+     */
+    protected function registration_result_from_request() {
+        if ( null !== $this->registration_verdict ) {
+            return $this->registration_verdict;
+        }
+
+        $token = isset( $_POST['ipc_creci_token'] ) ? sanitize_text_field( wp_unslash( $_POST['ipc_creci_token'] ) ) : '';
+        if ( '' === $token ) {
+            return null;
+        }
+
+        $stored = get_transient( 'ipc_reg_creci_' . $token );
+        if ( ! is_array( $stored ) || empty( $stored['verdict'] ) || empty( $stored['candidate'] ) ) {
+            return null;
+        }
+
+        $this->registration_verdict = $stored;
+        return $stored;
+    }
+
+    /**
+     * Guarda o resultado do passo 2 e devolve o token para o formulário.
+     */
+    protected function store_registration_result( $candidate, $verdict ) {
+        $token = wp_generate_password( 20, false, false );
+        set_transient(
+            'ipc_reg_creci_' . $token,
+            array(
+                'candidate' => $candidate,
+                'verdict'   => $verdict,
+                'ip'        => $this->client_ip(),
+                'at'        => time(),
+            ),
+            30 * MINUTE_IN_SECONDS
+        );
+        return $token;
+    }
+
+    /**
+     * AJAX: valida o CRECI no passo 2 do cadastro.
+     *
+     * Nunca "quebra" o wizard: falhas de infraestrutura voltam como sucesso
+     * com block=false e uma mensagem orientando a conferência manual.
+     */
+    public function ajax_check_creci() {
+        $base = array(
+            'token'   => '',
+            'block'   => false,
+            'code'    => 'skipped',
+            'msg'     => '',
+            'checked' => false,
+        );
+
+        // Nonce expirado (página em cache): não bloqueia, apenas ignora.
+        if ( ! check_ajax_referer( 'ipc_check_creci', 'security', false ) ) {
+            $base['msg'] = __( 'Sua sessão expirou. Recarregue a página para validar o CRECI automaticamente — ou continue e a equipe fará a conferência.', 'imovel-parceiro-core' );
+            wp_send_json_success( $base );
+        }
+
+        $role = isset( $_POST['role'] ) ? sanitize_key( wp_unslash( $_POST['role'] ) ) : '';
+        if ( ! in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true ) ) {
+            wp_send_json_success( $base );
+        }
+
+        $settings = self::settings();
+        if ( empty( $settings['registration_check'] ) || ! self::is_configured() ) {
+            $base['msg'] = __( 'Validação automática do CRECI indisponível no momento. Você pode continuar o cadastro — a equipe fará a conferência manual.', 'imovel-parceiro-core' );
+            wp_send_json_success( $base );
+        }
+
+        // Limite por IP: evita varredura de CRECIs e consumo de créditos.
+        $limit = (int) apply_filters( 'imovel_parceiro_creci_rate_limit', 20 );
+        $rl_key = 'ipc_creci_rl_' . md5( $this->client_ip() );
+        $hits   = (int) get_transient( $rl_key );
+        if ( $limit > 0 && $hits >= $limit ) {
+            $base['code'] = 'rate_limited';
+            $base['msg']  = __( 'Muitas consultas de CRECI em pouco tempo. Tente novamente em alguns minutos ou continue o cadastro para conferência manual.', 'imovel-parceiro-core' );
+            wp_send_json_success( $base );
+        }
+        if ( $limit > 0 ) {
+            set_transient( $rl_key, $hits + 1, HOUR_IN_SECONDS );
+        }
+
+        $candidate = $this->registration_candidate_from_post();
+        if ( is_wp_error( $candidate ) ) {
+            wp_send_json_error(
+                array(
+                    'msg'   => $candidate->get_error_message(),
+                    'step'  => 2,
+                    'field' => ( 'no_uf' === $candidate->get_error_code() ) ? 'imovel_creci_uf' : 'creci',
+                )
+            );
+        }
+
+        $res     = $this->lookup_candidate( $candidate, 8 );
+        $verdict = self::evaluate_creci( $candidate, $res );
+        $token   = $this->store_registration_result( $candidate, $verdict );
+
+        wp_send_json_success(
+            array(
+                'token'   => $token,
+                'block'   => ! empty( $verdict['block'] ),
+                'code'    => $verdict['code'],
+                'msg'     => $verdict['msg'],
+                'checked' => true,
+            )
+        );
+    }
+
+    /**
+     * Guarda de servidor no registro: bloqueia apenas erro definitivo.
+     */
+    public function validate_registration_creci() {
+        $role = isset( $_POST['role'] ) ? sanitize_key( wp_unslash( $_POST['role'] ) ) : '';
+        if ( ! in_array( $role, array( 'houzez_agent', 'houzez_agency' ), true ) ) {
+            return;
+        }
+
+        $settings = self::settings();
+        if ( empty( $settings['registration_check'] ) || ! self::is_configured() ) {
+            return;
+        }
+        // Bloqueio desligado pelo admin: nunca barra o cadastro.
+        if ( empty( $settings['registration_block'] ) ) {
+            return;
+        }
+
+        $stored = $this->registration_result_from_request();
+
+        // Contorno: se o JS não rodou (token ausente), consulta no servidor
+        // quando o bloqueio está ligado — impede burlar removendo o token.
+        if ( null === $stored ) {
+            $candidate = $this->registration_candidate_from_post();
+            if ( is_wp_error( $candidate ) ) {
+                return;
+            }
+            $res     = $this->lookup_candidate( $candidate, 6 );
+            $verdict = self::evaluate_creci( $candidate, $res );
+            $stored  = array(
+                'candidate' => $candidate,
+                'verdict'   => $verdict,
+                'at'        => time(),
+                'source'    => 'server',
+            );
+            $this->registration_verdict = $stored;
+        }
+
+        if ( null === $stored ) {
+            return;
+        }
+
+        $verdict = isset( $stored['verdict'] ) ? (array) $stored['verdict'] : array();
+        if ( empty( $verdict['block'] ) ) {
+            return;
+        }
+
+        // Token só vale para o mesmo CRECI/UF/tipo enviados agora.
+        $posted = $this->registration_candidate_from_post();
+        if ( ! is_wp_error( $posted ) ) {
+            $saved = (array) $stored['candidate'];
+            if ( $posted['number'] !== $saved['number'] || $posted['state'] !== $saved['state'] || $posted['type'] !== $saved['type'] ) {
+                return;
+            }
+        }
+
+        $codes = apply_filters( 'imovel_parceiro_registration_creci_block_codes', array( 'not_found', 'inactive' ), $verdict, $stored );
+        if ( ! in_array( (string) $verdict['code'], array_map( 'strval', (array) $codes ), true ) ) {
+            return;
+        }
+
+        $msg = ! empty( $verdict['msg'] ) ? $verdict['msg'] : __( 'Não foi possível concluir o cadastro com o CRECI informado. Confira o número e a UF.', 'imovel-parceiro-core' );
+
+        if ( ! headers_sent() ) {
+            header( 'Content-Type: application/json; charset=utf-8' );
+        }
+        echo wp_json_encode(
+            array(
+                'success' => false,
+                'msg'     => $msg,
+                'data'    => array( 'step' => 2, 'field' => 'creci' ),
+            )
+        );
+        wp_die();
+    }
+
+    /**
+     * Depois de criar a conta: registra o pedido de verificação e aplica o
+     * resultado da consulta (auto-aprovação, pendência ou nota para o admin).
+     */
+    public function apply_registration_result( $user_id ) {
+        $user_id = absint( $user_id );
+        if ( ! $user_id || ! self::is_agent_or_agency( $user_id ) ) {
+            return;
+        }
+
+        $uf = isset( $_POST['imovel_creci_uf'] ) ? self::normalize_uf( wp_unslash( $_POST['imovel_creci_uf'] ) ) : '';
+        if ( '' !== $uf ) {
+            update_user_meta( $user_id, self::UF_META, $uf );
+        }
+
+        $stored = $this->registration_result_from_request();
+        if ( null === $stored ) {
+            // Cadastro sem validação (recurso desligado): mantém o fluxo antigo.
+            return;
+        }
+
+        $candidate = isset( $stored['candidate'] ) && is_array( $stored['candidate'] ) ? $stored['candidate'] : array();
+        $verdict   = isset( $stored['verdict'] ) && is_array( $stored['verdict'] ) ? $stored['verdict'] : array();
+
+        if ( '' === $uf && ! empty( $candidate['state'] ) ) {
+            $uf = $candidate['state'];
+            update_user_meta( $user_id, self::UF_META, $uf );
+        }
+
+        $name = isset( $_POST['ipc_full_name'] ) ? sanitize_text_field( wp_unslash( $_POST['ipc_full_name'] ) ) : '';
+        if ( '' === $name ) {
+            $name = (string) get_user_meta( $user_id, 'imovel_parceiro_full_name', true );
+        }
+        if ( '' === $name && ! empty( $candidate['name'] ) ) {
+            $name = (string) $candidate['name'];
+        }
+
+        // Semeia o pedido de verificação para aparecer em Gestão → Verificação.
+        $vdata = get_user_meta( $user_id, 'houzez_verification_data', true );
+        if ( ! is_array( $vdata ) ) {
+            $vdata = array();
+        }
+        $vdata['status'] = 'pending';
+        if ( '' !== $name ) {
+            $vdata['full_name'] = $name;
+        }
+        if ( empty( $vdata['submitted_on'] ) ) {
+            $vdata['submitted_on'] = current_time( 'mysql' );
+        }
+        $vdata['document_type'] = __( 'CRECI (cadastro)', 'imovel-parceiro-core' );
+        $vdata['creci']         = preg_replace( '/\D/', '', (string) get_user_meta( $user_id, 'fave_author_license', true ) );
+        if ( '' !== $uf ) {
+            $vdata['creci_uf'] = $uf;
+        }
+        $vdata['source'] = 'cadastro';
+        update_user_meta( $user_id, 'houzez_verification_data', $vdata );
+        if ( '' === (string) get_user_meta( $user_id, 'houzez_verification_status', true ) ) {
+            update_user_meta( $user_id, 'houzez_verification_status', 'pending' );
+        }
+
+        $code = isset( $verdict['code'] ) ? (string) $verdict['code'] : 'unexpected';
+        if ( ! empty( $verdict['api_status'] ) ) {
+            $this->persist_basic(
+                $user_id,
+                array(
+                    'status' => $verdict['api_status'],
+                    'name'   => isset( $verdict['api_name'] ) ? $verdict['api_name'] : '',
+                )
+            );
+        }
+
+        $settings = self::settings();
+
+        switch ( $code ) {
+            case 'ok':
+                if ( ! empty( $settings['auto_approve'] ) ) {
+                    $approved = $this->approve_user( $user_id, __( 'Aprovado automaticamente no cadastro: CRECI ativo e nome compatível (ImobiSec).', 'imovel-parceiro-core' ) );
+                    if ( $approved ) {
+                        $this->set_note( $user_id, __( 'Aprovado automaticamente no cadastro pela ImobiSec.', 'imovel-parceiro-core' ) );
+                    } else {
+                        $this->set_note( $user_id, __( 'CRECI ativo e nome compatível — aprove manualmente em Gestão → Verificação.', 'imovel-parceiro-core' ) );
+                    }
+                } else {
+                    $this->set_note( $user_id, __( 'CRECI ativo e nome compatível — aguardando aprovação manual (auto-aprovação desligada).', 'imovel-parceiro-core' ) );
+                }
+                break;
+
+            case 'name_mismatch':
+                $this->set_note( $user_id, __( 'CRECI ativo, mas o nome diverge da base — confira os documentos e decida manualmente.', 'imovel-parceiro-core' ) );
+                $this->notify_admin_review(
+                    $user_id,
+                    __( 'Verificação: nome diverge do CRECI no cadastro', 'imovel-parceiro-core' ),
+                    array(
+                        sprintf( __( 'CRECI %s/%s ativo — cadastro: %s | base: %s.', 'imovel-parceiro-core' ), $candidate['number'], $candidate['state'], $name, isset( $verdict['api_name'] ) ? $verdict['api_name'] : '' ),
+                        __( 'Solicitação criada automaticamente no cadastro e aguardando decisão manual.', 'imovel-parceiro-core' ),
+                    )
+                );
+                break;
+
+            case 'not_found':
+                $this->set_note( $user_id, __( 'CRECI não encontrado na base durante o cadastro — confira o número e a UF.', 'imovel-parceiro-core' ) );
+                $this->notify_admin_review(
+                    $user_id,
+                    __( 'Verificação: CRECI não encontrado no cadastro', 'imovel-parceiro-core' ),
+                    array(
+                        sprintf( __( 'CRECI %s/%s retornou 404 na ImobiSec.', 'imovel-parceiro-core' ), $candidate['number'], $candidate['state'] ),
+                        __( 'O cadastro seguiu porque o bloqueio estava desligado ou o erro não era definitivo.', 'imovel-parceiro-core' ),
+                    )
+                );
+                break;
+
+            case 'inactive':
+                $this->set_note(
+                    $user_id,
+                    sprintf(
+                        __( 'CRECI com status %s na base durante o cadastro — confira antes de aprovar.', 'imovel-parceiro-core' ),
+                        ! empty( $verdict['api_status'] ) ? $verdict['api_status'] : __( 'inativo', 'imovel-parceiro-core' )
+                    )
+                );
+                $this->notify_admin_review(
+                    $user_id,
+                    __( 'Verificação: CRECI não está ativo (cadastro)', 'imovel-parceiro-core' ),
+                    array(
+                        sprintf( __( 'CRECI %s/%s: status %s na base.', 'imovel-parceiro-core' ), $candidate['number'], $candidate['state'], ! empty( $verdict['api_status'] ) ? $verdict['api_status'] : '-' ),
+                        __( 'A solicitação permanece pendente para decisão manual.', 'imovel-parceiro-core' ),
+                    )
+                );
+                break;
+
+            default:
+                $this->set_note( $user_id, __( 'Validação automática do CRECI indisponível no cadastro — conferência manual necessária.', 'imovel-parceiro-core' ) );
+                break;
+        }
+
+        /**
+         * Permite integrar outros fluxos (ex.: CRM) após a checagem no cadastro.
+         */
+        do_action( 'imovel_parceiro_registration_creci_checked', $user_id, $verdict, $stored );
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Leitura para a Gestão                                               */
     /* ------------------------------------------------------------------ */
 
@@ -921,6 +1512,8 @@ class Imovel_Parceiro_ImobiSec {
                 'reval_unit'        => isset( $_POST['imovel_imobisec_reval_u'] ) ? sanitize_key( wp_unslash( $_POST['imovel_imobisec_reval_u'] ) ) : 'years',
                 'min_credits'       => isset( $_POST['imovel_imobisec_min'] ) ? absint( $_POST['imovel_imobisec_min'] ) : 0,
                 'mock_mode'         => isset( $_POST['imovel_imobisec_mock'] ) ? 1 : 0,
+                'registration_check' => isset( $_POST['imovel_imobisec_reg_check'] ) ? absint( $_POST['imovel_imobisec_reg_check'] ) : 0,
+                'registration_block' => isset( $_POST['imovel_imobisec_reg_block'] ) ? absint( $_POST['imovel_imobisec_reg_block'] ) : 0,
                 'regenerate_secret' => isset( $_POST['imovel_imobisec_regen'] ) ? 1 : 0,
             );
             // Campo máscara: vazio mantém a chave atual.
@@ -940,7 +1533,7 @@ class Imovel_Parceiro_ImobiSec {
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                 <div>
                     <h5 style="margin:0 0 4px;"><?php esc_html_e( 'CRECI/Cofeci (ImobiSec)', 'imovel-parceiro-core' ); ?></h5>
-                    <p style="margin:0; color:#6b7280; font-size:14px;"><?php esc_html_e( 'Validação automática de CRECI no envio da verificação, com revalidação periódica.', 'imovel-parceiro-core' ); ?></p>
+                    <p style="margin:0; color:#6b7280; font-size:14px;"><?php esc_html_e( 'Validação automática de CRECI no cadastro e no envio da verificação, com revalidação periódica.', 'imovel-parceiro-core' ); ?></p>
                 </div>
                 <?php if ( self::is_configured() ) : ?>
                     <span class="badge bg-success px-3 py-2"><?php esc_html_e( 'Chave configurada', 'imovel-parceiro-core' ); ?></span>
@@ -994,6 +1587,16 @@ class Imovel_Parceiro_ImobiSec {
                     </div>
                 </div>
                 <div style="display:flex; gap:18px; flex-wrap:wrap;">
+                    <input type="hidden" name="imovel_imobisec_reg_check" value="0" />
+                    <label style="display:flex; gap:8px; align-items:center; font-weight:600;">
+                        <input type="checkbox" name="imovel_imobisec_reg_check" value="1" <?php checked( $s['registration_check'], 1 ); ?> />
+                        <?php esc_html_e( 'Validar CRECI no cadastro (passo 2)', 'imovel-parceiro-core' ); ?>
+                    </label>
+                    <input type="hidden" name="imovel_imobisec_reg_block" value="0" />
+                    <label style="display:flex; gap:8px; align-items:center; font-weight:600;">
+                        <input type="checkbox" name="imovel_imobisec_reg_block" value="1" <?php checked( $s['registration_block'], 1 ); ?> />
+                        <?php esc_html_e( 'Bloquear cadastro com CRECI inexistente/inativo', 'imovel-parceiro-core' ); ?>
+                    </label>
                     <label style="display:flex; gap:8px; align-items:center; font-weight:600;">
                         <input type="checkbox" name="imovel_imobisec_auto" value="1" <?php checked( $s['auto_approve'], 1 ); ?> />
                         <?php esc_html_e( 'Auto-aprovar quando CRECI ativo e nome compatível', 'imovel-parceiro-core' ); ?>
